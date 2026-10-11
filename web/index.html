@@ -853,7 +853,7 @@ var MAPS_API_KEY   = 'YOUR_MAPS_API_KEY';
       '=== BUSINESS ===',
       'Name: ' + BIZ_NAME,
       categoryLine,
-      'Location: ' + (AREA || 'local area'),
+      'Location: ' + (AREA || 'local area') + ' — use only the city or area name, never a postal/PIN code',
       kwText ? 'Keywords to include: ' + kwText : '',
       placeCtx ? '\n=== GOOGLE PLACES DATA (use these real attributes naturally) ===\n' + placeCtx : '',
       '',
@@ -892,8 +892,9 @@ var MAPS_API_KEY   = 'YOUR_MAPS_API_KEY';
 
   async function fetchGeminiReview(lang, placeDetails) {
     if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY') {
-      throw new Error('No API key');
+      throw new Error('GEMINI_API_KEY not injected — placeholder still present in HTML');
     }
+    console.log('[Gemini] model:', GEMINI_MODEL, '| key prefix:', GEMINI_API_KEY.slice(0, 8) + '…');
     var url = 'https://generativelanguage.googleapis.com/v1beta/models/'
               + GEMINI_MODEL + ':generateContent?key=' + GEMINI_API_KEY;
     var res = await fetch(url, {
@@ -911,30 +912,23 @@ var MAPS_API_KEY   = 'YOUR_MAPS_API_KEY';
         ],
       }),
     });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    if (!res.ok) {
+      var errBody = '';
+      try { errBody = JSON.stringify(await res.json()); } catch(e) {}
+      console.error('[Gemini] HTTP', res.status, errBody);
+      throw new Error('HTTP ' + res.status + ' — ' + errBody);
+    }
     var data = await res.json();
+    console.log('[Gemini] raw response:', JSON.stringify(data).slice(0, 500));
     var text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error('Empty response');
+    if (!text) {
+      var reason = data?.candidates?.[0]?.finishReason || data?.promptFeedback?.blockReason || 'unknown';
+      console.error('[Gemini] empty text, reason:', reason, JSON.stringify(data));
+      throw new Error('Empty response — reason: ' + reason);
+    }
     return text.trim();
   }
 
-  // ── Fallback template pools ──────────────────
-  // Used when Gemini API key is missing or call fails
-  var FALLBACK = {
-    en: [
-      'Had a genuinely wonderful experience at ' + BIZ_NAME + (AREA ? ' in ' + AREA : '') + '. The team was professional, warm, and attentive throughout. The quality of everything was outstanding and well above expectations. Will be coming back without hesitation!',
-      BIZ_NAME + (AREA ? ' in ' + AREA : '') + ' delivered on every front — great quality, friendly staff, and a welcoming atmosphere. Exactly the kind of place you recommend to everyone you know. Already planning my next visit.',
-      'Visited ' + BIZ_NAME + ' and left thoroughly impressed. The attention to detail and level of care were exceptional from start to finish. A fantastic experience — five well-deserved stars.',
-    ],
-    hi: [
-      BIZ_NAME + (AREA ? ' (' + AREA + ')' : '') + ' में मेरा अनुभव बेहद शानदार रहा! यहाँ की सेवा और गुणवत्ता दोनों लाजवाब हैं। स्टाफ बेहद विनम्र और पेशेवर था। मैं इसे अपने सभी दोस्तों और परिवार को ज़रूर सुझाऊंगा!',
-      BIZ_NAME + ' वाकई एक असाधारण जगह है। यहाँ की सेवा, माहौल और गुणवत्ता सब कुछ अपेक्षाओं से कहीं बेहतर था। शानदार अनुभव — जल्द ही वापस आऊंगा!',
-    ],
-    gu: [
-      BIZ_NAME + (AREA ? ' (' + AREA + ')' : '') + ' ખાતે મારો અનુભવ અત્યંત ઉત્તમ રહ્યો! અહીંની સેવા અને ગુણવત્તા બંને અજોડ છે. સ્ટાફ ખૂબ જ નમ્ર અને વ્યાવસાયિક હતા. હું મારા તમામ મિત્રો અને પરિવારને ભલામણ કરીશ!',
-      BIZ_NAME + ' ખરેખર અદ્ભુત છે. સેવા, ગુણવત્તા અને વ્યવહાર — ત્રણેય ઉત્તમ. ચોક્કસ ફરીથી આવીશ!',
-    ],
-  };
 
   // ── UI helpers ───────────────────────────────
   function setLoading(on) {
@@ -968,8 +962,10 @@ var MAPS_API_KEY   = 'YOUR_MAPS_API_KEY';
     try {
       text = await fetchGeminiReview(lang, cachedPlace);
     } catch (e) {
-      var pool = FALLBACK[lang] || FALLBACK.en;
-      text = pick(pool);
+      console.error('[ReviewReach] AI generation failed:', e.message);
+      text = '⚠️ Could not generate review: ' + e.message + '
+
+Open browser console (F12) for details.';
     }
     setLoading(false);
     document.getElementById('reviewText').value = text;
