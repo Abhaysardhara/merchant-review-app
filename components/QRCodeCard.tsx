@@ -1,7 +1,9 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Share, Alert } from 'react-native';
+import React, { useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 interface QRCodeCardProps {
   /** The URL encoded in the QR code */
@@ -14,18 +16,36 @@ interface QRCodeCardProps {
 }
 
 export function QRCodeCard({ qrUrl, label, address, size = 200 }: QRCodeCardProps) {
+  const qrRef = useRef<{ toDataURL: (cb: (data: string) => void) => void } | null>(null);
+
   const handleShare = async () => {
-    try {
-      await Share.share({
-        message: label
-          ? `Scan to leave a review for ${label}:\n${qrUrl}`
-          : `Scan to leave a review:\n${qrUrl}`,
-        title: label ? `QR Code — ${label}` : 'Review QR Code',
-        url: qrUrl,
-      });
-    } catch {
-      Alert.alert('Share failed', 'Could not share the QR code right now.');
+    if (!qrRef.current) {
+      Alert.alert('Not ready', 'QR code is still rendering, please try again.');
+      return;
     }
+    qrRef.current.toDataURL(async (base64: string) => {
+      try {
+        const fileName = label
+          ? `qr-${label.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.png`
+          : 'qr-review.png';
+        const fileUri = FileSystem.cacheDirectory + fileName;
+        await FileSystem.writeAsStringAsync(fileUri, base64, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        const canShare = await Sharing.isAvailableAsync();
+        if (!canShare) {
+          Alert.alert('Sharing unavailable', 'Your device does not support file sharing.');
+          return;
+        }
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'image/png',
+          dialogTitle: label ? `Share QR — ${label}` : 'Share QR Code',
+          UTI: 'public.png',
+        });
+      } catch {
+        Alert.alert('Share failed', 'Could not share the QR code image.');
+      }
+    });
   };
 
   return (
@@ -37,6 +57,7 @@ export function QRCodeCard({ qrUrl, label, address, size = 200 }: QRCodeCardProp
           color="#1E1B4B"
           backgroundColor="#FFFFFF"
           quietZone={10}
+          getRef={(ref) => { qrRef.current = ref as any; }}
         />
       </View>
 
