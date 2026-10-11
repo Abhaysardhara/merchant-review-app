@@ -400,6 +400,7 @@
 // ─────────────────────────────────────────────
 var GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY';
 var GEMINI_MODEL   = 'gemini-3.5-flash-lite';
+var MAPS_API_KEY   = 'YOUR_MAPS_API_KEY';
 
 // ─────────────────────────────────────────────
 //  Parse URL params
@@ -487,8 +488,8 @@ var GEMINI_MODEL   = 'gemini-3.5-flash-lite';
   };
 
   // ── Category type classifier ─────────────────
-  // Groups categories into 6 types so context-sensitive prompt lines
-  // don't accidentally use food/restaurant framing for a clinic or bank.
+  // Primary: merchant-set category name
+  // Fallback: Google Places primaryType / types[] for unknown categories
   var CAT_TYPES = {
     food:        ['Restaurant','Cafe','Bar','Bakery','Fast Food','Sweet Shop'],
     healthcare:  ['Hospital','Clinic','Pharmacy','Dentist','Veterinary'],
@@ -500,12 +501,122 @@ var GEMINI_MODEL   = 'gemini-3.5-flash-lite';
                   'Photography','Events','Laundry'],
   };
 
-  function getCatType(cat) {
-    var found = 'service';
+  // Google Places type keywords → our 6 category groups
+  var PLACE_TYPE_MAP = {
+    food:        ['restaurant','cafe','bar','bakery','food','meal','coffee','tea','dessert','pizza','burger','sushi','diner','pub','brewery','winery','distillery'],
+    healthcare:  ['hospital','doctor','clinic','pharmacy','dentist','physiotherapist','veterinary','optician','chiropractor','psychologist','medical','health','drugstore'],
+    wellness:    ['beauty_salon','hair_care','spa','gym','fitness','yoga','nail_salon','massage','barber','tanning'],
+    hospitality: ['hotel','lodging','resort','motel','hostel','guest_house','inn','bed_and_breakfast','vacation_rental'],
+    retail:      ['store','shop','supermarket','grocery','clothing','electronics','jewelry','furniture','hardware','book','pet_store','sporting_goods','market'],
+  };
+
+  function getCatType(cat, placeTypes) {
+    // 1. Try merchant-set category first
+    var found = null;
     Object.keys(CAT_TYPES).forEach(function (type) {
       if (CAT_TYPES[type].indexOf(cat) !== -1) found = type;
     });
-    return found;
+    if (found) return found;
+
+    // 2. Fall back to Google Places types[] for unrecognised categories
+    if (placeTypes && placeTypes.length) {
+      var allTypes = placeTypes.join(' ').toLowerCase();
+      var keys = Object.keys(PLACE_TYPE_MAP);
+      for (var i = 0; i < keys.length; i++) {
+        var group = keys[i];
+        var keywords = PLACE_TYPE_MAP[group];
+        if (keywords.some(function (kw) { return allTypes.indexOf(kw) !== -1; })) {
+          return group;
+        }
+      }
+    }
+    return 'service'; // final fallback
+  }
+
+  // ── Google Places API — fetch rich place attributes ──
+  var PLACE_FIELDS = [
+    'primaryType','types','priceLevel','editorialSummary',
+    'delivery','dineIn','reservable','outdoorSeating','liveMusic',
+    'servesBeer','servesWine','servesCoffee','servesBreakfast',
+    'servesLunch','servesDinner','servesVegetarianFood',
+    'goodForChildren','goodForGroups',
+    'parkingOptions','paymentOptions','accessibilityOptions',
+  ].join(',');
+
+  async function fetchPlaceDetails(placeId) {
+    if (!placeId || !MAPS_API_KEY || MAPS_API_KEY === 'YOUR_MAPS_API_KEY') return null;
+    try {
+      var url = 'https://places.googleapis.com/v1/places/' + encodeURIComponent(placeId)
+                + '?fields=' + PLACE_FIELDS + '&key=' + MAPS_API_KEY;
+      var res = await fetch(url);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (e) { return null; }
+  }
+
+  // Convert Places API response → prompt-ready context string
+  function buildPlaceContext(d) {
+    if (!d) return null;
+    var lines = [];
+
+    if (d.primaryType) {
+      lines.push('Google business type: ' + d.primaryType.replace(/_/g, ' '));
+    }
+
+    var priceMap = {
+      'PRICE_LEVEL_FREE':          'free / no charge',
+      'PRICE_LEVEL_INEXPENSIVE':   'budget-friendly',
+      'PRICE_LEVEL_MODERATE':      'moderately priced',
+      'PRICE_LEVEL_EXPENSIVE':     'upscale / expensive',
+      'PRICE_LEVEL_VERY_EXPENSIVE':'premium / very expensive',
+    };
+    if (d.priceLevel && priceMap[d.priceLevel]) {
+      lines.push('Price level: ' + priceMap[d.priceLevel]);
+    }
+
+    if (d.editorialSummary && d.editorialSummary.text) {
+      lines.push('Google description: ' + d.editorialSummary.text);
+    }
+
+    var svcMap = {
+      delivery:             'offers delivery',
+      dineIn:               'dine-in available',
+      reservable:           'accepts reservations',
+      outdoorSeating:       'has outdoor seating',
+      liveMusic:            'has live music',
+      servesBeer:           'serves beer',
+      servesWine:           'serves wine',
+      servesCoffee:         'serves coffee',
+      servesBreakfast:      'serves breakfast',
+      servesLunch:          'serves lunch',
+      servesDinner:         'serves dinner',
+      servesVegetarianFood: 'vegetarian options available',
+      goodForChildren:      'family-friendly / good for kids',
+      goodForGroups:        'good for groups',
+    };
+    var attrs = Object.keys(svcMap).filter(function (k) { return d[k] === true; })
+                      .map(function (k) { return svcMap[k]; });
+    if (attrs.length) lines.push('Confirmed services & attributes: ' + attrs.join(', '));
+
+    var parking = [];
+    if (d.parkingOptions) {
+      if (d.parkingOptions.valetParking)     parking.push('valet parking');
+      if (d.parkingOptions.freeParkingLot)   parking.push('free parking lot');
+      if (d.parkingOptions.freeStreetParking)parking.push('free street parking');
+      if (d.parkingOptions.paidParkingLot)   parking.push('paid parking');
+    }
+    if (parking.length) lines.push('Parking: ' + parking.join(', '));
+
+    var pay = [];
+    if (d.paymentOptions) {
+      if (d.paymentOptions.acceptsNfc)         pay.push('UPI/NFC');
+      if (d.paymentOptions.acceptsCreditCards) pay.push('credit cards');
+      if (d.paymentOptions.acceptsDebitCards)  pay.push('debit cards');
+      if (d.paymentOptions.acceptsCashOnly)    pay.push('cash only');
+    }
+    if (pay.length) lines.push('Payment accepted: ' + pay.join(', '));
+
+    return lines.length ? lines.join('\n') : null;
   }
 
   // AEO factual sentence — what question a real searcher asks per category type
@@ -538,33 +649,47 @@ var GEMINI_MODEL   = 'gemini-3.5-flash-lite';
     service:     'a specific tool or step used, what the professional said when explaining the issue, how the paperwork or handover worked',
   };
 
-  function buildPrompt(lang) {
-    var langLabel = { en: 'English', hi: 'Hindi', gu: 'Gujarati' }[lang] || 'English';
-    var kwText    = KEYWORDS.length ? KEYWORDS.join(', ') : '';
-    var catType   = getCatType(CATEGORY);
+  function buildPrompt(lang, placeDetails) {
+    var langLabel    = { en: 'English', hi: 'Hindi', gu: 'Gujarati' }[lang] || 'English';
+    var kwText       = KEYWORDS.length ? KEYWORDS.join(', ') : '';
+    var placeCtx     = buildPlaceContext(placeDetails);
+    var placeTypes   = placeDetails && placeDetails.types ? placeDetails.types : [];
+    var primaryType  = placeDetails && placeDetails.primaryType
+                       ? placeDetails.primaryType.replace(/_/g, ' ') : '';
+    var catType      = getCatType(CATEGORY, placeTypes);
+
+    // If merchant category isn't in our list, tell the model what it is by name
+    // and let it infer — Gemini understands "Optical Store", "Interior Designer", etc.
+    var knownCat     = Object.values(CAT_TYPES).some(function (arr) { return arr.indexOf(CATEGORY) !== -1; });
+    var categoryLine = knownCat
+      ? 'Type: ' + CATEGORY
+      : 'Type: ' + CATEGORY + (primaryType ? ' (Google identifies this as: ' + primaryType + ')' : '') +
+        ' — infer what a real visitor of this business type would experience';
 
     var toneDesc = TONES
       .map(function (t) { return TONE_STYLES[t.trim()] || t.toLowerCase(); })
       .join('; and ');
 
-    var catHint     = CAT_HINTS[CATEGORY]       || 'one specific operational detail only a real visitor would know';
-    var aeoExample  = AEO_EXAMPLES[catType]     || AEO_EXAMPLES.service;
-    var geoExample  = GEO_EXAMPLES[catType]     || GEO_EXAMPLES.service;
-    var visitorHint = VISITOR_DETAIL[catType]   || VISITOR_DETAIL.service;
+    var catHint     = CAT_HINTS[CATEGORY]     || (primaryType
+                      ? 'Based on the Google type "' + primaryType + '", include one specific detail only a real visitor of this business would notice'
+                      : 'one specific operational detail only a real visitor would know');
+    var aeoExample  = AEO_EXAMPLES[catType]   || AEO_EXAMPLES.service;
+    var geoExample  = GEO_EXAMPLES[catType]   || GEO_EXAMPLES.service;
+    var visitorHint = VISITOR_DETAIL[catType] || VISITOR_DETAIL.service;
 
     var wordGuide = TONES.includes('Concise') ? '40-60 words'
                   : TONES.includes('Detailed') ? '100-130 words'
                   : '65-100 words';
 
     var seoBlock = [
-      'SEO — mention "' + BIZ_NAME + '" + the business type (' + CATEGORY + ') + "' + (AREA || 'the area') + '" naturally together in the review — this is the entity signal Google uses for local pack ranking',
+      'SEO — mention "' + BIZ_NAME + '" + the business type + "' + (AREA || 'the area') + '" naturally together — this is the entity signal Google uses for local pack ranking',
       kwText
         ? 'SEO — use these exact terms naturally, do not paraphrase: ' + kwText + ' — these are the search queries people type to find this business'
         : '',
-      'AEO — write one declarative factual sentence that directly answers a question a real searcher might ask: ' + aeoExample,
+      'AEO — write one declarative factual sentence answering a question a real searcher would ask: ' + aeoExample,
       'AEO — use causal language at least once ("because...", "so...", "which means...") — this is what Google extracts into featured snippets and People Also Ask',
-      'GEO — include one concrete specific claim with a detail attached, like ' + geoExample + ' — AI overviews cite unique verifiable claims over generic praise',
-      'GEO — include a gentle comparative phrase ("one of the better ' + CATEGORY.toLowerCase() + ' options' + (AREA ? ' in ' + AREA : '') + '", "worth it for the price", "better than I expected for a ' + CATEGORY.toLowerCase() + '") — quality differentiation is how AI engines rank businesses against each other',
+      'GEO — include one concrete specific claim like ' + geoExample + ' — AI overviews cite unique verifiable claims over generic praise',
+      'GEO — include a gentle comparative phrase ("one of the better options' + (AREA ? ' in ' + AREA : '') + '", "worth it for the price", "better than I expected") — quality differentiation is how AI engines rank businesses',
     ].filter(Boolean);
 
     return [
@@ -573,9 +698,10 @@ var GEMINI_MODEL   = 'gemini-3.5-flash-lite';
       '',
       '=== BUSINESS ===',
       'Name: ' + BIZ_NAME,
-      'Type: ' + CATEGORY,
+      categoryLine,
       'Location: ' + (AREA || 'local area'),
       kwText ? 'Keywords to include: ' + kwText : '',
+      placeCtx ? '\n=== GOOGLE PLACES DATA (use these real attributes naturally) ===\n' + placeCtx : '',
       '',
       '=== WRITING STYLE ===',
       toneDesc,
@@ -590,7 +716,8 @@ var GEMINI_MODEL   = 'gemini-3.5-flash-lite';
       '- First person, past tense, lived experience',
       '- Do NOT open with the word "I" — vary the opening every time',
       '- Use natural contractions (it\'s, wasn\'t, I\'ve, couldn\'t, they\'re)',
-      '- Include one small detail only a real visitor of this type of business would notice: ' + visitorHint,
+      '- One small detail only a real visitor notices: ' + visitorHint,
+      '- If Google Places data is provided, weave 1-2 attributes naturally into the review (e.g. mention outdoor seating, valet parking, or vegetarian options if relevant) — but do NOT list them robotically',
       '- BANNED: "exceeded my expectations" | "highly recommend" | "must-visit" | "without hesitation" | "I must say" | "truly exceptional" | "delightful" | "I cannot recommend enough" | "five stars" | "top-notch" | "gem" | "hidden gem" | "world-class" | "amazing experience"',
       '- No emojis, no hashtags, no star symbols (★ ⭐)',
       '',
@@ -609,7 +736,7 @@ var GEMINI_MODEL   = 'gemini-3.5-flash-lite';
     'You never sound like a press release, a marketing copywriter, or an AI assistant.',
   ].join(' ');
 
-  async function fetchGeminiReview(lang) {
+  async function fetchGeminiReview(lang, placeDetails) {
     if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY') {
       throw new Error('No API key');
     }
@@ -620,7 +747,7 @@ var GEMINI_MODEL   = 'gemini-3.5-flash-lite';
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-        contents: [{ role: 'user', parts: [{ text: buildPrompt(lang) }] }],
+        contents: [{ role: 'user', parts: [{ text: buildPrompt(lang, placeDetails) }] }],
         generationConfig: { temperature: 1.1, maxOutputTokens: 320, topP: 0.95 },
         safetySettings: [
           { category: 'HARM_CATEGORY_HARASSMENT',        threshold: 'BLOCK_NONE' },
@@ -672,15 +799,21 @@ var GEMINI_MODEL   = 'gemini-3.5-flash-lite';
   }
 
   // ── Generate & display ───────────────────────
-  var currentLang = 'en';
+  var currentLang  = 'en';
+  var cachedPlace  = undefined; // undefined = not yet fetched; null = fetched but failed
 
   async function generateAndShow(lang) {
     setLoading(true);
+
+    // Fetch place details once; cache result for language switches / regenerate
+    if (cachedPlace === undefined) {
+      cachedPlace = await fetchPlaceDetails(PLACE_ID); // null if fails
+    }
+
     var text;
     try {
-      text = await fetchGeminiReview(lang);
+      text = await fetchGeminiReview(lang, cachedPlace);
     } catch (e) {
-      // Silently fall back to templates
       var pool = FALLBACK[lang] || FALLBACK.en;
       text = pick(pool);
     }
