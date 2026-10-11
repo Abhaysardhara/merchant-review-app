@@ -486,32 +486,85 @@ var GEMINI_MODEL   = 'gemini-3.5-flash-lite';
     'Laundry':     'turnaround time + condition clothes came back in + pricing relative to expectation',
   };
 
+  // ── Category type classifier ─────────────────
+  // Groups categories into 6 types so context-sensitive prompt lines
+  // don't accidentally use food/restaurant framing for a clinic or bank.
+  var CAT_TYPES = {
+    food:        ['Restaurant','Cafe','Bar','Bakery','Fast Food','Sweet Shop'],
+    healthcare:  ['Hospital','Clinic','Pharmacy','Dentist','Veterinary'],
+    wellness:    ['Salon','Spa','Gym','Yoga','Fitness'],
+    hospitality: ['Hotel','Resort','Hostel'],
+    retail:      ['Retail','Clothing','Jewelry','Electronics','Furniture',
+                  'Grocery','Supermarket','Hardware','Books','Sports','Pet Shop'],
+    service:     ['Automotive','Real Estate','Bank','School','Travel',
+                  'Photography','Events','Laundry'],
+  };
+
+  function getCatType(cat) {
+    var found = 'service';
+    Object.keys(CAT_TYPES).forEach(function (type) {
+      if (CAT_TYPES[type].indexOf(cat) !== -1) found = type;
+    });
+    return found;
+  }
+
+  // AEO factual sentence — what question a real searcher asks per category type
+  var AEO_EXAMPLES = {
+    food:        'wait time, portion size, price-to-value (e.g. "generous portions for the price"), or a practical tip like peak hours or parking',
+    healthcare:  'wait time, consultation duration, whether a specific test or medicine was available, or how clearly the diagnosis was explained',
+    wellness:    'how long the result lasted (e.g. "the treatment lasted about 6 weeks"), appointment availability, or whether walk-ins are accepted',
+    hospitality: 'check-in speed, a specific room or facility detail, breakfast timing, or a pricing note like "reasonably priced for the location"',
+    retail:      'whether a specific item was in stock, price compared to expectation, ease of return or exchange, or delivery timeline',
+    service:     'turnaround time, whether the outcome matched what was promised, pricing transparency, or a before-vs-after observation',
+  };
+
+  // GEO specific claim — what a concrete citable claim looks like per category type
+  var GEO_EXAMPLES = {
+    food:        '"the [dish] was [adjective] because [reason]" — e.g. "the dal makhani was rich because they slow-cook it overnight"',
+    healthcare:  '"the [doctor/staff role] [did X] which meant [outcome]" — e.g. "the physician ran a blood panel on the spot, so I had a diagnosis the same afternoon"',
+    wellness:    '"the [treatment] [result + duration]" — e.g. "the keratin left my hair smooth and manageable for nearly three months"',
+    hospitality: '"the [specific room/facility detail] [observation]" — e.g. "the corner room had a clear city view and zero street noise even on a Saturday night"',
+    retail:      '"the [staff/product] [specific claim]" — e.g. "the technician diagnosed the exact compatibility issue without needing to look it up"',
+    service:     '"[what they did] [measurable outcome]" — e.g. "the mechanic found the fault within twenty minutes and had it fixed before lunch"',
+  };
+
+  // Authenticity "small detail" hint — what a real visitor of this type would observe
+  var VISITOR_DETAIL = {
+    food:        'a specific aroma, texture, or plating detail; how busy the kitchen sounded; a table observation',
+    healthcare:  'the waiting room setup, what the doctor specifically said, the cleanliness of equipment, a form or process step',
+    wellness:    'a product used on you, the scent of the treatment room, a specific technique the therapist or stylist used',
+    hospitality: 'a detail about the room (view, bedding, bathroom), what the staff member said at check-in, a hallway or lobby observation',
+    retail:      'where a product was shelved, a packaging or material detail, what the staff specifically knew or demonstrated',
+    service:     'a specific tool or step used, what the professional said when explaining the issue, how the paperwork or handover worked',
+  };
+
   function buildPrompt(lang) {
     var langLabel = { en: 'English', hi: 'Hindi', gu: 'Gujarati' }[lang] || 'English';
     var kwText    = KEYWORDS.length ? KEYWORDS.join(', ') : '';
-    var areaText  = AREA ? ' in ' + AREA : '';
+    var catType   = getCatType(CATEGORY);
 
     var toneDesc = TONES
       .map(function (t) { return TONE_STYLES[t.trim()] || t.toLowerCase(); })
       .join('; and ');
 
-    var catHint  = CAT_HINTS[CATEGORY] || 'one specific operational detail only a real visitor would know';
+    var catHint     = CAT_HINTS[CATEGORY]       || 'one specific operational detail only a real visitor would know';
+    var aeoExample  = AEO_EXAMPLES[catType]     || AEO_EXAMPLES.service;
+    var geoExample  = GEO_EXAMPLES[catType]     || GEO_EXAMPLES.service;
+    var visitorHint = VISITOR_DETAIL[catType]   || VISITOR_DETAIL.service;
 
     var wordGuide = TONES.includes('Concise') ? '40-60 words'
                   : TONES.includes('Detailed') ? '100-130 words'
                   : '65-100 words';
 
-    // ── SEO / AEO / GEO signals to bake in ──────
-    // These make the review useful to searchers and citeable by AI engines
     var seoBlock = [
-      'SEO — mention "' + BIZ_NAME + '" + the business type (' + CATEGORY + ') + "' + (AREA || 'the area') + '" naturally in the same review (this is the entity signal Google uses for local ranking)',
+      'SEO — mention "' + BIZ_NAME + '" + the business type (' + CATEGORY + ') + "' + (AREA || 'the area') + '" naturally together in the review — this is the entity signal Google uses for local pack ranking',
       kwText
-        ? 'SEO — use these exact terms naturally — do not paraphrase them: ' + kwText + ' (these are the search terms people use to find this business)'
+        ? 'SEO — use these exact terms naturally, do not paraphrase: ' + kwText + ' — these are the search queries people type to find this business'
         : '',
-      'AEO — include one declarative factual sentence that directly answers a question a searcher might ask (e.g. wait time, price signal like "worth every rupee", a specific item that is standout, or a practical tip like parking or timing)',
-      'AEO — use causal language at least once ("because...", "so...", "which means...") — this is what gets pulled into Google featured snippets and People Also Ask',
-      'GEO — include one concrete specific claim with a detail attached (e.g. "the ' + (kwText.split(',')[0] || CATEGORY.toLowerCase()) + ' was [specific adjective + reason]") — AI overviews cite reviews with unique verifiable claims over generic praise',
-      'GEO — a gentle comparative phrase ("one of the better ' + CATEGORY.toLowerCase() + ' places' + (AREA ? ' in ' + AREA : '') + '", "worth it for the price", "better than I expected") signals quality differentiation which AI engines use to rank businesses',
+      'AEO — write one declarative factual sentence that directly answers a question a real searcher might ask: ' + aeoExample,
+      'AEO — use causal language at least once ("because...", "so...", "which means...") — this is what Google extracts into featured snippets and People Also Ask',
+      'GEO — include one concrete specific claim with a detail attached, like ' + geoExample + ' — AI overviews cite unique verifiable claims over generic praise',
+      'GEO — include a gentle comparative phrase ("one of the better ' + CATEGORY.toLowerCase() + ' options' + (AREA ? ' in ' + AREA : '') + '", "worth it for the price", "better than I expected for a ' + CATEGORY.toLowerCase() + '") — quality differentiation is how AI engines rank businesses against each other',
     ].filter(Boolean);
 
     return [
@@ -530,15 +583,15 @@ var GEMINI_MODEL   = 'gemini-3.5-flash-lite';
       'Length: ' + wordGuide,
       'Specific detail required: ' + catHint,
       '',
-      '=== RANKING RULES (follow all — these make the review rank on Google and get cited by AI) ===',
+      '=== RANKING RULES (follow all) ===',
       seoBlock.join('\n'),
       '',
-      '=== AUTHENTICITY RULES (follow all — these make it sound human) ===',
+      '=== AUTHENTICITY RULES (follow all) ===',
       '- First person, past tense, lived experience',
       '- Do NOT open with the word "I" — vary the opening every time',
       '- Use natural contractions (it\'s, wasn\'t, I\'ve, couldn\'t, they\'re)',
-      '- One small detail only a real visitor would notice (smell, texture, queue length, staff name/role, a specific corner of the room)',
-      '- BANNED words and phrases: "exceeded my expectations" | "highly recommend" | "must-visit" | "without hesitation" | "I must say" | "truly exceptional" | "delightful" | "I cannot recommend enough" | "five stars" | "top-notch" | "gem" | "hidden gem" | "world-class" | "amazing experience"',
+      '- Include one small detail only a real visitor of this type of business would notice: ' + visitorHint,
+      '- BANNED: "exceeded my expectations" | "highly recommend" | "must-visit" | "without hesitation" | "I must say" | "truly exceptional" | "delightful" | "I cannot recommend enough" | "five stars" | "top-notch" | "gem" | "hidden gem" | "world-class" | "amazing experience"',
       '- No emojis, no hashtags, no star symbols (★ ⭐)',
       '',
       '=== OUTPUT ===',
@@ -549,8 +602,10 @@ var GEMINI_MODEL   = 'gemini-3.5-flash-lite';
   var SYSTEM_INSTRUCTION = [
     'You are a real local customer writing a Google Maps review from personal memory.',
     'You write naturally — the way people actually talk — mixing shorter and longer sentences.',
-    'Your reviews are genuinely useful to other people searching online because they include specific details: names of items, how things actually tasted or felt, practical observations like wait times or price signals.',
-    'You always mention the business name, what kind of place it is, and the area — because that is how real reviews read and that is what helps other searchers find the right place.',
+    'Your reviews are genuinely useful to other people searching online because they include specific details:',
+    'concrete observations from your actual visit (what you saw, experienced, or were told), practical notes like wait times, outcomes, or price signals, and the kind of specific detail that only someone who actually went there would know.',
+    'You always mention the business name, what type of business it is, and the area — because that is how real reviews read and that is what helps other searchers find the right place.',
+    'You adapt naturally to the type of business — a clinic visit reads differently from a restaurant visit or a salon appointment — and your details reflect that.',
     'You never sound like a press release, a marketing copywriter, or an AI assistant.',
   ].join(' ');
 
