@@ -11,4 +11,4 @@ export const GOOGLE_MAPS_API_KEY = 'AIzaSyDhvYzvwNkEvilUq_ixLQ2dxz8tBGKGu7M';
  * GitHub Pages example:  https://your-username.github.io/reviewreach/review.html
  * Vercel example:        https://reviewreach.vercel.app/review
  */
-export const REVIEW_WEB_URL = 'https://your-username.github.io/reviewreach';
+export const REVIEW_WEB_URL = 'https://abhaysardhara.github.io/merchant-review-app';
