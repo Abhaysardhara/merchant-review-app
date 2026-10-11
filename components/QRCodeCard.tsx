@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Share } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
@@ -48,6 +48,18 @@ export function QRCodeCard({ qrUrl, label, address, size = 200 }: QRCodeCardProp
     });
   };
 
+  const handleShareDetails = async () => {
+    const name = label || 'Business';
+    const message = address
+      ? `${name}\n\n${address}`
+      : name;
+    try {
+      await Share.share({ message, title: name });
+    } catch {
+      Alert.alert('Share failed', 'Could not share business details.');
+    }
+  };
+
   return (
     <View style={styles.card}>
       <View style={styles.qrWrapper}>
@@ -84,10 +96,17 @@ export function QRCodeCard({ qrUrl, label, address, size = 200 }: QRCodeCardProp
         </Text>
       </View>
 
-      <TouchableOpacity style={styles.shareBtn} onPress={handleShare} activeOpacity={0.8}>
-        <Ionicons name="share-outline" size={16} color="#4F46E5" />
-        <Text style={styles.shareBtnText}>Share QR Code</Text>
-      </TouchableOpacity>
+      <View style={styles.btnRow}>
+        <TouchableOpacity style={styles.shareBtn} onPress={handleShare} activeOpacity={0.8}>
+          <Ionicons name="qr-code-outline" size={16} color="#4F46E5" />
+          <Text style={styles.shareBtnText}>Share QR</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.shareBtn} onPress={handleShareDetails} activeOpacity={0.8}>
+          <Ionicons name="business-outline" size={16} color="#4F46E5" />
+          <Text style={styles.shareBtnText}>Share Details</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -155,11 +174,17 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     flex: 1,
   },
+  btnRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
   shareBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
-    paddingHorizontal: 18,
+    paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1.5,
