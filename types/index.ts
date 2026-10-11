@@ -24,7 +24,7 @@ export interface BranchAnalytics {
 export interface Branch {
   id: string;
   name: string;
-  category: BranchCategory;
+  category?: BranchCategory; // legacy — no longer collected during onboarding
   businessName: string;
   address: string;
   placeId: string;
@@ -46,7 +46,6 @@ export interface QRPayload {
   placeId: string;
   branchName: string;
   businessName: string;
-  category: BranchCategory;
   tone: string;
   keywords: string;
   /** Schema version for forward-compatibility */

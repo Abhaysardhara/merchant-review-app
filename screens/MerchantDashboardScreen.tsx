@@ -16,22 +16,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { MerchantStackParamList, Branch, BranchCategory } from '../types';
+import type { MerchantStackParamList, Branch } from '../types';
 import { useMerchant, type AddBranchParams } from '../store/MerchantContext';
 import { conversionRate, formatLastScan } from '../services/analytics';
 
 type Props = NativeStackScreenProps<MerchantStackParamList, 'MerchantDashboard'>;
-
-const CATEGORIES: BranchCategory[] = [
-  'Restaurant', 'Cafe', 'Bar', 'Bakery', 'Fast Food', 'Sweet Shop',
-  'Hospital', 'Clinic', 'Pharmacy', 'Dentist', 'Veterinary',
-  'Salon', 'Spa', 'Gym', 'Yoga', 'Fitness',
-  'Hotel', 'Resort', 'Hostel',
-  'Retail', 'Clothing', 'Jewelry', 'Electronics', 'Furniture',
-  'Grocery', 'Supermarket', 'Hardware', 'Books', 'Sports', 'Pet Shop',
-  'Automotive', 'Real Estate', 'Bank', 'School', 'Travel',
-  'Photography', 'Events', 'Laundry', 'Other',
-];
 
 const TONES = [
   'Friendly', 'Professional', 'Luxury', 'Casual',
@@ -58,7 +47,6 @@ interface BranchDetailsModalProps {
 
 function BranchDetailsModal({ visible, store, onClose, onAdd }: BranchDetailsModalProps) {
   const [branchName, setBranchName] = useState(store.name);
-  const [category, setCategory] = useState<BranchCategory>('Restaurant');
   const [keywords, setKeywords] = useState('');
   const [tones, setTones] = useState<string[]>(['Friendly']);
   const [isSaving, setIsSaving] = useState(false);
@@ -67,7 +55,6 @@ function BranchDetailsModal({ visible, store, onClose, onAdd }: BranchDetailsMod
   React.useEffect(() => {
     if (visible) {
       setBranchName(store.name);
-      setCategory('Restaurant');
       setKeywords('');
       setTones(['Friendly']);
     }
@@ -97,7 +84,6 @@ function BranchDetailsModal({ visible, store, onClose, onAdd }: BranchDetailsMod
       name: branchName.trim(),
       businessName: store.name,
       address: store.address,
-      category,
       googleMapsUrl: '',
       keywords: keywords.trim(),
       tone: tones.join(', '),
@@ -146,23 +132,6 @@ function BranchDetailsModal({ visible, store, onClose, onAdd }: BranchDetailsMod
               placeholderTextColor="#9CA3AF"
               autoFocus
             />
-
-            <Text style={modalStyles.label}>Category</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
-              <View style={modalStyles.chipRow}>
-                {CATEGORIES.map((cat) => (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[modalStyles.chip, category === cat && modalStyles.chipActive]}
-                    onPress={() => setCategory(cat)}
-                  >
-                    <Text style={[modalStyles.chipText, category === cat && modalStyles.chipTextActive]}>
-                      {cat}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
 
             <Text style={modalStyles.label}>AI Tone <Text style={modalStyles.labelHint}>(pick one or more)</Text></Text>
             <View style={modalStyles.chipWrap}>

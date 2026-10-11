@@ -13,23 +13,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { MerchantStackParamList, BranchCategory } from '../types';
+import type { MerchantStackParamList } from '../types';
 import { useMerchant } from '../store/MerchantContext';
 import { QRCodeCard } from '../components/QRCodeCard';
 import { conversionRate, formatLastScan } from '../services/analytics';
 
 type Props = NativeStackScreenProps<MerchantStackParamList, 'BranchDetail'>;
-
-const CATEGORIES: BranchCategory[] = [
-  'Restaurant', 'Cafe', 'Bar', 'Bakery', 'Fast Food', 'Sweet Shop',
-  'Hospital', 'Clinic', 'Pharmacy', 'Dentist', 'Veterinary',
-  'Salon', 'Spa', 'Gym', 'Yoga', 'Fitness',
-  'Hotel', 'Resort', 'Hostel',
-  'Retail', 'Clothing', 'Jewelry', 'Electronics', 'Furniture',
-  'Grocery', 'Supermarket', 'Hardware', 'Books', 'Sports', 'Pet Shop',
-  'Automotive', 'Real Estate', 'Bank', 'School', 'Travel',
-  'Photography', 'Events', 'Laundry', 'Other',
-];
 
 const TONES = [
   'Friendly', 'Professional', 'Luxury', 'Casual',
@@ -44,7 +33,6 @@ export function BranchDetailScreen({ route, navigation }: Props) {
 
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(branch?.name ?? '');
-  const [category, setCategory] = useState<BranchCategory>(branch?.category ?? 'Restaurant');
   const [keywords, setKeywords] = useState(branch?.keywords ?? '');
   // tone stored as comma-separated string; split for multi-select UI
   const [tones, setTones] = useState<string[]>(
@@ -70,13 +58,12 @@ export function BranchDetailScreen({ route, navigation }: Props) {
     setIsSaving(true);
     await updateBranch(branchId, {
       name: name.trim(),
-      category,
       keywords: keywords.trim(),
       tone: tones.join(', '),
     });
     setIsSaving(false);
     setIsEditing(false);
-  }, [branchId, name, category, keywords, tones, updateBranch]);
+  }, [branchId, name, keywords, tones, updateBranch]);
 
   const handleDelete = () => {
     Alert.alert(
@@ -172,26 +159,6 @@ export function BranchDetailScreen({ route, navigation }: Props) {
               <Text style={styles.fieldValueMono} numberOfLines={1} ellipsizeMode="middle">
                 {branch.placeId}
               </Text>
-            </FieldRow>
-
-            <FieldRow label="Category">
-              {isEditing ? (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View style={styles.chipRow}>
-                    {CATEGORIES.map((cat) => (
-                      <TouchableOpacity
-                        key={cat}
-                        style={[styles.chip, category === cat && styles.chipActive]}
-                        onPress={() => setCategory(cat)}
-                      >
-                        <Text style={[styles.chipText, category === cat && styles.chipTextActive]}>{cat}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </ScrollView>
-              ) : (
-                <Text style={styles.fieldValue}>{branch.category}</Text>
-              )}
             </FieldRow>
 
             <FieldRow label="AI Tone">

@@ -16,7 +16,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import type { Branch, BranchCategory, QRPayload } from '../types';
+import type { Branch, QRPayload } from '../types';
 import {
   loadBranches,
   saveBranches,
@@ -56,7 +56,6 @@ export interface AddBranchParams {
   name: string;
   businessName: string;
   address: string;
-  category: BranchCategory;
   googleMapsUrl: string;
   keywords: string;
   tone: string;
@@ -136,7 +135,6 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
         name: params.name,
         businessName: params.businessName,
         address: params.address,
-        category: params.category,
         placeId,
         googleMapsUrl: params.googleMapsUrl,
         keywords: params.keywords,
@@ -183,7 +181,6 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
       placeId: branch.placeId,
       branchName: branch.name,
       businessName: branch.businessName,
-      category: branch.category,
       tone: branch.tone,
       keywords: branch.keywords,
       v: 1,
@@ -205,7 +202,6 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
     const params = new URLSearchParams({
       pid: branch.placeId,
       n: branch.businessName || branch.name,
-      c: branch.category,
       t: branch.tone,
       k: branch.keywords,
       a: area,

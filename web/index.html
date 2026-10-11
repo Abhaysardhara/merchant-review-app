@@ -451,7 +451,7 @@ var MAPS_API_KEY   = 'YOUR_MAPS_API_KEY';
   var rawPlaceId = decodeParam(q.get('pid'));
   var PLACE_ID = isValidPlaceId(rawPlaceId) ? rawPlaceId : '';
   var BIZ_NAME = sanitize(decodeParam(q.get('n')), 100) || 'This Business';
-  var CATEGORY = sanitize(decodeParam(q.get('c')), 50)  || 'General';
+  // Category derived from Google Places API primaryTypeDisplayName — not passed in QR URL
   var TONES    = sanitize(decodeParam(q.get('t')), 150).split(',').map(trim).filter(Boolean);
   if (!TONES.length) TONES = ['Friendly'];
   var KEYWORDS = sanitize(decodeParam(q.get('k')), 200).split(',').map(trim).filter(Boolean).slice(0, 4);
@@ -810,17 +810,19 @@ var MAPS_API_KEY   = 'YOUR_MAPS_API_KEY';
     var placeTypes  = placeDetails && placeDetails.types ? placeDetails.types : [];
     var primaryType = placeDetails && placeDetails.primaryType
                       ? placeDetails.primaryType.replace(/_/g, ' ') : '';
-    var catType     = getCatType(CATEGORY, placeTypes);
+    var catType     = getCatType(typeLabel, placeTypes);
 
     // Strip postal/PIN codes — city name only in review body
                 var city = AREA.split(',').map(function(p){return p.trim();}).filter(function(p){return p && !/^[0-9]+$/.test(p);}).join(', ') || AREA.trim() || 'local area';
 
-    var knownCat    = Object.values(CAT_TYPES).some(function (arr) { return arr.indexOf(CATEGORY) !== -1; });
-    var typeLabel   = knownCat
-      ? CATEGORY
-      : CATEGORY + (primaryType ? ' (' + primaryType + ')' : '');
+    // Business type comes from Places API only — no merchant-set category
+    var typeLabel   = primaryType
+      ? (placeDetails && placeDetails.primaryTypeDisplayName && placeDetails.primaryTypeDisplayName.text
+          ? placeDetails.primaryTypeDisplayName.text
+          : primaryType)
+      : 'business';
 
-    var catHint    = CAT_HINTS[CATEGORY] || (primaryType
+    var catHint    = CAT_HINTS[typeLabel] || (primaryType
                      ? 'one specific detail only a real visitor of a "' + primaryType + '" would notice'
                      : 'one specific operational detail only a real visitor would know');
     var aeoExample = AEO_EXAMPLES[catType] || AEO_EXAMPLES.service;
