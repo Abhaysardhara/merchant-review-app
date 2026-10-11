@@ -414,7 +414,7 @@
 //  so they only work on your GitHub Pages domain. View source exposes them.
 // ─────────────────────────────────────────────
 var GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY';
-var GEMINI_MODEL   = 'gemini-3.5-flash-lite';
+var GEMINI_MODEL   = 'gemini-2.5-flash-lite';
 var MAPS_API_KEY   = 'YOUR_MAPS_API_KEY';
 
 // ─────────────────────────────────────────────
@@ -804,80 +804,81 @@ var MAPS_API_KEY   = 'YOUR_MAPS_API_KEY';
   };
 
   function buildPrompt(lang, placeDetails) {
-    var langLabel    = { en: 'English', hi: 'Hindi', gu: 'Gujarati' }[lang] || 'English';
-    var kwText       = KEYWORDS.length ? KEYWORDS.join(', ') : '';
-    var placeCtx     = buildPlaceContext(placeDetails);
-    var placeTypes   = placeDetails && placeDetails.types ? placeDetails.types : [];
-    var primaryType  = placeDetails && placeDetails.primaryType
-                       ? placeDetails.primaryType.replace(/_/g, ' ') : '';
-    var catType      = getCatType(CATEGORY, placeTypes);
+    var langLabel   = { en: 'English', hi: 'Hindi', gu: 'Gujarati' }[lang] || 'English';
+    var kwText      = KEYWORDS.length ? KEYWORDS.join(', ') : '';
+    var placeCtx    = buildPlaceContext(placeDetails);
+    var placeTypes  = placeDetails && placeDetails.types ? placeDetails.types : [];
+    var primaryType = placeDetails && placeDetails.primaryType
+                      ? placeDetails.primaryType.replace(/_/g, ' ') : '';
+    var catType     = getCatType(CATEGORY, placeTypes);
 
-    // If merchant category isn't in our list, tell the model what it is by name
-    // and let it infer — Gemini understands "Optical Store", "Interior Designer", etc.
-    var knownCat     = Object.values(CAT_TYPES).some(function (arr) { return arr.indexOf(CATEGORY) !== -1; });
-    var categoryLine = knownCat
-      ? 'Type: ' + CATEGORY
-      : 'Type: ' + CATEGORY + (primaryType ? ' (Google identifies this as: ' + primaryType + ')' : '') +
-        ' — infer what a real visitor of this business type would experience';
+    // Strip postal/PIN codes — city name only in review body
+                var city = AREA.split(',').map(function(p){return p.trim();}).filter(function(p){return p && !/^[0-9]+$/.test(p);}).join(', ') || AREA.trim() || 'local area';
 
-    var toneDesc = TONES
-      .map(function (t) { return TONE_STYLES[t.trim()] || t.toLowerCase(); })
-      .join('; and ');
+    var knownCat    = Object.values(CAT_TYPES).some(function (arr) { return arr.indexOf(CATEGORY) !== -1; });
+    var typeLabel   = knownCat
+      ? CATEGORY
+      : CATEGORY + (primaryType ? ' (' + primaryType + ')' : '');
 
-    var catHint     = CAT_HINTS[CATEGORY]     || (primaryType
-                      ? 'Based on the Google type "' + primaryType + '", include one specific detail only a real visitor of this business would notice'
-                      : 'one specific operational detail only a real visitor would know');
-    var aeoExample  = AEO_EXAMPLES[catType]   || AEO_EXAMPLES.service;
-    var geoExample  = GEO_EXAMPLES[catType]   || GEO_EXAMPLES.service;
-    var visitorHint = VISITOR_DETAIL[catType] || VISITOR_DETAIL.service;
+    var catHint    = CAT_HINTS[CATEGORY] || (primaryType
+                     ? 'one specific detail only a real visitor of a "' + primaryType + '" would notice'
+                     : 'one specific operational detail only a real visitor would know');
+    var aeoExample = AEO_EXAMPLES[catType] || AEO_EXAMPLES.service;
+    var geoExample = GEO_EXAMPLES[catType] || GEO_EXAMPLES.service;
+    var visitorHint= VISITOR_DETAIL[catType] || VISITOR_DETAIL.service;
 
-    var wordGuide = TONES.includes('Concise') ? '40-60 words'
-                  : TONES.includes('Detailed') ? '100-130 words'
-                  : '65-100 words';
+    var toneLines  = TONES.map(function (t) {
+      return '  - ' + (TONE_STYLES[t.trim()] || t.toLowerCase());
+    }).join(String.fromCharCode(10));
 
-    var seoBlock = [
-      'SEO — mention "' + BIZ_NAME + '" + the business type + "' + (AREA || 'the area') + '" naturally together — this is the entity signal Google uses for local pack ranking',
-      kwText
-        ? 'SEO — use these exact terms naturally, do not paraphrase: ' + kwText + ' — these are the search queries people type to find this business'
-        : '',
-      'AEO — write one declarative factual sentence answering a question a real searcher would ask: ' + aeoExample,
-      'AEO — use causal language at least once ("because...", "so...", "which means...") — this is what Google extracts into featured snippets and People Also Ask',
-      'GEO — include one concrete specific claim like ' + geoExample + ' — AI overviews cite unique verifiable claims over generic praise',
-      'GEO — include a gentle comparative phrase ("one of the better options' + (AREA ? ' in ' + AREA : '') + '", "worth it for the price", "better than I expected") — quality differentiation is how AI engines rank businesses',
-    ].filter(Boolean);
+    var wordGuide  = TONES.includes('Concise') ? '40-60 words'
+                   : TONES.includes('Detailed') ? '100-130 words'
+                   : '65-100 words';
 
-    return [
-      '=== TASK ===',
-      'Write one Google Maps customer review.',
-      '',
+    var lines = [
       '=== BUSINESS ===',
       'Name: ' + BIZ_NAME,
-      categoryLine,
-      'Location: ' + (AREA || 'local area') + ' — use only the city or area name, never a postal/PIN code',
-      kwText ? 'Keywords to include: ' + kwText : '',
-      placeCtx ? '\n=== GOOGLE PLACES DATA (use these real attributes naturally) ===\n' + placeCtx : '',
+      'Type: ' + typeLabel,
+      'City: ' + city,
+      kwText ? 'Keywords: ' + kwText : '',
       '',
-      '=== WRITING STYLE ===',
-      toneDesc,
-      'Language: ' + langLabel + ' only — no code-switching',
-      'Length: ' + wordGuide,
-      'Specific detail required: ' + catHint,
-      '',
-      '=== RANKING RULES (follow all) ===',
-      seoBlock.join('\n'),
-      '',
-      '=== AUTHENTICITY RULES (follow all) ===',
-      '- First person, past tense, lived experience',
-      '- Do NOT open with the word "I" — vary the opening every time',
-      '- Use natural contractions (it\'s, wasn\'t, I\'ve, couldn\'t, they\'re)',
-      '- One small detail only a real visitor notices: ' + visitorHint,
-      '- If Google Places data is provided, weave 1-2 attributes naturally into the review (e.g. mention outdoor seating, valet parking, or vegetarian options if relevant) — but do NOT list them robotically',
-      '- BANNED: "exceeded my expectations" | "highly recommend" | "must-visit" | "without hesitation" | "I must say" | "truly exceptional" | "delightful" | "I cannot recommend enough" | "five stars" | "top-notch" | "gem" | "hidden gem" | "world-class" | "amazing experience"',
-      '- No emojis, no hashtags, no star symbols (★ ⭐)',
-      '',
-      '=== OUTPUT ===',
-      'Review text only — no label, no preamble, no explanation.',
-    ].filter(Boolean).join('\n');
+    ];
+
+    if (placeCtx) {
+      lines.push('=== WHAT GOOGLE SAYS ===');
+      lines.push(placeCtx);
+      lines.push('');
+    }
+
+    lines.push('=== TASK ===');
+    lines.push('Write one authentic Google Maps review (' + wordGuide + ', ' + langLabel + ' only).');
+    lines.push('');
+    lines.push('The review must read like something a real customer wrote — flowing naturally,');
+    lines.push('not structured like a report. Build the whole review around one clear experience thread.');
+    lines.push('');
+    lines.push('Tone: ' + toneLines);
+    lines.push('');
+    lines.push('Weave in naturally (do NOT list or bullet these — blend them into the narrative):');
+    lines.push('  • ' + catHint);
+    lines.push('  • One honest observation only a real visitor makes: ' + visitorHint);
+    lines.push('  • One practical signal (' + aeoExample + ')');
+    lines.push('  • A cause-and-effect sentence using "because", "so", or "which means"');
+    lines.push('  • Mention "' + BIZ_NAME + '" + the business type + "' + city + '" at least once (entity signal for Google ranking)');
+    if (kwText) lines.push('  • Use these search terms exactly as written: ' + kwText);
+    lines.push('  • One concrete specific claim: ' + geoExample);
+    lines.push('  • One honest comparative ("better than I expected", "one of the better options in ' + city + ' for this", "worth it for the price")');
+    lines.push('');
+    lines.push('Rules:');
+    lines.push('  - Do NOT open with "I"');
+    lines.push('  - Past tense, first person, contractions throughout');
+    lines.push('  - Weave in 1-2 real attributes from Google Places data if relevant — do not list them');
+    lines.push('  - BANNED words: "exceeded my expectations" | "highly recommend" | "must-visit" | "without hesitation" | "truly exceptional" | "delightful" | "five stars" | "top-notch" | "gem" | "world-class" | "amazing experience"');
+    lines.push('  - No emojis, no hashtags, no star symbols');
+    lines.push('');
+    lines.push('Output: Review text only — no labels, no bullets, no preamble.');
+
+    return lines.filter(function(l) { return l !== null && l !== undefined; }).join('
+');
   }
 
   var SYSTEM_INSTRUCTION = [
