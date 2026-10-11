@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "ReviewReach",
+    "slug": "merchant-review-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#4F46E5"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow ReviewReach to access your camera to scan QR codes at merchant counters."
+        }
+      ],
+      "expo-font"
+    ],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#4F46E5"
+      },
+      "package": "com.reviewreach.app",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDhvYzvwNkEvilUq_ixLQ2dxz8tBGKGu7M"
+        }
+      }
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.reviewreach.app",
+      "config": {
+        "googleMapsApiKey": "AIzaSyDhvYzvwNkEvilUq_ixLQ2dxz8tBGKGu7M"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}

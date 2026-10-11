@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#4F46E5" />
+  <title>Leave a Review</title>
+
+  <!-- Prevent search engine indexing of review pages -->
+  <meta name="robots" content="noindex, nofollow" />
+
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --indigo:   #4F46E5;
+      --indigo-d: #3730A3;
+      --indigo-l: #EEF2FF;
+      --purple:   #7C3AED;
+      --green:    #22C55E;
+      --gray-50:  #F8FAFC;
+      --gray-100: #F1F5F9;
+      --gray-200: #E5E7EB;
+      --gray-400: #9CA3AF;
+      --gray-500: #6B7280;
+      --gray-700: #374151;
+      --gray-900: #111827;
+    }
+
+    html { font-size: 16px; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                   'Helvetica Neue', Arial, sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-900);
+      min-height: 100dvh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(150deg, var(--indigo) 0%, var(--purple) 100%);
+      padding: 32px 20px 28px;
+      text-align: center;
+      color: #fff;
+      position: relative;
+      overflow: hidden;
+    }
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 160px; height: 160px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.07);
+      pointer-events: none;
+    }
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: -50px; left: -30px;
+      width: 200px; height: 200px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.05);
+      pointer-events: none;
+    }
+
+    .stars-row { font-size: 26px; letter-spacing: 4px; margin-bottom: 14px; }
+
+    .biz-name {
+      font-size: 22px;
+      font-weight: 800;
+      line-height: 1.25;
+      letter-spacing: -0.3px;
+      margin-bottom: 6px;
+    }
+    .biz-area {
+      font-size: 13px;
+      opacity: 0.82;
+      font-weight: 500;
+    }
+    .biz-area span { margin-right: 4px; }
+
+    /* ── Main container ── */
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 20px 16px 48px;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: #fff;
+      border-radius: 18px;
+      padding: 20px;
+      margin-bottom: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+
+    /* ── Language tabs ── */
+    .lang-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    .lang-btn {
+      flex: 1;
+      padding: 8px 6px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 10px;
+      background: var(--gray-50);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--gray-700);
+      cursor: pointer;
+      text-align: center;
+      transition: background .15s, border-color .15s, color .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .lang-btn.active {
+      background: var(--indigo);
+      border-color: var(--indigo);
+      color: #fff;
+    }
+
+    /* ── Review textarea ── */
+    .review-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--gray-400);
+      margin-bottom: 8px;
+    }
+    .review-box {
+      width: 100%;
+      min-height: 160px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 15px;
+      line-height: 1.65;
+      color: var(--gray-900);
+      resize: none;
+      font-family: inherit;
+      outline: none;
+      background: #fafafa;
+      transition: border-color .2s, background .2s;
+    }
+    .review-box:focus {
+      border-color: var(--indigo);
+      background: #fff;
+    }
+    .review-box:disabled {
+      background: #F8FAFC;
+      color: var(--gray-400);
+      cursor: default;
+    }
+    .regen-btn:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    .regen-row {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 10px;
+    }
+    .regen-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 7px 12px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 20px;
+      background: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gray-500);
+      cursor: pointer;
+      transition: all .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .regen-btn:active { background: var(--gray-100); }
+    .spin { display: inline-block; }
+    .spin.spinning { animation: spin .5s linear; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── CTA button ── */
+    .cta-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 17px 20px;
+      background: linear-gradient(135deg, var(--indigo) 0%, var(--purple) 100%);
+      border: none;
+      border-radius: 14px;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.1px;
+      cursor: pointer;
+      box-shadow: 0 5px 18px rgba(79,70,229,0.38);
+      transition: opacity .15s, transform .1s;
+      -webkit-tap-highlight-color: transparent;
+      margin-bottom: 14px;
+    }
+    .cta-btn:active { opacity: 0.88; transform: scale(0.99); }
+    .cta-btn .cta-icon { font-size: 20px; }
+    .cta-btn.done {
+      background: linear-gradient(135deg, var(--green) 0%, #16a34a 100%);
+      box-shadow: 0 5px 18px rgba(34,197,94,0.35);
+    }
+
+    /* ── Paste guide (shows after button tap) ── */
+    .paste-guide {
+      display: none;
+      background: #F0FDF4;
+      border: 1.5px solid #BBF7D0;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .paste-guide.visible { display: block; }
+    .paste-guide-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #166534;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .paste-steps { display: flex; flex-direction: column; gap: 8px; }
+    .paste-step  {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: #15803D;
+    }
+    .paste-step-icon { font-size: 18px; flex-shrink: 0; }
+
+    /* ── Steps ── */
+    .steps-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--gray-400);
+      margin-bottom: 12px;
+    }
+    .steps { display: flex; flex-direction: column; gap: 10px; }
+    .step  { display: flex; align-items: flex-start; gap: 10px; }
+    .step-num {
+      width: 24px; height: 24px;
+      flex-shrink: 0;
+      border-radius: 50%;
+      background: var(--indigo-l);
+      color: var(--indigo);
+      font-size: 12px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .step-text {
+      font-size: 13px;
+      color: var(--gray-700);
+      line-height: 1.5;
+      padding-top: 3px;
+    }
+    .step-text strong { color: var(--gray-900); }
+
+    /* ── Powered by ── */
+    .footer {
+      text-align: center;
+      font-size: 11px;
+      color: var(--gray-400);
+      margin-top: 8px;
+      font-weight: 500;
+    }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--green);
+      color: #fff;
+      padding: 11px 22px;
+      border-radius: 28px;
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+      box-shadow: 0 4px 16px rgba(34,197,94,0.4);
+      transition: transform .35s cubic-bezier(.34, 1.56, .64, 1);
+      z-index: 100;
+      pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ── Error state ── */
+    .error-state {
+      text-align: center;
+      padding: 48px 24px;
+    }
+    .error-state .emoji { font-size: 48px; margin-bottom: 16px; }
+    .error-state h2 { font-size: 18px; color: var(--gray-700); margin-bottom: 8px; }
+    .error-state p  { font-size: 14px; color: var(--gray-400); }
+  </style>
+</head>
+
+<body>
+
+  <div class="header">
+    <div class="stars-row">⭐⭐⭐⭐⭐</div>
+    <div class="biz-name"  id="bizName">Loading…</div>
+    <div class="biz-area"  id="bizArea"></div>
+  </div>
+
+  <div class="container" id="appRoot">
+
+    <!-- Review card -->
+    <div class="card">
+      <div class="lang-row">
+        <button class="lang-btn active" data-lang="en" onclick="setLang('en')">English</button>
+        <button class="lang-btn"        data-lang="hi" onclick="setLang('hi')">हिंदी</button>
+        <button class="lang-btn"        data-lang="gu" onclick="setLang('gu')">ગુજરાતી</button>
+      </div>
+
+      <div class="review-label">Your Review — edit if you like</div>
+      <textarea class="review-box" id="reviewText" rows="6" spellcheck="true"></textarea>
+
+      <div class="regen-row">
+        <button class="regen-btn" id="regenBtn" onclick="regenerate()">
+          <span class="spin" id="spinIcon">🔄</span> Different review
+        </button>
+      </div>
+    </div>
+
+    <!-- Action card -->
+    <div class="card">
+      <button class="cta-btn" id="ctaBtn" onclick="copyAndOpen()">
+        <span class="cta-icon">📋</span>
+        <span id="ctaBtnText">Copy &amp; Open Google Maps</span>
+      </button>
+
+      <!-- Paste guide — shown after button tap -->
+      <div class="paste-guide" id="pasteGuide">
+        <div class="paste-guide-title">✅ Review copied! Now in Google Maps:</div>
+        <div class="paste-steps">
+          <div class="paste-step">
+            <span class="paste-step-icon">👆</span>
+            <span>Tap the <strong>review text box</strong></span>
+          </div>
+          <div class="paste-step">
+            <span class="paste-step-icon">📌</span>
+            <span>Tap <strong>Paste</strong> that appears above your keyboard</span>
+          </div>
+          <div class="paste-step">
+            <span class="paste-step-icon">🚀</span>
+            <span>Tap <strong>Post</strong> — done!</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="steps-title" id="stepsTitle">What happens next</div>
+      <div class="steps" id="stepsList">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-text">Review text is <strong>copied automatically</strong></div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-text"><strong>Google Maps</strong> review page opens</div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-text">Tap the text box, <strong>paste</strong>, then tap <strong>Post</strong> ✅</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">Powered by ReviewReach</div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast">✓ Review copied!</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  Config — replace with your key
+//  Restrict it to HTTP referrers in Google Cloud Console
+// ─────────────────────────────────────────────
+var GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY';
+var GEMINI_MODEL   = 'gemini-2.5-flash-lite';
+
+// ─────────────────────────────────────────────
+//  Parse URL params
+// ─────────────────────────────────────────────
+(function () {
+  var q = new URLSearchParams(location.search);
+  var PLACE_ID = q.get('pid') || '';
+  var BIZ_NAME = decodeParam(q.get('n')) || 'This Business';
+  var CATEGORY = decodeParam(q.get('c')) || 'General';
+  var TONES    = (decodeParam(q.get('t')) || 'Friendly').split(',').map(trim);
+  var KEYWORDS = (decodeParam(q.get('k')) || '').split(',').map(trim).filter(Boolean).slice(0, 4);
+  var AREA     = decodeParam(q.get('a')) || '';
+
+  function decodeParam(v) { try { return v ? decodeURIComponent(v) : ''; } catch(e) { return v || ''; } }
+  function trim(s) { return s ? s.trim() : ''; }
+
+  // ── Fill header ──────────────────────────────
+  document.getElementById('bizName').textContent = BIZ_NAME;
+  document.title = 'Review — ' + BIZ_NAME;
+  if (AREA) {
+    document.getElementById('bizArea').innerHTML = '<span>📍</span>' + escHtml(AREA);
+  }
+
+  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── Gemini API call ──────────────────────────
+  function buildPrompt(lang) {
+    var langLabel = { en: 'English', hi: 'Hindi', gu: 'Gujarati' }[lang] || 'English';
+    var kwText    = KEYWORDS.length ? KEYWORDS.join(', ') : '';
+    var toneText  = TONES.join(', ');
+    var areaText  = AREA ? ' located in ' + AREA : '';
+
+    return [
+      'Write a single genuine, natural-sounding Google Maps review for a ' + CATEGORY + ' business called "' + BIZ_NAME + '"' + areaText + '.',
+      kwText  ? 'Key highlights to mention naturally: ' + kwText + '.'  : '',
+      'Writing tone: ' + toneText + '.',
+      'Language: Write entirely in ' + langLabel + '.',
+      'Rules:',
+      '- First-person, 3 to 5 sentences, conversational',
+      '- Weave in the business name and location naturally',
+      '- Do NOT use the words "five-star", "5-star", or star ratings',
+      '- Do NOT use generic filler phrases like "I highly recommend"',
+      '- Sound like a real customer, not a marketing copywriter',
+      '- Output ONLY the review text, nothing else',
+    ].filter(Boolean).join('\n');
+  }
+
+  async function fetchGeminiReview(lang) {
+    if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY') {
+      throw new Error('No API key');
+    }
+    var url = 'https://generativelanguage.googleapis.com/v1beta/models/'
+              + GEMINI_MODEL + ':generateContent?key=' + GEMINI_API_KEY;
+    var res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: buildPrompt(lang) }] }],
+        generationConfig: { temperature: 1.0, maxOutputTokens: 220 },
+        safetySettings: [
+          { category: 'HARM_CATEGORY_HARASSMENT',        threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_HATE_SPEECH',       threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+        ],
+      }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var data = await res.json();
+    var text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error('Empty response');
+    return text.trim();
+  }
+
+  // ── Fallback template pools ──────────────────
+  // Used when Gemini API key is missing or call fails
+  var FALLBACK = {
+    en: [
+      'Had a genuinely wonderful experience at ' + BIZ_NAME + (AREA ? ' in ' + AREA : '') + '. The team was professional, warm, and attentive throughout. The quality of everything was outstanding and well above expectations. Will be coming back without hesitation!',
+      BIZ_NAME + (AREA ? ' in ' + AREA : '') + ' delivered on every front — great quality, friendly staff, and a welcoming atmosphere. Exactly the kind of place you recommend to everyone you know. Already planning my next visit.',
+      'Visited ' + BIZ_NAME + ' and left thoroughly impressed. The attention to detail and level of care were exceptional from start to finish. A fantastic experience — five well-deserved stars.',
+    ],
+    hi: [
+      BIZ_NAME + (AREA ? ' (' + AREA + ')' : '') + ' में मेरा अनुभव बेहद शानदार रहा! यहाँ की सेवा और गुणवत्ता दोनों लाजवाब हैं। स्टाफ बेहद विनम्र और पेशेवर था। मैं इसे अपने सभी दोस्तों और परिवार को ज़रूर सुझाऊंगा!',
+      BIZ_NAME + ' वाकई एक असाधारण जगह है। यहाँ की सेवा, माहौल और गुणवत्ता सब कुछ अपेक्षाओं से कहीं बेहतर था। शानदार अनुभव — जल्द ही वापस आऊंगा!',
+    ],
+    gu: [
+      BIZ_NAME + (AREA ? ' (' + AREA + ')' : '') + ' ખાતે મારો અનુભવ અત્યંત ઉત્તમ રહ્યો! અહીંની સેવા અને ગુણવત્તા બંને અજોડ છે. સ્ટાફ ખૂબ જ નમ્ર અને વ્યાવસાયિક હતા. હું મારા તમામ મિત્રો અને પરિવારને ભલામણ કરીશ!',
+      BIZ_NAME + ' ખરેખર અદ્ભુત છે. સેવા, ગુણવત્તા અને વ્યવહાર — ત્રણેય ઉત્તમ. ચોક્કસ ફરીથી આવીશ!',
+    ],
+  };
+
+  // ── UI helpers ───────────────────────────────
+  function setLoading(on) {
+    var ta   = document.getElementById('reviewText');
+    var rBtn = document.getElementById('regenBtn');
+    if (on) {
+      ta.value       = '';
+      ta.placeholder = '✨ Generating review…';
+      ta.disabled    = true;
+      rBtn.disabled  = true;
+    } else {
+      ta.placeholder = '';
+      ta.disabled    = false;
+      rBtn.disabled  = false;
+    }
+  }
+
+  // ── Generate & display ───────────────────────
+  var currentLang = 'en';
+
+  async function generateAndShow(lang) {
+    setLoading(true);
+    var text;
+    try {
+      text = await fetchGeminiReview(lang);
+    } catch (e) {
+      // Silently fall back to templates
+      var pool = FALLBACK[lang] || FALLBACK.en;
+      text = pick(pool);
+    }
+    setLoading(false);
+    document.getElementById('reviewText').value = text;
+  }
+
+  // ── Language switcher ────────────────────────
+  window.setLang = function (lang) {
+    currentLang = lang;
+    document.querySelectorAll('.lang-btn').forEach(function (btn) {
+      btn.classList.toggle('active', btn.dataset.lang === lang);
+    });
+    generateAndShow(lang);
+  };
+
+  // ── Regenerate ───────────────────────────────
+  window.regenerate = function () {
+    var icon = document.getElementById('spinIcon');
+    icon.classList.add('spinning');
+    setTimeout(function () { icon.classList.remove('spinning'); }, 600);
+    generateAndShow(currentLang);
+  };
+
+  // ── Copy + open Google Maps ──────────────────
+  window.copyAndOpen = function () {
+    var text = document.getElementById('reviewText').value.trim();
+    if (!text) return;
+
+    var mapsUrl = PLACE_ID
+      ? 'https://search.google.com/local/writereview?placeid=' + encodeURIComponent(PLACE_ID)
+      : 'https://www.google.com/maps/search/' + encodeURIComponent(BIZ_NAME + (AREA ? ' ' + AREA : ''));
+
+    function showPasteGuide() {
+      // Switch button to "done" green state
+      var btn = document.getElementById('ctaBtn');
+      var btnText = document.getElementById('ctaBtnText');
+      btn.classList.add('done');
+      btn.querySelector('.cta-icon').textContent = '✅';
+      btnText.textContent = 'Review Copied!';
+
+      // Hide the "what happens next" steps, show the paste guide
+      document.getElementById('stepsTitle').style.display = 'none';
+      document.getElementById('stepsList').style.display = 'none';
+      document.getElementById('pasteGuide').classList.add('visible');
+    }
+
+    function showToast() {
+      var el = document.getElementById('toast');
+      el.classList.add('show');
+      setTimeout(function () { el.classList.remove('show'); }, 2800);
+    }
+
+    function openMaps() {
+      setTimeout(function () { window.location.href = mapsUrl; }, 600);
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text)
+        .then(function () { showToast(); showPasteGuide(); openMaps(); })
+        .catch(function () { legacyCopy(text); showPasteGuide(); openMaps(); });
+    } else {
+      legacyCopy(text);
+      showPasteGuide();
+      openMaps();
+    }
+  };
+
+  function legacyCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;width:1px;height:1px;';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+
+  // ── Init ─────────────────────────────────────
+  generateAndShow('en');
+
+}());
+</script>
+</body>
+</html>
