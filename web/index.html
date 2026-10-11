@@ -430,100 +430,129 @@ var GEMINI_MODEL   = 'gemini-3.5-flash-lite';
 
   // ── Gemini API call ──────────────────────────
 
-  // Map tone chip names → writing style descriptions the model can act on
+  // Tone → writing style the model can act on
   var TONE_STYLES = {
-    'Friendly':     'warm, conversational, like chatting with a friend — use contractions freely',
-    'Professional': 'clear and measured, polished but not stiff',
-    'Luxury':       'discerning and refined — you have high standards and this place met them',
-    'Casual':       'super relaxed, short sentences, informal — almost like a WhatsApp message to a friend',
-    'Enthusiastic': 'genuinely excited and energetic, but still believable — not over the top',
-    'Concise':      'brief and punchy — 2 sentences max, every word earns its place',
-    'Heartfelt':    'personal and warm — include how the experience actually made you feel',
+    'Friendly':     'warm and conversational, like telling a friend about a great find — contractions throughout',
+    'Professional': 'clear, measured, polished — approachable but never gushing',
+    'Luxury':       'discerning and refined — you have high standards and this place met them; vocabulary reflects that',
+    'Casual':       'very relaxed and informal — short punchy sentences, reads like a WhatsApp message',
+    'Enthusiastic': 'genuinely excited but still believable — energetic without being unhinged',
+    'Concise':      'brief and punchy — 2 tight sentences, no filler, every word earns its place',
+    'Heartfelt':    'personal and warm — include how the experience actually made you feel emotionally',
     'Formal':       'composed, no contractions, measured vocabulary — like a letter of commendation',
-    'Detailed':     'thorough — mention 2 or 3 specific things you noticed that most people overlook',
-    'Grateful':     'appreciative tone — mention the difference it made to your day or situation',
+    'Detailed':     'thorough and observant — mention 3 distinct things you noticed, mix of sensory + factual',
+    'Grateful':     'appreciative tone — mention the difference this visit made to your day or situation',
   };
 
-  // Category-specific prompting hint so the model knows what details are realistic
+  // Category → what specific detail a real visitor of that type would naturally include
   var CAT_HINTS = {
-    'Restaurant':  'Mention a specific dish, the freshness of the food, or the wait time.',
-    'Cafe':        'Mention the coffee quality, a snack, or the vibe — cozy corner, background music, etc.',
-    'Bar':         'Mention the drinks, atmosphere, music, or how the evening felt.',
-    'Bakery':      'Mention a specific baked item you tried and whether it was fresh.',
-    'Fast Food':   'Mention speed, portion size, or a specific item.',
-    'Sweet Shop':  'Mention a specific sweet, freshness, or packaging.',
-    'Hospital':    'Mention the doctors or nurses by role, cleanliness, or how cared-for you felt.',
-    'Clinic':      'Mention the doctor\'s attentiveness, wait time, or how clearly things were explained.',
-    'Pharmacy':    'Mention whether they had your medicine in stock and how helpful the pharmacist was.',
-    'Dentist':     'Mention the doctor\'s gentleness, the equipment, or your anxiety before vs comfort after.',
-    'Veterinary':  'Mention how gently they handled your pet and how reassured you felt.',
-    'Salon':       'Mention the specific service (cut, color, treatment), the result, and how you felt leaving.',
-    'Spa':         'Mention the treatment type, the atmosphere — lighting, music — and how relaxed you felt.',
-    'Gym':         'Mention the equipment condition, a trainer interaction, or a visible improvement in yourself.',
-    'Yoga':        'Mention the instructor\'s guidance, the calm atmosphere, or a specific class.',
-    'Fitness':     'Mention the trainers, the programme, or a personal result you noticed.',
-    'Hotel':       'Mention the room comfort, a specific staff interaction, breakfast, or the view.',
-    'Resort':      'Mention the pool, a meal, an activity, or the overall feeling of the stay.',
-    'Hostel':      'Mention the social vibe, cleanliness of dorms, staff helpfulness, or location.',
-    'Retail':      'Mention the product range, whether you found what you needed, and staff helpfulness.',
-    'Clothing':    'Mention a specific item you bought, the fabric quality, or how the staff helped you style.',
-    'Jewelry':     'Mention the craftsmanship, a specific piece, or how patient staff were in helping you choose.',
-    'Electronics': 'Mention a specific product, whether the staff knew their stuff, and after-sales support.',
-    'Furniture':   'Mention the quality of materials, delivery experience, or how a piece looks in your home.',
-    'Grocery':     'Mention the freshness of produce, stock availability, or checkout speed.',
-    'Supermarket': 'Mention product variety, cleanliness, or the billing process.',
-    'Hardware':    'Mention whether you found the part you needed, staff knowledge, or pricing.',
-    'Books':       'Mention the selection, whether staff recommended something good, or the browsing experience.',
-    'Sports':      'Mention the brand range, whether a specific item was in stock, or knowledgeable staff.',
-    'Pet Shop':    'Mention the animal care standards, product variety, or helpful staff advice.',
-    'Automotive':  'Mention what work was done, whether the mechanic explained the issue clearly, and the result.',
-    'Real Estate': 'Mention how well they listened to your requirements and how smoothly the process went.',
-    'Bank':        'Mention wait time, how a staff member resolved your issue, or digital service quality.',
-    'School':      'Mention teacher quality, how your child responded, or the overall environment.',
-    'Travel':      'Mention a specific trip or package, how well it was organised, and a highlight moment.',
-    'Photography': 'Mention the photographer\'s direction, final image quality, or how comfortable they made you feel.',
-    'Events':      'Mention the decoration, coordination, food, or a guest reaction.',
-    'Laundry':     'Mention turnaround time, whether clothes came back in perfect condition, or pricing.',
+    'Restaurant':  'sensory detail on one dish (taste, texture, aroma) + either wait time or portion size',
+    'Cafe':        'coffee quality or a specific drink + one atmosphere detail (seating, music, lighting)',
+    'Bar':         'a specific cocktail or drink + the atmosphere or crowd vibe at a particular time',
+    'Bakery':      'a specific baked item you tried + whether it was fresh or still warm',
+    'Fast Food':   'order speed + a specific item name + whether it was hot / as expected',
+    'Sweet Shop':  'a specific sweet by name + its freshness or texture',
+    'Hospital':    'a specific department or doctor role + cleanliness + how long the process took',
+    'Clinic':      'how attentively the doctor listened + wait time + how you felt leaving',
+    'Pharmacy':    'whether your specific medicine was in stock + how helpful the pharmacist was',
+    'Dentist':     'the doctor\'s gentleness on a specific procedure + equipment quality + pain level',
+    'Veterinary':  'how they handled your specific pet + what the vet explained + how your pet responded',
+    'Salon':       'specific service name + the result on your hair/skin + how you felt walking out',
+    'Spa':         'specific treatment name + a sensory atmosphere detail (lighting, music, scent) + how relaxed you felt',
+    'Gym':         'a specific equipment type or class + a trainer interaction + one personal result',
+    'Yoga':        'the instructor\'s cuing style + class pace + how you felt mentally after',
+    'Fitness':     'a specific programme or trainer + one measurable or visible result you noticed',
+    'Hotel':       'room-specific detail (view, bed comfort, bathroom) + one staff interaction by role + breakfast or check-in',
+    'Resort':      'a specific facility (pool, spa, restaurant) + one meal or activity + overall atmosphere',
+    'Hostel':      'dorm or room cleanliness + a specific staff helpfulness moment + proximity to something useful',
+    'Retail':      'whether you found what you needed + staff product knowledge + ease of checkout',
+    'Clothing':    'a specific item you bought + fabric feel or fit + whether staff suggested something that worked',
+    'Jewelry':     'a specific piece + craftsmanship detail + how patient staff were while you chose',
+    'Electronics': 'a specific product + whether staff knew the technical details + any after-sales note',
+    'Furniture':   'a specific piece + material quality or finish + delivery or assembly experience',
+    'Grocery':     'freshness of a specific produce type + stock availability + checkout speed',
+    'Supermarket': 'product variety for a specific category + store cleanliness + billing process',
+    'Hardware':    'whether a specific part was in stock + staff knowledge on a technical question',
+    'Books':       'a specific section or title + whether staff gave a useful recommendation + browsing comfort',
+    'Sports':      'a specific brand or item + whether it was in stock in the right size + staff advice quality',
+    'Pet Shop':    'care standards for a specific animal section + product advice from staff + pricing',
+    'Automotive':  'specific repair or service done + how clearly the mechanic explained the issue + the result',
+    'Real Estate': 'how well they understood your specific requirement + one thing they did to make the process smooth',
+    'Bank':        'wait time + how a specific issue was resolved + one digital or in-branch service note',
+    'School':      'a specific teacher or subject + how your child responded + one observable environment detail',
+    'Travel':      'a specific destination or package + one logistical detail (timing, transport) + a highlight moment',
+    'Photography': 'how the photographer directed you + final image quality detail + how comfortable you felt',
+    'Events':      'one decoration or setup detail + food quality + a specific guest reaction or moment',
+    'Laundry':     'turnaround time + condition clothes came back in + pricing relative to expectation',
   };
 
   function buildPrompt(lang) {
     var langLabel = { en: 'English', hi: 'Hindi', gu: 'Gujarati' }[lang] || 'English';
-    var areaText  = AREA ? ' in ' + AREA : '';
     var kwText    = KEYWORDS.length ? KEYWORDS.join(', ') : '';
+    var areaText  = AREA ? ' in ' + AREA : '';
 
-    // Convert tone chip names to style descriptions
     var toneDesc = TONES
       .map(function (t) { return TONE_STYLES[t.trim()] || t.toLowerCase(); })
-      .join(' — also ');
+      .join('; and ');
 
-    var catHint = CAT_HINTS[CATEGORY] || 'Mention one specific thing only a real visitor would notice.';
+    var catHint  = CAT_HINTS[CATEGORY] || 'one specific operational detail only a real visitor would know';
 
-    // Sentence count driven by tone
-    var sentenceGuide = TONES.includes('Concise') ? '2 sentences'
-                      : TONES.includes('Detailed') ? '4 to 6 sentences'
-                      : '3 to 4 sentences';
+    var wordGuide = TONES.includes('Concise') ? '40-60 words'
+                  : TONES.includes('Detailed') ? '100-130 words'
+                  : '65-100 words';
+
+    // ── SEO / AEO / GEO signals to bake in ──────
+    // These make the review useful to searchers and citeable by AI engines
+    var seoBlock = [
+      'SEO — mention "' + BIZ_NAME + '" + the business type (' + CATEGORY + ') + "' + (AREA || 'the area') + '" naturally in the same review (this is the entity signal Google uses for local ranking)',
+      kwText
+        ? 'SEO — use these exact terms naturally — do not paraphrase them: ' + kwText + ' (these are the search terms people use to find this business)'
+        : '',
+      'AEO — include one declarative factual sentence that directly answers a question a searcher might ask (e.g. wait time, price signal like "worth every rupee", a specific item that is standout, or a practical tip like parking or timing)',
+      'AEO — use causal language at least once ("because...", "so...", "which means...") — this is what gets pulled into Google featured snippets and People Also Ask',
+      'GEO — include one concrete specific claim with a detail attached (e.g. "the ' + (kwText.split(',')[0] || CATEGORY.toLowerCase()) + ' was [specific adjective + reason]") — AI overviews cite reviews with unique verifiable claims over generic praise',
+      'GEO — a gentle comparative phrase ("one of the better ' + CATEGORY.toLowerCase() + ' places' + (AREA ? ' in ' + AREA : '') + '", "worth it for the price", "better than I expected") signals quality differentiation which AI engines use to rank businesses',
+    ].filter(Boolean);
 
     return [
-      'Business: "' + BIZ_NAME + '"' + areaText,
-      'Type: ' + CATEGORY,
-      kwText ? 'Naturally weave in these specifics: ' + kwText : '',
-      'Writing style: ' + toneDesc,
-      'Language: ' + langLabel + ' only — no mixing languages',
-      'Length: ' + sentenceGuide,
-      'Detail hint: ' + catHint,
+      '=== TASK ===',
+      'Write one Google Maps customer review.',
       '',
-      'Hard rules — breaking any of these fails the task:',
-      '- Write from personal experience, past tense, first person',
-      '- Do NOT start the review with the word "I" — open differently each time',
-      '- Use natural contractions (it\'s, wasn\'t, I\'ve, couldn\'t)',
-      '- Include ONE small specific detail that only a real visitor would notice',
-      '- BANNED phrases: "exceeded my expectations" / "highly recommend" / "must-visit" / "without hesitation" / "I must say" / "truly exceptional" / "delightful" / "I cannot recommend enough" / "five stars" / "5 stars" / "top-notch"',
-      '- No emojis, no hashtags, no star symbols',
-      '- Output ONLY the review — no intro, no label, no explanation',
+      '=== BUSINESS ===',
+      'Name: ' + BIZ_NAME,
+      'Type: ' + CATEGORY,
+      'Location: ' + (AREA || 'local area'),
+      kwText ? 'Keywords to include: ' + kwText : '',
+      '',
+      '=== WRITING STYLE ===',
+      toneDesc,
+      'Language: ' + langLabel + ' only — no code-switching',
+      'Length: ' + wordGuide,
+      'Specific detail required: ' + catHint,
+      '',
+      '=== RANKING RULES (follow all — these make the review rank on Google and get cited by AI) ===',
+      seoBlock.join('\n'),
+      '',
+      '=== AUTHENTICITY RULES (follow all — these make it sound human) ===',
+      '- First person, past tense, lived experience',
+      '- Do NOT open with the word "I" — vary the opening every time',
+      '- Use natural contractions (it\'s, wasn\'t, I\'ve, couldn\'t, they\'re)',
+      '- One small detail only a real visitor would notice (smell, texture, queue length, staff name/role, a specific corner of the room)',
+      '- BANNED words and phrases: "exceeded my expectations" | "highly recommend" | "must-visit" | "without hesitation" | "I must say" | "truly exceptional" | "delightful" | "I cannot recommend enough" | "five stars" | "top-notch" | "gem" | "hidden gem" | "world-class" | "amazing experience"',
+      '- No emojis, no hashtags, no star symbols (★ ⭐)',
+      '',
+      '=== OUTPUT ===',
+      'Review text only — no label, no preamble, no explanation.',
     ].filter(Boolean).join('\n');
   }
 
-  var SYSTEM_INSTRUCTION = 'You are a real person who just visited a local business and is writing an honest Google Maps review from memory. You write the way people actually talk — sometimes a sentence runs a bit long, sometimes it\'s short and punchy. You notice small real details. You never sound like a press release or an AI assistant.';
+  var SYSTEM_INSTRUCTION = [
+    'You are a real local customer writing a Google Maps review from personal memory.',
+    'You write naturally — the way people actually talk — mixing shorter and longer sentences.',
+    'Your reviews are genuinely useful to other people searching online because they include specific details: names of items, how things actually tasted or felt, practical observations like wait times or price signals.',
+    'You always mention the business name, what kind of place it is, and the area — because that is how real reviews read and that is what helps other searchers find the right place.',
+    'You never sound like a press release, a marketing copywriter, or an AI assistant.',
+  ].join(' ');
 
   async function fetchGeminiReview(lang) {
     if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY') {
@@ -537,7 +566,7 @@ var GEMINI_MODEL   = 'gemini-3.5-flash-lite';
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
         contents: [{ role: 'user', parts: [{ text: buildPrompt(lang) }] }],
-        generationConfig: { temperature: 1.1, maxOutputTokens: 280, topP: 0.95 },
+        generationConfig: { temperature: 1.1, maxOutputTokens: 320, topP: 0.95 },
         safetySettings: [
           { category: 'HARM_CATEGORY_HARASSMENT',        threshold: 'BLOCK_NONE' },
           { category: 'HARM_CATEGORY_HATE_SPEECH',       threshold: 'BLOCK_NONE' },
