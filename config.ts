@@ -1,7 +1,7 @@
 /**
  * config.ts
  */
-export const GOOGLE_MAPS_API_KEY = 'AIzaSyDhvYzvwNkEvilUq_ixLQ2dxz8tBGKGu7M';
+export const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
 
 /**
  * URL where the customer-facing review web page is hosted.
