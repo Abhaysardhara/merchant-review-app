@@ -963,9 +963,7 @@ var MAPS_API_KEY   = 'YOUR_MAPS_API_KEY';
       text = await fetchGeminiReview(lang, cachedPlace);
     } catch (e) {
       console.error('[ReviewReach] AI generation failed:', e.message);
-      text = '⚠️ Could not generate review: ' + e.message + '
-
-Open browser console (F12) for details.';
+      text = '[AI Error] ' + e.message + ' — check F12 console.';
     }
     setLoading(false);
     document.getElementById('reviewText').value = text;
