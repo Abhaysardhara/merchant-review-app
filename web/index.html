@@ -9,6 +9,20 @@
   <!-- Prevent search engine indexing of review pages -->
   <meta name="robots" content="noindex, nofollow" />
 
+  <!--
+    Security: restrict outbound connections to only the two APIs this page needs.
+    frame-ancestors 'none' blocks clickjacking.
+    script-src 'unsafe-inline' is required because all JS is inline in this static file.
+  -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'none';
+    script-src 'unsafe-inline';
+    style-src 'unsafe-inline';
+    connect-src https://generativelanguage.googleapis.com https://places.googleapis.com;
+    img-src 'self' data:;
+    frame-ancestors 'none';
+  " />
+
   <style>
     /* ── Reset & Base ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -395,27 +409,53 @@
 
 <script>
 // ─────────────────────────────────────────────
-//  Config — replace with your key
-//  Restrict it to HTTP referrers in Google Cloud Console
+//  Config
+//  IMPORTANT: restrict both keys to HTTP referrers in Google Cloud Console
+//  so they only work on your GitHub Pages domain. View source exposes them.
 // ─────────────────────────────────────────────
 var GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY';
 var GEMINI_MODEL   = 'gemini-3.5-flash-lite';
 var MAPS_API_KEY   = 'YOUR_MAPS_API_KEY';
 
 // ─────────────────────────────────────────────
-//  Parse URL params
+//  Parse & sanitize URL params
 // ─────────────────────────────────────────────
 (function () {
   var q = new URLSearchParams(location.search);
-  var PLACE_ID = q.get('pid') || '';
-  var BIZ_NAME = decodeParam(q.get('n')) || 'This Business';
-  var CATEGORY = decodeParam(q.get('c')) || 'General';
-  var TONES    = (decodeParam(q.get('t')) || 'Friendly').split(',').map(trim);
-  var KEYWORDS = (decodeParam(q.get('k')) || '').split(',').map(trim).filter(Boolean).slice(0, 4);
-  var AREA     = decodeParam(q.get('a')) || '';
 
-  function decodeParam(v) { try { return v ? decodeURIComponent(v) : ''; } catch(e) { return v || ''; } }
+  function decodeParam(v) {
+    try { return v ? decodeURIComponent(v) : ''; } catch(e) { return v || ''; }
+  }
   function trim(s) { return s ? s.trim() : ''; }
+
+  // Strip characters that could break prompt structure or inject new sections.
+  // Removes: newlines, carriage returns, null bytes, and === / --- sequences
+  // used as section headers in our prompt format.
+  function sanitize(s, maxLen) {
+    if (!s) return '';
+    return s
+      .replace(/[\r\n\x00]/g, ' ')          // no newlines or nulls
+      .replace(/={3,}/g, '')                 // no === (prompt section headers)
+      .replace(/-{3,}/g, '')                 // no --- (prompt section headers)
+      .replace(/[<>]/g, '')                  // no HTML angle brackets
+      .trim()
+      .slice(0, maxLen || 200);
+  }
+
+  // Validate Google Place ID format: alphanumeric + underscores + hyphens + colons
+  // Real Place IDs look like "ChIJN1t_tDeuEmsRUsoyG83frY4" — max ~200 chars
+  function isValidPlaceId(id) {
+    return id && /^[a-zA-Z0-9_\-:]{10,200}$/.test(id);
+  }
+
+  var rawPlaceId = decodeParam(q.get('pid'));
+  var PLACE_ID = isValidPlaceId(rawPlaceId) ? rawPlaceId : '';
+  var BIZ_NAME = sanitize(decodeParam(q.get('n')), 100) || 'This Business';
+  var CATEGORY = sanitize(decodeParam(q.get('c')), 50)  || 'General';
+  var TONES    = sanitize(decodeParam(q.get('t')), 150).split(',').map(trim).filter(Boolean);
+  if (!TONES.length) TONES = ['Friendly'];
+  var KEYWORDS = sanitize(decodeParam(q.get('k')), 200).split(',').map(trim).filter(Boolean).slice(0, 4);
+  var AREA     = sanitize(decodeParam(q.get('a')), 100);
 
   // ── Fill header ──────────────────────────────
   document.getElementById('bizName').textContent = BIZ_NAME;
@@ -551,14 +591,57 @@ var MAPS_API_KEY   = 'YOUR_MAPS_API_KEY';
     'restroom','parkingOptions','paymentOptions','accessibilityOptions',
   ].join(',');
 
+  // ── Places API cache (localStorage, 7-day expiry) ────────────────
+  // Key:   rr_place_v1_{placeId}   (namespaced to avoid collisions)
+  // Value: { data: <API response>, expiresAt: <unix ms> }
+  // 7 days is appropriate — place attributes (hours, services, type)
+  // change rarely; rating/review counts update but aren't time-critical here.
+  var CACHE_TTL_MS  = 7 * 24 * 60 * 60 * 1000; // 7 days
+  var CACHE_PREFIX  = 'rr_place_v1_';
+
+  function cacheGet(placeId) {
+    try {
+      var raw = localStorage.getItem(CACHE_PREFIX + placeId);
+      if (!raw) return null;
+      var entry = JSON.parse(raw);
+      if (!entry || !entry.expiresAt || !entry.data) return null;
+      if (Date.now() > entry.expiresAt) {
+        localStorage.removeItem(CACHE_PREFIX + placeId); // expired — evict
+        return null;
+      }
+      return entry.data;
+    } catch (e) { return null; } // corrupted entry — treat as miss
+  }
+
+  function cacheSet(placeId, data) {
+    try {
+      localStorage.setItem(CACHE_PREFIX + placeId, JSON.stringify({
+        data:      data,
+        expiresAt: Date.now() + CACHE_TTL_MS,
+      }));
+    } catch (e) {
+      // localStorage full (QuotaExceededError) or private mode — silently ignore
+    }
+  }
+
   async function fetchPlaceDetails(placeId) {
     if (!placeId || !MAPS_API_KEY || MAPS_API_KEY === 'YOUR_MAPS_API_KEY') return null;
+
+    // 1. Try cache first
+    var cached = cacheGet(placeId);
+    if (cached) return cached;
+
+    // 2. Fetch from API
     try {
       var url = 'https://places.googleapis.com/v1/places/' + encodeURIComponent(placeId)
                 + '?fields=' + PLACE_FIELDS + '&key=' + MAPS_API_KEY;
       var res = await fetch(url);
       if (!res.ok) return null;
-      return await res.json();
+      var data = await res.json();
+      if (data && !data.error) {
+        cacheSet(placeId, data); // store only valid responses
+      }
+      return data.error ? null : data;
     } catch (e) { return null; }
   }
 
