@@ -535,12 +535,20 @@ var MAPS_API_KEY   = 'YOUR_MAPS_API_KEY';
 
   // ── Google Places API — fetch rich place attributes ──
   var PLACE_FIELDS = [
-    'primaryType','types','priceLevel','editorialSummary',
-    'delivery','dineIn','reservable','outdoorSeating','liveMusic',
-    'servesBeer','servesWine','servesCoffee','servesBreakfast',
-    'servesLunch','servesDinner','servesVegetarianFood',
-    'goodForChildren','goodForGroups',
-    'parkingOptions','paymentOptions','accessibilityOptions',
+    // Pro
+    'primaryType','primaryTypeDisplayName','types','businessStatus',
+    // Enterprise
+    'priceLevel','priceRange','rating','userRatingCount',
+    // Enterprise + Atmosphere
+    'editorialSummary','generativeSummary','reviewSummary',
+    'reviews',
+    'delivery','dineIn','takeout','curbsidePickup','reservable',
+    'outdoorSeating','liveMusic','goodForWatchingSports',
+    'servesBeer','servesWine','servesCocktails','servesCoffee',
+    'servesBreakfast','servesBrunch','servesLunch','servesDinner',
+    'servesDessert','servesVegetarianFood',
+    'allowsDogs','menuForChildren','goodForChildren','goodForGroups',
+    'restroom','parkingOptions','paymentOptions','accessibilityOptions',
   ].join(',');
 
   async function fetchPlaceDetails(placeId) {
@@ -559,10 +567,24 @@ var MAPS_API_KEY   = 'YOUR_MAPS_API_KEY';
     if (!d) return null;
     var lines = [];
 
-    if (d.primaryType) {
+    // ── Type & status ──
+    if (d.primaryTypeDisplayName && d.primaryTypeDisplayName.text) {
+      lines.push('Google business type: ' + d.primaryTypeDisplayName.text);
+    } else if (d.primaryType) {
       lines.push('Google business type: ' + d.primaryType.replace(/_/g, ' '));
     }
+    if (d.businessStatus && d.businessStatus !== 'OPERATIONAL') {
+      lines.push('Status: ' + d.businessStatus.replace(/_/g, ' ').toLowerCase());
+    }
 
+    // ── Reputation ──
+    if (d.rating) {
+      var ratingLine = 'Overall rating: ' + d.rating + '/5';
+      if (d.userRatingCount) ratingLine += ' (' + d.userRatingCount + ' reviews)';
+      lines.push(ratingLine);
+    }
+
+    // ── Pricing ──
     var priceMap = {
       'PRICE_LEVEL_FREE':          'free / no charge',
       'PRICE_LEVEL_INEXPENSIVE':   'budget-friendly',
@@ -571,50 +593,99 @@ var MAPS_API_KEY   = 'YOUR_MAPS_API_KEY';
       'PRICE_LEVEL_VERY_EXPENSIVE':'premium / very expensive',
     };
     if (d.priceLevel && priceMap[d.priceLevel]) {
-      lines.push('Price level: ' + priceMap[d.priceLevel]);
+      var priceLine = 'Price level: ' + priceMap[d.priceLevel];
+      if (d.priceRange) {
+        if (d.priceRange.startPrice && d.priceRange.endPrice) {
+          priceLine += ' (' + (d.priceRange.startPrice.units || '') + '–' + (d.priceRange.endPrice.units || '') + ' ' + (d.priceRange.startPrice.currencyCode || '') + ')';
+        }
+      }
+      lines.push(priceLine);
     }
 
+    // ── Google summaries — most useful for understanding what the business is known for ──
     if (d.editorialSummary && d.editorialSummary.text) {
-      lines.push('Google description: ' + d.editorialSummary.text);
+      lines.push('Google editorial summary: ' + d.editorialSummary.text);
+    }
+    if (d.generativeSummary && d.generativeSummary.overview && d.generativeSummary.overview.text) {
+      lines.push('Google AI overview: ' + d.generativeSummary.overview.text);
+    }
+    if (d.reviewSummary && d.reviewSummary.text) {
+      lines.push('Review summary: ' + d.reviewSummary.text);
     }
 
+    // ── Services & attributes ──
     var svcMap = {
       delivery:             'offers delivery',
       dineIn:               'dine-in available',
+      takeout:              'takeout available',
+      curbsidePickup:       'curbside pickup',
       reservable:           'accepts reservations',
       outdoorSeating:       'has outdoor seating',
       liveMusic:            'has live music',
+      goodForWatchingSports:'good for watching sports',
       servesBeer:           'serves beer',
       servesWine:           'serves wine',
+      servesCocktails:      'serves cocktails',
       servesCoffee:         'serves coffee',
       servesBreakfast:      'serves breakfast',
+      servesBrunch:         'serves brunch',
       servesLunch:          'serves lunch',
       servesDinner:         'serves dinner',
+      servesDessert:        'serves dessert',
       servesVegetarianFood: 'vegetarian options available',
+      allowsDogs:           'pet-friendly / allows dogs',
+      menuForChildren:      'has kids menu',
       goodForChildren:      'family-friendly / good for kids',
       goodForGroups:        'good for groups',
+      restroom:             'restroom available',
     };
-    var attrs = Object.keys(svcMap).filter(function (k) { return d[k] === true; })
-                      .map(function (k) { return svcMap[k]; });
-    if (attrs.length) lines.push('Confirmed services & attributes: ' + attrs.join(', '));
+    var attrs = Object.keys(svcMap)
+      .filter(function (k) { return d[k] === true; })
+      .map(function (k) { return svcMap[k]; });
+    if (attrs.length) lines.push('Confirmed attributes: ' + attrs.join(', '));
 
+    // ── Parking ──
     var parking = [];
     if (d.parkingOptions) {
-      if (d.parkingOptions.valetParking)     parking.push('valet parking');
-      if (d.parkingOptions.freeParkingLot)   parking.push('free parking lot');
-      if (d.parkingOptions.freeStreetParking)parking.push('free street parking');
-      if (d.parkingOptions.paidParkingLot)   parking.push('paid parking');
+      if (d.parkingOptions.valetParking)      parking.push('valet');
+      if (d.parkingOptions.freeParkingLot)    parking.push('free lot');
+      if (d.parkingOptions.freeStreetParking) parking.push('free street parking');
+      if (d.parkingOptions.paidParkingLot)    parking.push('paid lot');
+      if (d.parkingOptions.paidStreetParking) parking.push('paid street parking');
     }
     if (parking.length) lines.push('Parking: ' + parking.join(', '));
 
+    // ── Payment ──
     var pay = [];
     if (d.paymentOptions) {
-      if (d.paymentOptions.acceptsNfc)         pay.push('UPI/NFC');
-      if (d.paymentOptions.acceptsCreditCards) pay.push('credit cards');
-      if (d.paymentOptions.acceptsDebitCards)  pay.push('debit cards');
-      if (d.paymentOptions.acceptsCashOnly)    pay.push('cash only');
+      if (d.paymentOptions.acceptsNfc)          pay.push('UPI/NFC');
+      if (d.paymentOptions.acceptsCreditCards)  pay.push('credit cards');
+      if (d.paymentOptions.acceptsDebitCards)   pay.push('debit cards');
+      if (d.paymentOptions.acceptsCashOnly)     pay.push('cash only');
     }
-    if (pay.length) lines.push('Payment accepted: ' + pay.join(', '));
+    if (pay.length) lines.push('Payment: ' + pay.join(', '));
+
+    // ── Accessibility ──
+    var access = [];
+    if (d.accessibilityOptions) {
+      if (d.accessibilityOptions.wheelchairAccessibleEntrance) access.push('wheelchair entrance');
+      if (d.accessibilityOptions.wheelchairAccessibleParking)  access.push('wheelchair parking');
+      if (d.accessibilityOptions.wheelchairAccessibleRestroom) access.push('wheelchair restroom');
+      if (d.accessibilityOptions.wheelchairAccessibleSeating)  access.push('wheelchair seating');
+    }
+    if (access.length) lines.push('Accessibility: ' + access.join(', '));
+
+    // ── Existing reviews — top 2 snippets for Gemini to understand real customer language ──
+    if (d.reviews && d.reviews.length) {
+      var snippets = d.reviews.slice(0, 2).map(function (r) {
+        var txt = r.text && r.text.text ? r.text.text : '';
+        return txt.length > 200 ? txt.slice(0, 200) + '…' : txt;
+      }).filter(Boolean);
+      if (snippets.length) {
+        lines.push('Sample real customer reviews (for context only — do NOT copy):');
+        snippets.forEach(function (s, i) { lines.push('  Review ' + (i + 1) + ': "' + s + '"'); });
+      }
+    }
 
     return lines.length ? lines.join('\n') : null;
   }
