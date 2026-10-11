@@ -878,8 +878,7 @@ var MAPS_API_KEY   = 'YOUR_MAPS_API_KEY';
     lines.push('');
     lines.push('Output: Review text only — no labels, no bullets, no preamble.');
 
-    return lines.filter(function(l) { return l !== null && l !== undefined; }).join('
-');
+    return lines.filter(function(l) { return l !== null && l !== undefined; }).join(String.fromCharCode(10));
   }
 
   var SYSTEM_INSTRUCTION = [
