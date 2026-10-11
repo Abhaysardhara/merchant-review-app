@@ -625,7 +625,7 @@ var MAPS_API_KEY   = 'YOUR_MAPS_API_KEY';
   }
 
   async function fetchPlaceDetails(placeId) {
-    if (!placeId || !MAPS_API_KEY || MAPS_API_KEY === 'YOUR_MAPS_API_KEY') return null;
+    if (!placeId || !MAPS_API_KEY || MAPS_API_KEY.startsWith('YOUR_')) return null;
 
     // 1. Try cache first
     var cached = cacheGet(placeId);
@@ -891,7 +891,7 @@ var MAPS_API_KEY   = 'YOUR_MAPS_API_KEY';
   ].join(' ');
 
   async function fetchGeminiReview(lang, placeDetails) {
-    if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY') {
+    if (!GEMINI_API_KEY || GEMINI_API_KEY.startsWith('YOUR_')) {
       throw new Error('GEMINI_API_KEY not injected — placeholder still present in HTML');
     }
     console.log('[Gemini] model:', GEMINI_MODEL, '| key prefix:', GEMINI_API_KEY.slice(0, 8) + '…');
