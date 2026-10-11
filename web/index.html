@@ -399,7 +399,7 @@
 //  Restrict it to HTTP referrers in Google Cloud Console
 // ─────────────────────────────────────────────
 var GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY';
-var GEMINI_MODEL   = 'gemini-2.5-flash-lite';
+var GEMINI_MODEL   = 'gemini-3.5-flash-lite';
 
 // ─────────────────────────────────────────────
 //  Parse URL params
@@ -429,26 +429,101 @@ var GEMINI_MODEL   = 'gemini-2.5-flash-lite';
   }
 
   // ── Gemini API call ──────────────────────────
+
+  // Map tone chip names → writing style descriptions the model can act on
+  var TONE_STYLES = {
+    'Friendly':     'warm, conversational, like chatting with a friend — use contractions freely',
+    'Professional': 'clear and measured, polished but not stiff',
+    'Luxury':       'discerning and refined — you have high standards and this place met them',
+    'Casual':       'super relaxed, short sentences, informal — almost like a WhatsApp message to a friend',
+    'Enthusiastic': 'genuinely excited and energetic, but still believable — not over the top',
+    'Concise':      'brief and punchy — 2 sentences max, every word earns its place',
+    'Heartfelt':    'personal and warm — include how the experience actually made you feel',
+    'Formal':       'composed, no contractions, measured vocabulary — like a letter of commendation',
+    'Detailed':     'thorough — mention 2 or 3 specific things you noticed that most people overlook',
+    'Grateful':     'appreciative tone — mention the difference it made to your day or situation',
+  };
+
+  // Category-specific prompting hint so the model knows what details are realistic
+  var CAT_HINTS = {
+    'Restaurant':  'Mention a specific dish, the freshness of the food, or the wait time.',
+    'Cafe':        'Mention the coffee quality, a snack, or the vibe — cozy corner, background music, etc.',
+    'Bar':         'Mention the drinks, atmosphere, music, or how the evening felt.',
+    'Bakery':      'Mention a specific baked item you tried and whether it was fresh.',
+    'Fast Food':   'Mention speed, portion size, or a specific item.',
+    'Sweet Shop':  'Mention a specific sweet, freshness, or packaging.',
+    'Hospital':    'Mention the doctors or nurses by role, cleanliness, or how cared-for you felt.',
+    'Clinic':      'Mention the doctor\'s attentiveness, wait time, or how clearly things were explained.',
+    'Pharmacy':    'Mention whether they had your medicine in stock and how helpful the pharmacist was.',
+    'Dentist':     'Mention the doctor\'s gentleness, the equipment, or your anxiety before vs comfort after.',
+    'Veterinary':  'Mention how gently they handled your pet and how reassured you felt.',
+    'Salon':       'Mention the specific service (cut, color, treatment), the result, and how you felt leaving.',
+    'Spa':         'Mention the treatment type, the atmosphere — lighting, music — and how relaxed you felt.',
+    'Gym':         'Mention the equipment condition, a trainer interaction, or a visible improvement in yourself.',
+    'Yoga':        'Mention the instructor\'s guidance, the calm atmosphere, or a specific class.',
+    'Fitness':     'Mention the trainers, the programme, or a personal result you noticed.',
+    'Hotel':       'Mention the room comfort, a specific staff interaction, breakfast, or the view.',
+    'Resort':      'Mention the pool, a meal, an activity, or the overall feeling of the stay.',
+    'Hostel':      'Mention the social vibe, cleanliness of dorms, staff helpfulness, or location.',
+    'Retail':      'Mention the product range, whether you found what you needed, and staff helpfulness.',
+    'Clothing':    'Mention a specific item you bought, the fabric quality, or how the staff helped you style.',
+    'Jewelry':     'Mention the craftsmanship, a specific piece, or how patient staff were in helping you choose.',
+    'Electronics': 'Mention a specific product, whether the staff knew their stuff, and after-sales support.',
+    'Furniture':   'Mention the quality of materials, delivery experience, or how a piece looks in your home.',
+    'Grocery':     'Mention the freshness of produce, stock availability, or checkout speed.',
+    'Supermarket': 'Mention product variety, cleanliness, or the billing process.',
+    'Hardware':    'Mention whether you found the part you needed, staff knowledge, or pricing.',
+    'Books':       'Mention the selection, whether staff recommended something good, or the browsing experience.',
+    'Sports':      'Mention the brand range, whether a specific item was in stock, or knowledgeable staff.',
+    'Pet Shop':    'Mention the animal care standards, product variety, or helpful staff advice.',
+    'Automotive':  'Mention what work was done, whether the mechanic explained the issue clearly, and the result.',
+    'Real Estate': 'Mention how well they listened to your requirements and how smoothly the process went.',
+    'Bank':        'Mention wait time, how a staff member resolved your issue, or digital service quality.',
+    'School':      'Mention teacher quality, how your child responded, or the overall environment.',
+    'Travel':      'Mention a specific trip or package, how well it was organised, and a highlight moment.',
+    'Photography': 'Mention the photographer\'s direction, final image quality, or how comfortable they made you feel.',
+    'Events':      'Mention the decoration, coordination, food, or a guest reaction.',
+    'Laundry':     'Mention turnaround time, whether clothes came back in perfect condition, or pricing.',
+  };
+
   function buildPrompt(lang) {
     var langLabel = { en: 'English', hi: 'Hindi', gu: 'Gujarati' }[lang] || 'English';
+    var areaText  = AREA ? ' in ' + AREA : '';
     var kwText    = KEYWORDS.length ? KEYWORDS.join(', ') : '';
-    var toneText  = TONES.join(', ');
-    var areaText  = AREA ? ' located in ' + AREA : '';
+
+    // Convert tone chip names to style descriptions
+    var toneDesc = TONES
+      .map(function (t) { return TONE_STYLES[t.trim()] || t.toLowerCase(); })
+      .join(' — also ');
+
+    var catHint = CAT_HINTS[CATEGORY] || 'Mention one specific thing only a real visitor would notice.';
+
+    // Sentence count driven by tone
+    var sentenceGuide = TONES.includes('Concise') ? '2 sentences'
+                      : TONES.includes('Detailed') ? '4 to 6 sentences'
+                      : '3 to 4 sentences';
 
     return [
-      'Write a single genuine, natural-sounding Google Maps review for a ' + CATEGORY + ' business called "' + BIZ_NAME + '"' + areaText + '.',
-      kwText  ? 'Key highlights to mention naturally: ' + kwText + '.'  : '',
-      'Writing tone: ' + toneText + '.',
-      'Language: Write entirely in ' + langLabel + '.',
-      'Rules:',
-      '- First-person, 3 to 5 sentences, conversational',
-      '- Weave in the business name and location naturally',
-      '- Do NOT use the words "five-star", "5-star", or star ratings',
-      '- Do NOT use generic filler phrases like "I highly recommend"',
-      '- Sound like a real customer, not a marketing copywriter',
-      '- Output ONLY the review text, nothing else',
+      'Business: "' + BIZ_NAME + '"' + areaText,
+      'Type: ' + CATEGORY,
+      kwText ? 'Naturally weave in these specifics: ' + kwText : '',
+      'Writing style: ' + toneDesc,
+      'Language: ' + langLabel + ' only — no mixing languages',
+      'Length: ' + sentenceGuide,
+      'Detail hint: ' + catHint,
+      '',
+      'Hard rules — breaking any of these fails the task:',
+      '- Write from personal experience, past tense, first person',
+      '- Do NOT start the review with the word "I" — open differently each time',
+      '- Use natural contractions (it\'s, wasn\'t, I\'ve, couldn\'t)',
+      '- Include ONE small specific detail that only a real visitor would notice',
+      '- BANNED phrases: "exceeded my expectations" / "highly recommend" / "must-visit" / "without hesitation" / "I must say" / "truly exceptional" / "delightful" / "I cannot recommend enough" / "five stars" / "5 stars" / "top-notch"',
+      '- No emojis, no hashtags, no star symbols',
+      '- Output ONLY the review — no intro, no label, no explanation',
     ].filter(Boolean).join('\n');
   }
+
+  var SYSTEM_INSTRUCTION = 'You are a real person who just visited a local business and is writing an honest Google Maps review from memory. You write the way people actually talk — sometimes a sentence runs a bit long, sometimes it\'s short and punchy. You notice small real details. You never sound like a press release or an AI assistant.';
 
   async function fetchGeminiReview(lang) {
     if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY') {
@@ -460,8 +535,9 @@ var GEMINI_MODEL   = 'gemini-2.5-flash-lite';
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: buildPrompt(lang) }] }],
-        generationConfig: { temperature: 1.0, maxOutputTokens: 220 },
+        systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
+        contents: [{ role: 'user', parts: [{ text: buildPrompt(lang) }] }],
+        generationConfig: { temperature: 1.1, maxOutputTokens: 280, topP: 0.95 },
         safetySettings: [
           { category: 'HARM_CATEGORY_HARASSMENT',        threshold: 'BLOCK_NONE' },
           { category: 'HARM_CATEGORY_HATE_SPEECH',       threshold: 'BLOCK_NONE' },
