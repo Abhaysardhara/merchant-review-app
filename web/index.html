@@ -810,10 +810,8 @@ var MAPS_API_KEY   = 'YOUR_MAPS_API_KEY';
     var placeTypes  = placeDetails && placeDetails.types ? placeDetails.types : [];
     var primaryType = placeDetails && placeDetails.primaryType
                       ? placeDetails.primaryType.replace(/_/g, ' ') : '';
-    var catType     = getCatType(typeLabel, placeTypes);
-
     // Strip postal/PIN codes — city name only in review body
-                var city = AREA.split(',').map(function(p){return p.trim();}).filter(function(p){return p && !/^[0-9]+$/.test(p);}).join(', ') || AREA.trim() || 'local area';
+    var city = AREA.split(',').map(function(p){return p.trim();}).filter(function(p){return p && !/^[0-9]+$/.test(p);}).join(', ') || AREA.trim() || 'local area';
 
     // Business type comes from Places API only — no merchant-set category
     var typeLabel   = primaryType
@@ -821,6 +819,7 @@ var MAPS_API_KEY   = 'YOUR_MAPS_API_KEY';
           ? placeDetails.primaryTypeDisplayName.text
           : primaryType)
       : 'business';
+    var catType     = getCatType(typeLabel, placeTypes);
 
     var catHint    = CAT_HINTS[typeLabel] || (primaryType
                      ? 'one specific detail only a real visitor of a "' + primaryType + '" would notice'
