@@ -140,10 +140,10 @@ export function BranchDetailScreen({ route, navigation }: Props) {
             </View>
           </View>
 
-          {/* 14-day timeseries chart */}
+          {/* Timeseries chart */}
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Last 14 Days</Text>
-            <BranchLineChart placeId={branch.placeId} days={14} />
+            <Text style={styles.sectionTitle}>Trends</Text>
+            <BranchLineChart placeId={branch.placeId} />
           </View>
 
           {/* Branch Details */}

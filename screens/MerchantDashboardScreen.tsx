@@ -397,10 +397,10 @@ export function MerchantDashboardScreen({ navigation, route }: Props) {
               />
             ))}
 
-            {/* Overall 7-day trend */}
+            {/* Overall trend */}
             <View style={styles.chartCard}>
-              <Text style={styles.chartTitle}>Overall — Last 7 Days</Text>
-              <OverallLineChart branches={branches} days={7} />
+              <Text style={styles.chartTitle}>Overall Trends</Text>
+              <OverallLineChart branches={branches} />
             </View>
 
             {/* Per-branch scans comparison */}

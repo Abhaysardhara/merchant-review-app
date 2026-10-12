@@ -72,6 +72,30 @@ export interface DailyStat {
   copied: number;
 }
 
+export interface HourlyStat {
+  hour: string;       // YYYY-MM-DDTHH  e.g. "2026-10-12T14"
+  scans: number;
+  linkVisits: number;
+  copied: number;
+}
+
+/** Fetch hourly stats for a branch, optionally filtered to last N hours */
+export async function fetchHourlyStats(placeId: string, hours = 24): Promise<HourlyStat[]> {
+  try {
+    const snap = await getDocs(collection(db, 'branches', placeId, 'hourly'));
+    const all: HourlyStat[] = snap.docs.map((d) => ({
+      hour:       d.id,
+      scans:      typeof d.data().scans      === 'number' ? d.data().scans      : 0,
+      linkVisits: typeof d.data().linkVisits === 'number' ? d.data().linkVisits : 0,
+      copied:     typeof d.data().copied     === 'number' ? d.data().copied     : 0,
+    }));
+    all.sort((a, b) => a.hour.localeCompare(b.hour));
+    return all.slice(-hours);
+  } catch {
+    return [];
+  }
+}
+
 /** Fetch daily stats for a branch (last `days` days, sorted ascending) */
 export async function fetchDailyStats(placeId: string, days = 30): Promise<DailyStat[]> {
   try {

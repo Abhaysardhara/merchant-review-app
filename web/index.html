@@ -1286,15 +1286,19 @@ var LANGUAGES = [
     return branchDocPath(placeId) + '/daily/' + today;
   }
 
+  function hourlyDocPath(placeId) {
+    var hour = new Date().toISOString().slice(0, 13); // YYYY-MM-DDTHH UTC
+    return branchDocPath(placeId) + '/hourly/' + hour;
+  }
+
   // ── Firestore REST write — register QR scan (fire-and-forget) ──────
   function registerQrScan(placeId) {
     firestoreTransform(branchDocPath(placeId), [
       { fieldPath: 'totalScans', increment: { integerValue: '1' } },
       { fieldPath: 'lastScanAt', setToServerValue: 'REQUEST_TIME' },
     ]);
-    firestoreTransform(dailyDocPath(placeId), [
-      { fieldPath: 'scans', increment: { integerValue: '1' } },
-    ]);
+    firestoreTransform(dailyDocPath(placeId),  [{ fieldPath: 'scans',      increment: { integerValue: '1' } }]);
+    firestoreTransform(hourlyDocPath(placeId), [{ fieldPath: 'scans',      increment: { integerValue: '1' } }]);
   }
 
   // ── Firestore REST write — register link visit (fire-and-forget) ────
@@ -1302,9 +1306,8 @@ var LANGUAGES = [
     firestoreTransform(branchDocPath(placeId), [
       { fieldPath: 'linkVisits', increment: { integerValue: '1' } },
     ]);
-    firestoreTransform(dailyDocPath(placeId), [
-      { fieldPath: 'linkVisits', increment: { integerValue: '1' } },
-    ]);
+    firestoreTransform(dailyDocPath(placeId),  [{ fieldPath: 'linkVisits', increment: { integerValue: '1' } }]);
+    firestoreTransform(hourlyDocPath(placeId), [{ fieldPath: 'linkVisits', increment: { integerValue: '1' } }]);
   }
 
   // ── Firestore REST write — register review copied (fire-and-forget) ─
@@ -1312,9 +1315,8 @@ var LANGUAGES = [
     firestoreTransform(branchDocPath(placeId), [
       { fieldPath: 'reviewsCopied', increment: { integerValue: '1' } },
     ]);
-    firestoreTransform(dailyDocPath(placeId), [
-      { fieldPath: 'copied', increment: { integerValue: '1' } },
-    ]);
+    firestoreTransform(dailyDocPath(placeId),  [{ fieldPath: 'copied',     increment: { integerValue: '1' } }]);
+    firestoreTransform(hourlyDocPath(placeId), [{ fieldPath: 'copied',     increment: { integerValue: '1' } }]);
   }
 
   // ── Generate & display ───────────────────────
