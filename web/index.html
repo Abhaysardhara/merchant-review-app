@@ -1261,11 +1261,9 @@ var LANGUAGES = [
     } catch (e) { return null; }
   }
 
-  // ── Firestore REST write — shared fieldTransform helper ─────────────
-  async function firestoreIncrement(placeId, fields) {
+  // ── Firestore REST write — shared transform helper ───────────────────
+  async function firestoreTransform(docPath, fields) {
     try {
-      var docPath = 'projects/' + FIRESTORE_PROJECT
-                  + '/databases/(default)/documents/branches/' + encodeURIComponent(placeId);
       var url = 'https://firestore.googleapis.com/v1/projects/' + FIRESTORE_PROJECT
               + '/databases/(default)/documents:commit';
       await fetch(url, {
@@ -1278,18 +1276,33 @@ var LANGUAGES = [
     }
   }
 
+  function branchDocPath(placeId) {
+    return 'projects/' + FIRESTORE_PROJECT + '/databases/(default)/documents/branches/' + encodeURIComponent(placeId);
+  }
+
+  function dailyDocPath(placeId) {
+    var today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD UTC
+    return branchDocPath(placeId) + '/daily/' + today;
+  }
+
   // ── Firestore REST write — register QR scan (fire-and-forget) ──────
   function registerQrScan(placeId) {
-    firestoreIncrement(placeId, [
+    firestoreTransform(branchDocPath(placeId), [
       { fieldPath: 'totalScans', increment: { integerValue: '1' } },
       { fieldPath: 'lastScanAt', setToServerValue: 'REQUEST_TIME' },
+    ]);
+    firestoreTransform(dailyDocPath(placeId), [
+      { fieldPath: 'scans', increment: { integerValue: '1' } },
     ]);
   }
 
   // ── Firestore REST write — register review copied (fire-and-forget) ─
   function registerReviewCopied(placeId) {
-    firestoreIncrement(placeId, [
+    firestoreTransform(branchDocPath(placeId), [
       { fieldPath: 'reviewsCopied', increment: { integerValue: '1' } },
+    ]);
+    firestoreTransform(dailyDocPath(placeId), [
+      { fieldPath: 'copied', increment: { integerValue: '1' } },
     ]);
   }
 

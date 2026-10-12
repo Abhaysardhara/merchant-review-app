@@ -3,6 +3,8 @@ import {
   getFirestore,
   doc,
   getDoc,
+  getDocs,
+  collection,
   setDoc,
   deleteDoc,
   serverTimestamp,
@@ -56,6 +58,32 @@ export interface FirestoreAnalytics {
   totalScans: number;
   reviewsCopied: number;
   lastScanAt?: string; // ISO string
+}
+
+// ─────────────────────────────────────────────
+//  Daily timeseries — subcollection branches/{placeId}/daily/{YYYY-MM-DD}
+// ─────────────────────────────────────────────
+
+export interface DailyStat {
+  date: string;   // YYYY-MM-DD
+  scans: number;
+  copied: number;
+}
+
+/** Fetch daily stats for a branch (last `days` days, sorted ascending) */
+export async function fetchDailyStats(placeId: string, days = 30): Promise<DailyStat[]> {
+  try {
+    const snap = await getDocs(collection(db, 'branches', placeId, 'daily'));
+    const all: DailyStat[] = snap.docs.map((d) => ({
+      date:   d.id,
+      scans:  typeof d.data().scans  === 'number' ? d.data().scans  : 0,
+      copied: typeof d.data().copied === 'number' ? d.data().copied : 0,
+    }));
+    all.sort((a, b) => a.date.localeCompare(b.date));
+    return all.slice(-days);
+  } catch {
+    return [];
+  }
 }
 
 /** Fetch live analytics for a branch from Firestore */

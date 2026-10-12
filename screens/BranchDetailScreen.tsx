@@ -16,6 +16,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MerchantStackParamList } from '../types';
 import { useMerchant } from '../store/MerchantContext';
 import { QRCodeCard } from '../components/QRCodeCard';
+import { BranchLineChart } from '../components/AnalyticsCharts';
 import { conversionRate, formatLastScan } from '../services/analytics';
 
 type Props = NativeStackScreenProps<MerchantStackParamList, 'BranchDetail'>;
@@ -136,6 +137,12 @@ export function BranchDetailScreen({ route, navigation }: Props) {
               <Ionicons name="time-outline" size={13} color="#9CA3AF" />
               <Text style={styles.lastScanText}>Last scan: {formatLastScan(branch.analytics.lastScanAt)}</Text>
             </View>
+          </View>
+
+          {/* 14-day timeseries chart */}
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Last 14 Days</Text>
+            <BranchLineChart placeId={branch.placeId} days={14} />
           </View>
 
           {/* Branch Details */}

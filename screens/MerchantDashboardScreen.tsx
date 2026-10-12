@@ -21,6 +21,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MerchantStackParamList, Branch } from '../types';
 import { useMerchant, type AddBranchParams } from '../store/MerchantContext';
 import { conversionRate, formatLastScan } from '../services/analytics';
+import { OverallLineChart, BranchBarChart } from '../components/AnalyticsCharts';
 
 type Props = NativeStackScreenProps<MerchantStackParamList, 'MerchantDashboard'>;
 
@@ -382,14 +383,30 @@ export function MerchantDashboardScreen({ navigation, route }: Props) {
             </Text>
           </View>
         ) : (
-          branches.map((branch) => (
-            <BranchCard
-              key={branch.id}
-              branch={branch}
-              onPress={() => navigation.navigate('BranchDetail', { branchId: branch.id })}
-              onDelete={() => deleteBranch(branch.id)}
-            />
-          ))
+          <>
+            {branches.map((branch) => (
+              <BranchCard
+                key={branch.id}
+                branch={branch}
+                onPress={() => navigation.navigate('BranchDetail', { branchId: branch.id })}
+                onDelete={() => deleteBranch(branch.id)}
+              />
+            ))}
+
+            {/* Overall 7-day trend */}
+            <View style={styles.chartCard}>
+              <Text style={styles.chartTitle}>Overall — Last 7 Days</Text>
+              <OverallLineChart branches={branches} days={7} />
+            </View>
+
+            {/* Per-branch scans comparison */}
+            {branches.length > 1 && (
+              <View style={styles.chartCard}>
+                <Text style={styles.chartTitle}>Scans by Branch</Text>
+                <BranchBarChart branches={branches} />
+              </View>
+            )}
+          </>
         )}
       </ScrollView>
 
@@ -475,6 +492,19 @@ const styles = StyleSheet.create({
   summaryValue: { fontSize: 18, fontWeight: '800' },
   summaryLabel: { fontSize: 10, color: '#94A3B8', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 },
   list: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 100, gap: 10 },
+  chartCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  chartTitle: { fontSize: 13, fontWeight: '700', color: '#0F172A', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
   empty: { alignItems: 'center', paddingTop: 80, gap: 12 },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: '#334155' },
   emptySubtitle: { fontSize: 14, color: '#94A3B8', textAlign: 'center', lineHeight: 20, maxWidth: 260 },
