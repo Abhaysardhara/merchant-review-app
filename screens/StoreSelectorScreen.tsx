@@ -50,5 +50,5 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: '#F3F4F6',
   },
-  navTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: '#1E1B4B', textAlign: 'center' },
+  navTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#0F172A', textAlign: 'center' },
 });

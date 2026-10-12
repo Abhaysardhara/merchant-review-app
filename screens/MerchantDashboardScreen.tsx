@@ -120,7 +120,7 @@ function BranchDetailsModal({ visible, store, onClose, onAdd }: BranchDetailsMod
                   <Text style={modalStyles.storePillAddr} numberOfLines={1}>{store.address}</Text>
                 ) : null}
               </View>
-              <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
+              <Ionicons name="checkmark-circle" size={20} color="#059669" />
             </View>
 
             <Text style={modalStyles.label}>Branch Name *</Text>
@@ -222,9 +222,6 @@ function BranchCard({
           <Text style={cardStyles.name} numberOfLines={1}>{branch.name}</Text>
           <Text style={cardStyles.biz} numberOfLines={1}>{branch.address || branch.businessName}</Text>
         </View>
-        <View style={cardStyles.categoryBadge}>
-          <Text style={cardStyles.categoryText}>{branch.category}</Text>
-        </View>
         <TouchableOpacity
           style={cardStyles.deleteBtn}
           onPress={handleDelete}
@@ -322,7 +319,7 @@ export function MerchantDashboardScreen({ navigation, route }: Props) {
             icon="trending-up"
             value={totalScans > 0 ? `${((totalFiveStar / totalScans) * 100).toFixed(1)}%` : '—'}
             label="Conversion"
-            color="#22C55E"
+            color="#059669"
             isString
           />
         </View>
@@ -402,49 +399,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: 12,
+    paddingBottom: 14,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
   },
-  greeting: { fontSize: 22, fontWeight: '800', color: '#1E1B4B', letterSpacing: -0.5 },
-  subGreeting: { fontSize: 13, color: '#6B7280', marginTop: 2 },
+  greeting: { fontSize: 20, fontWeight: '800', color: '#0F172A', letterSpacing: -0.4 },
+  subGreeting: { fontSize: 12, color: '#94A3B8', marginTop: 2 },
   logoutBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: '#F1F5F9',
     alignItems: 'center', justifyContent: 'center',
   },
   summaryBar: {
     flexDirection: 'row',
-    marginHorizontal: 20,
+    marginHorizontal: 16,
+    marginTop: 14,
     marginBottom: 12,
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
     padding: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   summaryItem: { flex: 1, alignItems: 'center', gap: 4 },
-  summaryDivider: { width: 1, backgroundColor: '#E5E7EB', marginHorizontal: 8 },
+  summaryDivider: { width: 1, backgroundColor: '#E2E8F0', marginHorizontal: 4 },
   summaryValue: { fontSize: 18, fontWeight: '800' },
-  summaryLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '500' },
-  list: { paddingHorizontal: 20, paddingBottom: 100, gap: 12 },
+  summaryLabel: { fontSize: 10, color: '#94A3B8', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 },
+  list: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 100, gap: 10 },
   empty: { alignItems: 'center', paddingTop: 80, gap: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#374151' },
-  emptySubtitle: { fontSize: 14, color: '#9CA3AF', textAlign: 'center', lineHeight: 20, maxWidth: 260 },
+  emptyTitle: { fontSize: 17, fontWeight: '700', color: '#334155' },
+  emptySubtitle: { fontSize: 14, color: '#94A3B8', textAlign: 'center', lineHeight: 20, maxWidth: 260 },
   fab: {
     position: 'absolute',
     bottom: 30,
-    right: 24,
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: '#4F46E5',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#4F46E5',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.35,
     shadowRadius: 10,
     elevation: 8,
   },
@@ -456,11 +459,13 @@ const cardStyles = StyleSheet.create({
     borderRadius: 14,
     padding: 16,
     gap: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.07,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   icon: {
@@ -468,17 +473,15 @@ const cardStyles = StyleSheet.create({
     backgroundColor: '#EEF2FF',
     alignItems: 'center', justifyContent: 'center',
   },
-  name: { fontSize: 15, fontWeight: '700', color: '#111827' },
-  biz: { fontSize: 12, color: '#6B7280', marginTop: 1 },
-  categoryBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, backgroundColor: '#F3F4F6', marginRight: 4 },
-  deleteBtn: { padding: 4, marginLeft: 2 },
-  categoryText: { fontSize: 11, fontWeight: '600', color: '#6B7280' },
+  name: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
+  biz: { fontSize: 12, color: '#64748B', marginTop: 1 },
+  deleteBtn: { padding: 4, marginLeft: 4 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
   stat: { alignItems: 'center', gap: 2 },
-  statValue: { fontSize: 15, fontWeight: '700', color: '#111827' },
-  statLabel: { fontSize: 10, color: '#9CA3AF' },
-  footer: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  footerText: { fontSize: 11, color: '#9CA3AF' },
+  statValue: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
+  statLabel: { fontSize: 10, color: '#94A3B8', fontWeight: '500' },
+  footer: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingTop: 2, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  footerText: { fontSize: 11, color: '#94A3B8' },
 });
 
 const modalStyles = StyleSheet.create({
@@ -490,44 +493,46 @@ const modalStyles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#E2E8F0',
     backgroundColor: '#FFFFFF',
   },
-  title: { fontSize: 18, fontWeight: '700', color: '#1E1B4B' },
+  title: { fontSize: 17, fontWeight: '700', color: '#0F172A' },
   closeBtn: { padding: 4 },
   body: { padding: 20, gap: 12 },
   storePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: '#F8FAFC',
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     padding: 12,
     marginBottom: 4,
   },
   storePillIcon: {
     width: 34, height: 34,
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#EEF2FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  storePillName: { fontSize: 14, fontWeight: '700', color: '#1E1B4B' },
-  storePillAddr: { fontSize: 12, color: '#6366F1', marginTop: 1 },
-  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: -4 },
+  storePillName: { fontSize: 14, fontWeight: '700', color: '#0F172A' },
+  storePillAddr: { fontSize: 12, color: '#64748B', marginTop: 1 },
+  label: { fontSize: 12, fontWeight: '700', color: '#475569', marginBottom: -4, textTransform: 'uppercase', letterSpacing: 0.4 },
   textInput: {
     backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
-    color: '#111827',
+    color: '#0F172A',
     minHeight: 46,
   },
-  hint: { fontSize: 12, color: '#9CA3AF', lineHeight: 18, marginTop: -4 },
-  labelHint: { fontSize: 11, color: '#9CA3AF', fontWeight: '400' },
+  hint: { fontSize: 12, color: '#94A3B8', lineHeight: 18, marginTop: -4 },
+  labelHint: { fontSize: 11, color: '#94A3B8', fontWeight: '400' },
   chipRow: { flexDirection: 'row', gap: 8, paddingVertical: 4 },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 4 },
   chip: {
@@ -537,12 +542,12 @@ const modalStyles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
   },
   chipActive: { backgroundColor: '#4F46E5', borderColor: '#4F46E5' },
-  chipText: { fontSize: 13, fontWeight: '600', color: '#374151' },
+  chipText: { fontSize: 13, fontWeight: '600', color: '#475569' },
   chipTextActive: { color: '#FFFFFF' },
   saveBtn: {
     flexDirection: 'row',
@@ -555,5 +560,5 @@ const modalStyles = StyleSheet.create({
     marginTop: 8,
   },
   saveBtnDisabled: { opacity: 0.6 },
-  saveBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  saveBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
 });

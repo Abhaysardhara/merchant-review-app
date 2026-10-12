@@ -32,14 +32,15 @@
       --indigo-d: #3730A3;
       --indigo-l: #EEF2FF;
       --purple:   #7C3AED;
-      --green:    #22C55E;
+      --green:    #059669;
+      --amber:    #D97706;
       --gray-50:  #F8FAFC;
       --gray-100: #F1F5F9;
-      --gray-200: #E5E7EB;
-      --gray-400: #9CA3AF;
-      --gray-500: #6B7280;
-      --gray-700: #374151;
-      --gray-900: #111827;
+      --gray-200: #E2E8F0;
+      --gray-400: #94A3B8;
+      --gray-500: #64748B;
+      --gray-700: #334155;
+      --gray-900: #0F172A;
     }
 
     html { font-size: 16px; }
@@ -55,8 +56,8 @@
 
     /* ── Header ── */
     .header {
-      background: linear-gradient(150deg, var(--indigo) 0%, var(--purple) 100%);
-      padding: 32px 20px 28px;
+      background: linear-gradient(160deg, #1E293B 0%, #0F172A 100%);
+      padding: 40px 24px 36px;
       text-align: center;
       color: #fff;
       position: relative;
@@ -65,34 +66,37 @@
     .header::before {
       content: '';
       position: absolute;
-      top: -40px; right: -40px;
-      width: 160px; height: 160px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.07);
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--indigo), var(--purple));
       pointer-events: none;
     }
     .header::after {
       content: '';
       position: absolute;
-      bottom: -50px; left: -30px;
-      width: 200px; height: 200px;
+      bottom: -70px; right: -50px;
+      width: 220px; height: 220px;
       border-radius: 50%;
-      background: rgba(255,255,255,0.05);
+      background: radial-gradient(circle, rgba(79,70,229,0.10) 0%, transparent 70%);
       pointer-events: none;
     }
 
-    .stars-row { font-size: 26px; letter-spacing: 4px; margin-bottom: 14px; }
-
+    .stars-row {
+      font-size: 20px;
+      letter-spacing: 5px;
+      margin-bottom: 16px;
+      color: #F59E0B;
+    }
     .biz-name {
-      font-size: 22px;
+      font-size: 26px;
       font-weight: 800;
-      line-height: 1.25;
-      letter-spacing: -0.3px;
-      margin-bottom: 6px;
+      line-height: 1.2;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
     }
     .biz-area {
       font-size: 13px;
-      opacity: 0.82;
+      color: rgba(255,255,255,0.52);
       font-weight: 500;
     }
     .biz-area span { margin-right: 4px; }
@@ -101,50 +105,99 @@
     .container {
       max-width: 500px;
       margin: 0 auto;
-      padding: 20px 16px 48px;
+      padding: 20px 16px 56px;
     }
 
     /* ── Card ── */
     .card {
       background: #fff;
-      border-radius: 18px;
+      border-radius: 16px;
       padding: 20px;
-      margin-bottom: 14px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      margin-bottom: 12px;
+      border: 1px solid var(--gray-200);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
     }
 
-    /* ── Language tabs ── */
-    .lang-row {
+    /* ── Language selector ── */
+    .lang-wrap {
       display: flex;
-      gap: 6px;
+      align-items: center;
+      gap: 8px;
       margin-bottom: 16px;
     }
-    .lang-btn {
+    .lang-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .lang-dropdown {
+      position: relative;
       flex: 1;
-      padding: 8px 6px;
+    }
+    .lang-input {
+      width: 100%;
+      padding: 9px 34px 9px 12px;
       border: 1.5px solid var(--gray-200);
       border-radius: 10px;
-      background: var(--gray-50);
+      background-color: var(--gray-50);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239CA3AF' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
       font-size: 13px;
       font-weight: 600;
       color: var(--gray-700);
+      font-family: inherit;
       cursor: pointer;
-      text-align: center;
-      transition: background .15s, border-color .15s, color .15s;
-      -webkit-tap-highlight-color: transparent;
+      outline: none;
+      transition: border-color .2s, background-color .2s;
+      box-sizing: border-box;
     }
-    .lang-btn.active {
-      background: var(--indigo);
+    .lang-input:focus {
       border-color: var(--indigo);
-      color: #fff;
+      background-color: #fff;
+      cursor: text;
+    }
+    .lang-list {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: #fff;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      max-height: 224px;
+      overflow-y: auto;
+      z-index: 50;
+      overscroll-behavior: contain;
+    }
+    .lang-list.open { display: block; }
+    .lang-option {
+      padding: 10px 14px;
+      font-size: 13px;
+      color: var(--gray-700);
+      cursor: pointer;
+    }
+    .lang-option:hover { background: var(--gray-100); }
+    .lang-option.selected {
+      background: var(--indigo-l);
+      color: var(--indigo);
+      font-weight: 700;
+    }
+    .lang-no-result {
+      padding: 10px 14px;
+      font-size: 13px;
+      color: var(--gray-400);
+      font-style: italic;
     }
 
     /* ── Review textarea ── */
     .review-label {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.6px;
+      letter-spacing: 0.8px;
       color: var(--gray-400);
       margin-bottom: 8px;
     }
@@ -186,8 +239,8 @@
       display: inline-flex;
       align-items: center;
       gap: 5px;
-      padding: 7px 12px;
-      border: 1.5px solid var(--gray-200);
+      padding: 7px 14px;
+      border: 1px solid var(--gray-200);
       border-radius: 20px;
       background: #fff;
       font-size: 12px;
@@ -209,33 +262,33 @@
       align-items: center;
       justify-content: center;
       gap: 10px;
-      padding: 17px 20px;
-      background: linear-gradient(135deg, var(--indigo) 0%, var(--purple) 100%);
+      padding: 16px 20px;
+      background: var(--indigo);
       border: none;
-      border-radius: 14px;
+      border-radius: 13px;
       color: #fff;
       font-size: 16px;
       font-weight: 700;
       letter-spacing: 0.1px;
       cursor: pointer;
-      box-shadow: 0 5px 18px rgba(79,70,229,0.38);
+      box-shadow: 0 4px 14px rgba(79,70,229,0.28);
       transition: opacity .15s, transform .1s;
       -webkit-tap-highlight-color: transparent;
       margin-bottom: 14px;
     }
     .cta-btn:active { opacity: 0.88; transform: scale(0.99); }
-    .cta-btn .cta-icon { font-size: 20px; }
+    .cta-btn .cta-icon { font-size: 19px; }
     .cta-btn.done {
-      background: linear-gradient(135deg, var(--green) 0%, #16a34a 100%);
-      box-shadow: 0 5px 18px rgba(34,197,94,0.35);
+      background: var(--green);
+      box-shadow: 0 4px 14px rgba(5,150,105,0.28);
     }
 
     /* ── Paste guide (shows after button tap) ── */
     .paste-guide {
       display: none;
       background: #F0FDF4;
-      border: 1.5px solid #BBF7D0;
-      border-radius: 14px;
+      border: 1px solid #D1FAE5;
+      border-radius: 13px;
       padding: 16px;
       margin-bottom: 14px;
     }
@@ -295,8 +348,9 @@
       text-align: center;
       font-size: 11px;
       color: var(--gray-400);
-      margin-top: 8px;
+      margin-top: 12px;
       font-weight: 500;
+      letter-spacing: 0.2px;
     }
 
     /* ── Toast ── */
@@ -305,14 +359,14 @@
       bottom: 28px;
       left: 50%;
       transform: translateX(-50%) translateY(100px);
-      background: var(--green);
+      background: #0F172A;
       color: #fff;
-      padding: 11px 22px;
+      padding: 10px 22px;
       border-radius: 28px;
-      font-size: 14px;
-      font-weight: 700;
+      font-size: 13px;
+      font-weight: 600;
       white-space: nowrap;
-      box-shadow: 0 4px 16px rgba(34,197,94,0.4);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.22);
       transition: transform .35s cubic-bezier(.34, 1.56, .64, 1);
       z-index: 100;
       pointer-events: none;
@@ -332,7 +386,7 @@
     .ai-error {
       display: none;
       background: #FEF2F2;
-      border: 1.5px solid #FECACA;
+      border: 1px solid #FECACA;
       border-radius: 12px;
       padding: 12px 14px;
       margin-bottom: 12px;
@@ -357,7 +411,7 @@
 <body>
 
   <div class="header">
-    <div class="stars-row">⭐⭐⭐⭐⭐</div>
+    <div class="stars-row">★★★★★</div>
     <div class="biz-name"  id="bizName">Loading…</div>
     <div class="biz-area"  id="bizArea"></div>
   </div>
@@ -366,10 +420,13 @@
 
     <!-- Review card -->
     <div class="card">
-      <div class="lang-row">
-        <button class="lang-btn active" data-lang="en" onclick="setLang('en')">English</button>
-        <button class="lang-btn"        data-lang="hi" onclick="setLang('hi')">हिंदी</button>
-        <button class="lang-btn"        data-lang="gu" onclick="setLang('gu')">ગુજરાતી</button>
+      <div class="lang-wrap">
+        <span class="lang-icon">🌐</span>
+        <div class="lang-dropdown" id="langDropdown">
+          <input class="lang-input" id="langInput" type="text"
+                 placeholder="Search language…" autocomplete="off" spellcheck="false" />
+          <div class="lang-list" id="langList"></div>
+        </div>
       </div>
 
 
@@ -397,7 +454,7 @@
     <div class="card">
       <button class="cta-btn" id="ctaBtn" onclick="copyAndOpen()">
         <span class="cta-icon">📋</span>
-        <span id="ctaBtnText">Copy &amp; Open Google Maps</span>
+        <span id="ctaBtnText">Copy &amp; Open Google Review</span>
       </button>
 
       <!-- Paste guide — shown after button tap -->
@@ -453,9 +510,197 @@ var GEMINI_MODEL   = 'gemini-3.5-flash-lite';
 var MAPS_API_KEY   = 'YOUR_MAPS_API_KEY';
 
 // ─────────────────────────────────────────────
+//  World languages — sorted alphabetically by English name
+// ─────────────────────────────────────────────
+var LANGUAGES = [
+  { code: 'en',    name: 'English',              native: 'English' },
+  { code: 'af',    name: 'Afrikaans',             native: 'Afrikaans' },
+  { code: 'sq',    name: 'Albanian',              native: 'Shqip' },
+  { code: 'am',    name: 'Amharic',               native: 'አማርኛ' },
+  { code: 'ar',    name: 'Arabic',                native: 'العربية' },
+  { code: 'hy',    name: 'Armenian',              native: 'Հայերեն' },
+  { code: 'az',    name: 'Azerbaijani',           native: 'Azərbaycan' },
+  { code: 'eu',    name: 'Basque',                native: 'Euskara' },
+  { code: 'be',    name: 'Belarusian',            native: 'Беларуская' },
+  { code: 'bn',    name: 'Bengali',               native: 'বাংলা' },
+  { code: 'bs',    name: 'Bosnian',               native: 'Bosanski' },
+  { code: 'bg',    name: 'Bulgarian',             native: 'Български' },
+  { code: 'my',    name: 'Burmese',               native: 'မြန်မာဘာသာ' },
+  { code: 'ca',    name: 'Catalan',               native: 'Català' },
+  { code: 'zh',    name: 'Chinese (Simplified)',  native: '中文（简体）' },
+  { code: 'zh-TW', name: 'Chinese (Traditional)', native: '中文（繁體）' },
+  { code: 'hr',    name: 'Croatian',              native: 'Hrvatski' },
+  { code: 'cs',    name: 'Czech',                 native: 'Čeština' },
+  { code: 'da',    name: 'Danish',                native: 'Dansk' },
+  { code: 'nl',    name: 'Dutch',                 native: 'Nederlands' },
+  { code: 'et',    name: 'Estonian',              native: 'Eesti' },
+  { code: 'tl',    name: 'Filipino',              native: 'Filipino' },
+  { code: 'fi',    name: 'Finnish',               native: 'Suomi' },
+  { code: 'fr',    name: 'French',                native: 'Français' },
+  { code: 'gl',    name: 'Galician',              native: 'Galego' },
+  { code: 'ka',    name: 'Georgian',              native: 'ქართული' },
+  { code: 'de',    name: 'German',                native: 'Deutsch' },
+  { code: 'el',    name: 'Greek',                 native: 'Ελληνικά' },
+  { code: 'gu',    name: 'Gujarati',              native: 'ગુજરાતી' },
+  { code: 'ht',    name: 'Haitian Creole',        native: 'Kreyòl Ayisyen' },
+  { code: 'ha',    name: 'Hausa',                 native: 'Hausa' },
+  { code: 'he',    name: 'Hebrew',                native: 'עברית' },
+  { code: 'hi',    name: 'Hindi',                 native: 'हिंदी' },
+  { code: 'hu',    name: 'Hungarian',             native: 'Magyar' },
+  { code: 'is',    name: 'Icelandic',             native: 'Íslenska' },
+  { code: 'ig',    name: 'Igbo',                  native: 'Igbo' },
+  { code: 'id',    name: 'Indonesian',            native: 'Bahasa Indonesia' },
+  { code: 'ga',    name: 'Irish',                 native: 'Gaeilge' },
+  { code: 'it',    name: 'Italian',               native: 'Italiano' },
+  { code: 'ja',    name: 'Japanese',              native: '日本語' },
+  { code: 'kn',    name: 'Kannada',               native: 'ಕನ್ನಡ' },
+  { code: 'kk',    name: 'Kazakh',                native: 'Қазақша' },
+  { code: 'km',    name: 'Khmer',                 native: 'ភាសាខ្មែរ' },
+  { code: 'ko',    name: 'Korean',                native: '한국어' },
+  { code: 'ku',    name: 'Kurdish',               native: 'Kurdî' },
+  { code: 'lo',    name: 'Lao',                   native: 'ລາວ' },
+  { code: 'lv',    name: 'Latvian',               native: 'Latviešu' },
+  { code: 'lt',    name: 'Lithuanian',            native: 'Lietuvių' },
+  { code: 'lb',    name: 'Luxembourgish',         native: 'Lëtzebuergesch' },
+  { code: 'mk',    name: 'Macedonian',            native: 'Македонски' },
+  { code: 'mg',    name: 'Malagasy',              native: 'Malagasy' },
+  { code: 'ms',    name: 'Malay',                 native: 'Bahasa Melayu' },
+  { code: 'ml',    name: 'Malayalam',             native: 'മലയാളം' },
+  { code: 'mt',    name: 'Maltese',               native: 'Malti' },
+  { code: 'mi',    name: 'Maori',                 native: 'Māori' },
+  { code: 'mr',    name: 'Marathi',               native: 'मराठी' },
+  { code: 'mn',    name: 'Mongolian',             native: 'Монгол' },
+  { code: 'ne',    name: 'Nepali',                native: 'नेपाली' },
+  { code: 'no',    name: 'Norwegian',             native: 'Norsk' },
+  { code: 'or',    name: 'Odia',                  native: 'ଓଡ଼ିଆ' },
+  { code: 'ps',    name: 'Pashto',                native: 'پښتو' },
+  { code: 'fa',    name: 'Persian',               native: 'فارسی' },
+  { code: 'pl',    name: 'Polish',                native: 'Polski' },
+  { code: 'pt',    name: 'Portuguese',            native: 'Português' },
+  { code: 'pa',    name: 'Punjabi',               native: 'ਪੰਜਾਬੀ' },
+  { code: 'ro',    name: 'Romanian',              native: 'Română' },
+  { code: 'ru',    name: 'Russian',               native: 'Русский' },
+  { code: 'sr',    name: 'Serbian',               native: 'Српски' },
+  { code: 'si',    name: 'Sinhala',               native: 'සිංහල' },
+  { code: 'sk',    name: 'Slovak',                native: 'Slovenčina' },
+  { code: 'sl',    name: 'Slovenian',             native: 'Slovenščina' },
+  { code: 'so',    name: 'Somali',                native: 'Soomaali' },
+  { code: 'es',    name: 'Spanish',               native: 'Español' },
+  { code: 'sw',    name: 'Swahili',               native: 'Kiswahili' },
+  { code: 'sv',    name: 'Swedish',               native: 'Svenska' },
+  { code: 'tg',    name: 'Tajik',                 native: 'Тоҷикӣ' },
+  { code: 'ta',    name: 'Tamil',                 native: 'தமிழ்' },
+  { code: 'te',    name: 'Telugu',                native: 'తెలుగు' },
+  { code: 'th',    name: 'Thai',                  native: 'ภาษาไทย' },
+  { code: 'tr',    name: 'Turkish',               native: 'Türkçe' },
+  { code: 'tk',    name: 'Turkmen',               native: 'Türkmen' },
+  { code: 'uk',    name: 'Ukrainian',             native: 'Українська' },
+  { code: 'ur',    name: 'Urdu',                  native: 'اردو' },
+  { code: 'uz',    name: 'Uzbek',                 native: "O'zbek" },
+  { code: 'vi',    name: 'Vietnamese',            native: 'Tiếng Việt' },
+  { code: 'cy',    name: 'Welsh',                 native: 'Cymraeg' },
+  { code: 'xh',    name: 'Xhosa',                 native: 'isiXhosa' },
+  { code: 'yi',    name: 'Yiddish',               native: 'ייִדיש' },
+  { code: 'yo',    name: 'Yoruba',                native: 'Yorùbá' },
+  { code: 'zu',    name: 'Zulu',                  native: 'isiZulu' },
+];
+
+// ─────────────────────────────────────────────
 //  Parse & sanitize URL params
 // ─────────────────────────────────────────────
 (function () {
+  // ── Searchable language dropdown ─────────────
+  (function () {
+    var input       = document.getElementById('langInput');
+    var list        = document.getElementById('langList');
+    var container   = document.getElementById('langDropdown');
+    var activeCode  = 'en';
+
+    function label(l) {
+      return l.name === l.native ? l.name : l.name + ' \u2014 ' + l.native;
+    }
+
+    function renderList(q) {
+      list.innerHTML = '';
+      var term = (q || '').trim().toLowerCase();
+      var matches = LANGUAGES.filter(function (l) {
+        if (!term) return true;
+        return l.name.toLowerCase().indexOf(term) !== -1
+            || l.native.toLowerCase().indexOf(term) !== -1;
+      });
+      if (!matches.length) {
+        var empty = document.createElement('div');
+        empty.className = 'lang-no-result';
+        empty.textContent = 'No languages found';
+        list.appendChild(empty);
+        return;
+      }
+      matches.forEach(function (l) {
+        var div = document.createElement('div');
+        div.className = 'lang-option' + (l.code === activeCode ? ' selected' : '');
+        div.textContent = label(l);
+        div.addEventListener('mousedown', function (e) {
+          e.preventDefault(); // keep focus on input until we're done
+          pick(l.code);
+        });
+        list.appendChild(div);
+      });
+    }
+
+    function openList() {
+      input.value = '';
+      renderList('');
+      list.classList.add('open');
+      // scroll current selection into view
+      var cur = list.querySelector('.selected');
+      if (cur) cur.scrollIntoView({ block: 'nearest' });
+    }
+
+    function closeList() {
+      list.classList.remove('open');
+      var entry = LANGUAGES.filter(function (l) { return l.code === activeCode; })[0];
+      input.value = entry ? entry.name : 'English';
+    }
+
+    function pick(code) {
+      activeCode = code;
+      closeList();
+      input.blur();
+      window.setLang(code);
+    }
+
+    input.addEventListener('focus', openList);
+
+    input.addEventListener('input', function () {
+      renderList(input.value);
+      list.classList.add('open');
+    });
+
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { closeList(); input.blur(); return; }
+      if (e.key === 'Enter') {
+        var first = list.querySelector('.lang-option');
+        if (first && first.textContent !== 'No languages found') {
+          // find the code for the first visible option
+          var term = input.value.trim().toLowerCase();
+          var match = LANGUAGES.filter(function (l) {
+            return !term
+              || l.name.toLowerCase().indexOf(term) !== -1
+              || l.native.toLowerCase().indexOf(term) !== -1;
+          })[0];
+          if (match) pick(match.code);
+        }
+      }
+    });
+
+    document.addEventListener('click', function (e) {
+      if (!container.contains(e.target)) closeList();
+    });
+
+    // Init
+    input.value = 'English';
+    renderList('');
+  }());
   var q = new URLSearchParams(location.search);
 
   function decodeParam(v) {
@@ -839,7 +1084,8 @@ var MAPS_API_KEY   = 'YOUR_MAPS_API_KEY';
   };
 
   function buildPrompt(lang, placeDetails) {
-    var langLabel   = { en: 'English', hi: 'Hindi', gu: 'Gujarati' }[lang] || 'English';
+    var langEntry = LANGUAGES.filter(function(l) { return l.code === lang; })[0];
+    var langLabel = langEntry ? langEntry.name : lang;
     var kwText      = KEYWORDS.length ? KEYWORDS.join(', ') : '';
     var placeCtx    = buildPlaceContext(placeDetails);
     var placeTypes  = placeDetails && placeDetails.types ? placeDetails.types : [];
@@ -1022,9 +1268,6 @@ var MAPS_API_KEY   = 'YOUR_MAPS_API_KEY';
   // ── Language switcher ────────────────────────
   window.setLang = function (lang) {
     currentLang = lang;
-    document.querySelectorAll('.lang-btn').forEach(function (btn) {
-      btn.classList.toggle('active', btn.dataset.lang === lang);
-    });
     generateAndShow(lang);
   };
 

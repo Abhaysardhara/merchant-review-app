@@ -86,13 +86,6 @@ export interface LanguageOption {
 //  Navigation param lists
 // ─────────────────────────────────────────────
 
-export type CustomerStackParamList = {
-  CustomerScanner: undefined;
-  FeedbackGate: { payload: QRPayload };
-  ReviewEditor: { payload: QRPayload; rating: number; language: Language };
-  PrivateFeedback: { payload: QRPayload; rating: number };
-};
-
 export type MerchantStackParamList = {
   Passcode: undefined;
   MerchantDashboard: {
@@ -108,7 +101,3 @@ export type MerchantStackParamList = {
   StoreSelector: undefined;
 };
 
-export type TabParamList = {
-  ScannerStack: undefined;
-  DashboardStack: undefined;
-};

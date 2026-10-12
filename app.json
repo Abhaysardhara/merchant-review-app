@@ -9,7 +9,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#4F46E5"
+      "backgroundColor": "#1E2B7A"
     },
     "plugins": [
       [
@@ -26,12 +26,12 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#4F46E5"
+        "backgroundColor": "#1E2B7A"
       },
       "package": "com.reviewreach.app",
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyDhvYzvwNkEvilUq_ixLQ2dxz8tBGKGu7M"
+          "apiKey": "GOOGLE_MAPS_API_KEY"
         }
       }
     },
@@ -39,11 +39,16 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.reviewreach.app",
       "config": {
-        "googleMapsApiKey": "AIzaSyDhvYzvwNkEvilUq_ixLQ2dxz8tBGKGu7M"
+        "googleMapsApiKey": "GOOGLE_MAPS_API_KEY"
       }
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c3dadfd5-6f3a-4f2d-9500-39e9e5247811"
+      }
     }
   }
 }

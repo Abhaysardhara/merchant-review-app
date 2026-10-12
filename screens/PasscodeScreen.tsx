@@ -68,7 +68,7 @@ export function PasscodeScreen({ navigation }: Props) {
 
       <View style={styles.header}>
         <View style={styles.iconBg}>
-          <Ionicons name="shield-checkmark" size={36} color="#FFFFFF" />
+          <Ionicons name="shield-checkmark" size={32} color="#FFFFFF" />
         </View>
         <Text style={styles.title}>Merchant Dashboard</Text>
         <Text style={styles.subtitle}>Enter your 4-digit PIN to continue</Text>
@@ -132,7 +132,7 @@ export function PasscodeScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1E1B4B',
+    backgroundColor: '#0F172A',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
@@ -143,45 +143,49 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   iconBg: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     backgroundColor: '#4F46E5',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
+    shadowColor: '#4F46E5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
   },
   title: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 15,
-    color: '#A5B4FC',
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.45)',
     textAlign: 'center',
   },
   hint: {
     fontSize: 12,
-    color: '#6366F1',
-    marginTop: 4,
+    color: 'rgba(255,255,255,0.25)',
+    marginTop: 2,
   },
   dotsRow: {
     flexDirection: 'row',
     gap: 20,
   },
   dot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#6366F1',
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.20)',
     backgroundColor: 'transparent',
   },
   dotFilled: {
-    backgroundColor: '#A5B4FC',
-    borderColor: '#A5B4FC',
+    backgroundColor: '#4F46E5',
+    borderColor: '#4F46E5',
   },
   dotError: {
     borderColor: '#EF4444',
@@ -194,44 +198,44 @@ const styles = StyleSheet.create({
     marginTop: -16,
   },
   pad: {
-    gap: 12,
+    gap: 10,
     width: '100%',
     maxWidth: 280,
   },
   padRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
     justifyContent: 'center',
   },
   padKey: {
     flex: 1,
-    height: 64,
-    backgroundColor: '#312E81',
-    borderRadius: 16,
+    height: 62,
+    backgroundColor: '#1E293B',
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#4338CA',
+    borderColor: '#334155',
   },
   padKeyDel: {
-    backgroundColor: '#1E1B4B',
-    borderColor: '#4338CA',
+    backgroundColor: 'transparent',
+    borderColor: '#334155',
   },
   padKeyEmpty: {
     flex: 1,
-    height: 64,
+    height: 62,
   },
   padKeyText: {
     fontSize: 22,
-    fontWeight: '700',
-    color: '#E0E7FF',
+    fontWeight: '600',
+    color: '#F1F5F9',
   },
   forgotBtn: {
     paddingVertical: 8,
   },
   forgotText: {
-    color: '#818CF8',
-    fontSize: 14,
+    color: 'rgba(255,255,255,0.30)',
+    fontSize: 13,
     fontWeight: '500',
   },
 });
