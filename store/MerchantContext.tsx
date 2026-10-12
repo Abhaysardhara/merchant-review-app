@@ -25,6 +25,7 @@ import {
   savePasscode,
 } from '../services/analytics';
 import { resolvePlaceFromUrl } from '../services/mapsResolver';
+import { saveBranchConfig, deleteBranchConfig } from '../services/firebase';
 import { REVIEW_WEB_URL } from '../config';
 
 // ─────────────────────────────────────────────
@@ -146,6 +147,14 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
       const updated = [...branches, branch];
       setBranches(updated);
       await saveBranches(updated);
+
+      // Sync config to Firestore so the web review page can fetch it by placeId
+      await saveBranchConfig(placeId, {
+        tone:         params.tone,
+        keywords:     params.keywords,
+        businessName: params.businessName || params.name,
+      });
+
       return branch;
     },
     [branches],
@@ -156,15 +165,29 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
       const updated = branches.map((b) => (b.id === id ? { ...b, ...updates } : b));
       setBranches(updated);
       await saveBranches(updated);
+
+      // Sync updated config to Firestore if any AI-relevant fields changed
+      const branch = branches.find((b) => b.id === id);
+      if (branch && (updates.tone !== undefined || updates.keywords !== undefined || updates.businessName !== undefined)) {
+        await saveBranchConfig(branch.placeId, {
+          tone:         updates.tone         ?? branch.tone,
+          keywords:     updates.keywords     ?? branch.keywords,
+          businessName: updates.businessName ?? branch.businessName,
+        });
+      }
     },
     [branches],
   );
 
   const deleteBranch = useCallback(
     async (id: string) => {
+      const branch = branches.find((b) => b.id === id);
       const updated = branches.filter((b) => b.id !== id);
       setBranches(updated);
       await saveBranches(updated);
+
+      // Remove from Firestore so stale config doesn't linger
+      if (branch) await deleteBranchConfig(branch.placeId);
     },
     [branches],
   );
@@ -187,26 +210,9 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // ── QR URL builder — encodes everything the web review page needs ──
+  // ── QR URL builder — only placeId; everything else fetched from Firestore ──
   const buildQRUrl = useCallback((branch: Branch): string => {
-    // Extract area: last 2 meaningful parts of the address
-    const area = (() => {
-      if (!branch.address) return '';
-      const parts = branch.address
-        .split(',')
-        .map((s) => s.trim())
-        .filter((s) => s && !/^\d{6}$/.test(s) && !/^india$/i.test(s));
-      return parts.slice(-2).join(', ');
-    })();
-
-    const params = new URLSearchParams({
-      pid: branch.placeId,
-      n: branch.businessName || branch.name,
-      t: branch.tone,
-      k: branch.keywords,
-      a: area,
-    });
-    return `${REVIEW_WEB_URL}?${params.toString()}`;
+    return `${REVIEW_WEB_URL}?pid=${encodeURIComponent(branch.placeId)}`;
   }, []);
 
   const value = useMemo<MerchantContextValue>(

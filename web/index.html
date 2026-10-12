@@ -18,7 +18,7 @@
     default-src 'none';
     script-src 'unsafe-inline';
     style-src 'unsafe-inline';
-    connect-src https://generativelanguage.googleapis.com https://places.googleapis.com;
+    connect-src https://generativelanguage.googleapis.com https://places.googleapis.com https://firestore.googleapis.com;
     img-src 'self' data:;
     frame-ancestors 'none';
   " />
@@ -730,12 +730,12 @@ var LANGUAGES = [
 
   var rawPlaceId = decodeParam(q.get('pid'));
   var PLACE_ID = isValidPlaceId(rawPlaceId) ? rawPlaceId : '';
-  var BIZ_NAME = sanitize(decodeParam(q.get('n')), 100) || 'This Business';
-  // Category derived from Google Places API primaryTypeDisplayName — not passed in QR URL
-  var TONES    = sanitize(decodeParam(q.get('t')), 150).split(',').map(trim).filter(Boolean);
-  if (!TONES.length) TONES = ['Friendly'];
-  var KEYWORDS = sanitize(decodeParam(q.get('k')), 200).split(',').map(trim).filter(Boolean).slice(0, 4);
-  var AREA     = sanitize(decodeParam(q.get('a')), 100);
+
+  // BIZ_NAME, TONES, KEYWORDS, AREA are populated after Firestore + Places API fetch
+  var BIZ_NAME = 'This Business';
+  var TONES    = ['Friendly'];
+  var KEYWORDS = [];
+  var AREA     = '';
 
   // ── Fill header ──────────────────────────────
   document.getElementById('bizName').textContent = BIZ_NAME;
@@ -856,7 +856,8 @@ var LANGUAGES = [
   // ── Google Places API — fetch rich place attributes ──
   var PLACE_FIELDS = [
     // Pro
-    'primaryType','primaryTypeDisplayName','types','businessStatus',
+    'displayName','primaryType','primaryTypeDisplayName','types','businessStatus',
+    'formattedAddress','shortFormattedAddress',
     // Enterprise
     'priceLevel','priceRange','rating','userRatingCount',
     // Enterprise + Atmosphere
@@ -1229,6 +1230,28 @@ var LANGUAGES = [
     }
   }
 
+  // ── Firestore REST fetch — branch config by placeId ─────────────────
+  var FIRESTORE_PROJECT = 'review-reach-58103';
+  var cachedBranchConfig = undefined; // undefined = not fetched; null = not found
+
+  async function fetchBranchConfig(placeId) {
+    if (!placeId) return null;
+    try {
+      var url = 'https://firestore.googleapis.com/v1/projects/' + FIRESTORE_PROJECT
+              + '/databases/(default)/documents/branches/' + encodeURIComponent(placeId);
+      var res = await fetch(url);
+      if (!res.ok) return null;
+      var data = await res.json();
+      var f = data.fields;
+      if (!f) return null;
+      return {
+        tone:         f.tone         && f.tone.stringValue         ? f.tone.stringValue         : '',
+        keywords:     f.keywords     && f.keywords.stringValue     ? f.keywords.stringValue     : '',
+        businessName: f.businessName && f.businessName.stringValue ? f.businessName.stringValue : '',
+      };
+    } catch (e) { return null; }
+  }
+
   // ── Generate & display ───────────────────────
   var currentLang  = 'en';
   var cachedPlace  = undefined; // undefined = not yet fetched; null = fetched but failed
@@ -1236,9 +1259,48 @@ var LANGUAGES = [
   async function generateAndShow(lang) {
     setLoading(true);
 
-    // Fetch place details once; cache result for language switches / regenerate
+    // Fetch branch config + place details in parallel on first call
     if (cachedPlace === undefined) {
-      cachedPlace = await fetchPlaceDetails(PLACE_ID); // null if fails
+      var results = await Promise.all([
+        fetchBranchConfig(PLACE_ID),
+        fetchPlaceDetails(PLACE_ID),
+      ]);
+      cachedBranchConfig = results[0]; // null if not found
+      cachedPlace        = results[1]; // null if fails
+
+      // Apply fetched config — overwrite defaults
+      if (cachedBranchConfig) {
+        if (cachedBranchConfig.tone) {
+          TONES = cachedBranchConfig.tone.split(',').map(trim).filter(Boolean);
+        }
+        if (cachedBranchConfig.keywords) {
+          KEYWORDS = cachedBranchConfig.keywords.split(',').map(trim).filter(Boolean).slice(0, 4);
+        }
+        if (cachedBranchConfig.businessName) {
+          BIZ_NAME = sanitize(cachedBranchConfig.businessName, 100);
+          document.getElementById('bizName').textContent = BIZ_NAME;
+          document.title = 'Review \u2014 ' + BIZ_NAME;
+        }
+      }
+
+      // Area from Places API shortFormattedAddress or formattedAddress
+      if (cachedPlace) {
+        var addr = cachedPlace.shortFormattedAddress || cachedPlace.formattedAddress || '';
+        if (addr) {
+          var parts = addr.split(',').map(function(p){return p.trim();})
+            .filter(function(p){ return p && !/^[0-9]+$/.test(p) && !/^india$/i.test(p); });
+          AREA = parts.slice(-2).join(', ');
+        }
+        // Prefer Places API displayName over Firestore businessName
+        if (cachedPlace.displayName && cachedPlace.displayName.text) {
+          BIZ_NAME = sanitize(cachedPlace.displayName.text, 100);
+          document.getElementById('bizName').textContent = BIZ_NAME;
+          document.title = 'Review \u2014 ' + BIZ_NAME;
+        }
+        if (AREA) {
+          document.getElementById('bizArea').innerHTML = '<span>\uD83D\uDCCD</span>' + escHtml(AREA);
+        }
+      }
     }
 
     var text;
