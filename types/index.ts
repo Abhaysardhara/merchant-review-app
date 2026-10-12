@@ -15,9 +15,10 @@ export type BranchCategory =
   | 'Photography' | 'Events' | 'Laundry' | 'Other';
 
 export interface BranchAnalytics {
-  totalScans: number;
+  totalScans: number;    // QR code scans
+  linkVisits: number;    // Shared link visits
   reviewsCopied: number;
-  lastScanAt?: string; // ISO date string
+  lastScanAt?: string;   // ISO date string
 }
 
 export interface Branch {

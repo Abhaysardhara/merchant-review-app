@@ -731,9 +731,10 @@ var LANGUAGES = [
   var rawPlaceId = decodeParam(q.get('pid'));
   var PLACE_ID = isValidPlaceId(rawPlaceId) ? rawPlaceId : '';
 
-  // ── QR scan origin — strip param immediately so page refresh doesn't recount ──
-  var IS_QR_SCAN = q.get('QrOrigin') === 'true';
-  if (IS_QR_SCAN) {
+  // ── Origin params — strip immediately so page refresh doesn't recount ──
+  var IS_QR_SCAN   = q.get('QrOrigin')   === 'true';
+  var IS_LINK_VISIT = q.get('LinkOrigin') === 'true';
+  if (IS_QR_SCAN || IS_LINK_VISIT) {
     try {
       var cleanUrl = location.pathname + (PLACE_ID ? '?pid=' + encodeURIComponent(PLACE_ID) : '');
       history.replaceState(null, '', cleanUrl);
@@ -1296,6 +1297,16 @@ var LANGUAGES = [
     ]);
   }
 
+  // ── Firestore REST write — register link visit (fire-and-forget) ────
+  function registerLinkVisit(placeId) {
+    firestoreTransform(branchDocPath(placeId), [
+      { fieldPath: 'linkVisits', increment: { integerValue: '1' } },
+    ]);
+    firestoreTransform(dailyDocPath(placeId), [
+      { fieldPath: 'linkVisits', increment: { integerValue: '1' } },
+    ]);
+  }
+
   // ── Firestore REST write — register review copied (fire-and-forget) ─
   function registerReviewCopied(placeId) {
     firestoreTransform(branchDocPath(placeId), [
@@ -1452,8 +1463,9 @@ var LANGUAGES = [
   }
 
   // ── Init ─────────────────────────────────────
-  // Register QR scan before generating review (fire-and-forget — no await)
-  if (IS_QR_SCAN && PLACE_ID) registerQrScan(PLACE_ID);
+  // Register origin before generating review (fire-and-forget — no await)
+  if (IS_QR_SCAN   && PLACE_ID) registerQrScan(PLACE_ID);
+  if (IS_LINK_VISIT && PLACE_ID) registerLinkVisit(PLACE_ID);
   generateAndShow('en');
 
 }());

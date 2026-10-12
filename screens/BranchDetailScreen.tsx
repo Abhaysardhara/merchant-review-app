@@ -129,9 +129,10 @@ export function BranchDetailScreen({ route, navigation }: Props) {
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Analytics</Text>
             <View style={styles.analyticsGrid}>
-              <AnalyticBox icon="scan-outline" value={branch.analytics.totalScans} label="Total Scans" color="#4F46E5" />
-              <AnalyticBox icon="copy-outline" value={branch.analytics.reviewsCopied} label="Reviews Copied" color="#F59E0B" />
-              <AnalyticBox icon="trending-up-outline" value={conversionRate(branch.analytics)} label="Conversion Rate" color="#059669" isString />
+              <AnalyticBox icon="scan-outline"    value={branch.analytics.totalScans}    label="QR Scans"      color="#4F46E5" />
+              <AnalyticBox icon="link-outline"    value={branch.analytics.linkVisits}    label="Link Visits"   color="#8B5CF6" />
+              <AnalyticBox icon="copy-outline"    value={branch.analytics.reviewsCopied} label="Copied"        color="#F59E0B" />
+              <AnalyticBox icon="trending-up-outline" value={conversionRate(branch.analytics)} label="CVR"     color="#059669" isString />
             </View>
             <View style={styles.lastScanRow}>
               <Ionicons name="time-outline" size={13} color="#9CA3AF" />

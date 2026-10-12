@@ -56,6 +56,7 @@ export async function deleteBranchConfig(placeId: string): Promise<void> {
 
 export interface FirestoreAnalytics {
   totalScans: number;
+  linkVisits: number;
   reviewsCopied: number;
   lastScanAt?: string; // ISO string
 }
@@ -65,8 +66,9 @@ export interface FirestoreAnalytics {
 // ─────────────────────────────────────────────
 
 export interface DailyStat {
-  date: string;   // YYYY-MM-DD
-  scans: number;
+  date: string;       // YYYY-MM-DD
+  scans: number;      // QR scans
+  linkVisits: number; // Shared link visits
   copied: number;
 }
 
@@ -75,9 +77,10 @@ export async function fetchDailyStats(placeId: string, days = 30): Promise<Daily
   try {
     const snap = await getDocs(collection(db, 'branches', placeId, 'daily'));
     const all: DailyStat[] = snap.docs.map((d) => ({
-      date:   d.id,
-      scans:  typeof d.data().scans  === 'number' ? d.data().scans  : 0,
-      copied: typeof d.data().copied === 'number' ? d.data().copied : 0,
+      date:       d.id,
+      scans:      typeof d.data().scans      === 'number' ? d.data().scans      : 0,
+      linkVisits: typeof d.data().linkVisits === 'number' ? d.data().linkVisits : 0,
+      copied:     typeof d.data().copied     === 'number' ? d.data().copied     : 0,
     }));
     all.sort((a, b) => a.date.localeCompare(b.date));
     return all.slice(-days);
@@ -90,14 +93,15 @@ export async function fetchDailyStats(placeId: string, days = 30): Promise<Daily
 export async function fetchBranchAnalytics(placeId: string): Promise<FirestoreAnalytics> {
   try {
     const snap = await getDoc(doc(db, 'branches', placeId));
-    if (!snap.exists()) return { totalScans: 0, reviewsCopied: 0 };
+    if (!snap.exists()) return { totalScans: 0, linkVisits: 0, reviewsCopied: 0 };
     const d = snap.data();
     return {
       totalScans:    typeof d.totalScans    === 'number' ? d.totalScans    : 0,
+      linkVisits:    typeof d.linkVisits    === 'number' ? d.linkVisits    : 0,
       reviewsCopied: typeof d.reviewsCopied === 'number' ? d.reviewsCopied : 0,
       lastScanAt:    d.lastScanAt?.toDate?.()?.toISOString?.() ?? undefined,
     };
   } catch {
-    return { totalScans: 0, reviewsCopied: 0 };
+    return { totalScans: 0, linkVisits: 0, reviewsCopied: 0 };
   }
 }

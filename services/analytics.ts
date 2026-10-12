@@ -93,6 +93,7 @@ export async function clearAllData(): Promise<void> {
 export function emptyAnalytics(): BranchAnalytics {
   return {
     totalScans: 0,
+    linkVisits: 0,
     reviewsCopied: 0,
   };
 }

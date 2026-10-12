@@ -49,8 +49,8 @@ export function QRCodeCard({ qrUrl, label, address, size = 200 }: QRCodeCardProp
   };
 
   const handleShareLink = async () => {
-    // Strip QrOrigin param so shared links don't inflate scan counts
-    const shareUrl = qrUrl.replace(/[&?]QrOrigin=true/g, '');
+    // Replace QrOrigin with LinkOrigin so web page tracks this as a link visit
+    const shareUrl = qrUrl.replace('QrOrigin=true', 'LinkOrigin=true');
     const name = label || 'Business';
     const message = `Leave a Google review for ${name}!\n\nOpen this link on your phone and it generates a review for you — just copy and post:\n${shareUrl}`;
     try {

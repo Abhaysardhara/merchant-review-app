@@ -33,7 +33,7 @@ function fillDays(stats: DailyStat[], days: number): DailyStat[] {
     d.setDate(d.getDate() - i);
     const key = d.toISOString().slice(0, 10);
     const found = stats.find((s) => s.date === key);
-    result.push(found ?? { date: key, scans: 0, copied: 0 });
+    result.push(found ?? { date: key, scans: 0, linkVisits: 0, copied: 0 });
   }
   return result;
 }
@@ -90,7 +90,8 @@ export function BranchLineChart({ placeId, days = 14 }: BranchLineChartProps) {
   return (
     <View>
       <View style={styles.legend}>
-        <LegendDot color="#4F46E5" label="Scans" />
+        <LegendDot color="#4F46E5" label="QR Scans" />
+        <LegendDot color="#8B5CF6" label="Link Visits" />
         <LegendDot color="#F59E0B" label="Copied" />
       </View>
       {hasData ? (
@@ -98,8 +99,9 @@ export function BranchLineChart({ placeId, days = 14 }: BranchLineChartProps) {
           data={{
             labels: sparseLabels(stats.map((s) => s.date)),
             datasets: [
-              { data: stats.map((s) => s.scans),  color: () => '#4F46E5', strokeWidth: 2 },
-              { data: stats.map((s) => s.copied), color: () => '#F59E0B', strokeWidth: 2 },
+              { data: stats.map((s) => s.scans),      color: () => '#4F46E5', strokeWidth: 2 },
+              { data: stats.map((s) => s.linkVisits), color: () => '#8B5CF6', strokeWidth: 2 },
+              { data: stats.map((s) => s.copied),     color: () => '#F59E0B', strokeWidth: 2 },
             ],
           }}
           width={CHART_W}
@@ -134,12 +136,12 @@ export function OverallLineChart({ branches, days = 7 }: OverallLineChartProps) 
   useEffect(() => {
     if (!branches.length) { setLoading(false); return; }
     Promise.all(branches.map((b) => fetchDailyStats(b.placeId, days))).then((all) => {
-      // Aggregate across all branches by date
       const map: Record<string, DailyStat> = {};
       all.flat().forEach((s) => {
-        if (!map[s.date]) map[s.date] = { date: s.date, scans: 0, copied: 0 };
-        map[s.date].scans  += s.scans;
-        map[s.date].copied += s.copied;
+        if (!map[s.date]) map[s.date] = { date: s.date, scans: 0, linkVisits: 0, copied: 0 };
+        map[s.date].scans      += s.scans;
+        map[s.date].linkVisits += s.linkVisits;
+        map[s.date].copied     += s.copied;
       });
       const merged = Object.values(map).sort((a, b) => a.date.localeCompare(b.date));
       setStats(fillDays(merged, days));
@@ -149,12 +151,13 @@ export function OverallLineChart({ branches, days = 7 }: OverallLineChartProps) 
 
   if (loading) return <ChartSkeleton />;
 
-  const hasData = stats.some((s) => s.scans > 0 || s.copied > 0);
+  const hasData = stats.some((s) => s.scans > 0 || s.linkVisits > 0 || s.copied > 0);
 
   return (
     <View>
       <View style={styles.legend}>
-        <LegendDot color="#4F46E5" label="Scans" />
+        <LegendDot color="#4F46E5" label="QR Scans" />
+        <LegendDot color="#8B5CF6" label="Link Visits" />
         <LegendDot color="#F59E0B" label="Copied" />
       </View>
       {hasData ? (
@@ -162,8 +165,9 @@ export function OverallLineChart({ branches, days = 7 }: OverallLineChartProps) 
           data={{
             labels: sparseLabels(stats.map((s) => s.date)),
             datasets: [
-              { data: stats.map((s) => s.scans),  color: () => '#4F46E5', strokeWidth: 2 },
-              { data: stats.map((s) => s.copied), color: () => '#F59E0B', strokeWidth: 2 },
+              { data: stats.map((s) => s.scans),      color: () => '#4F46E5', strokeWidth: 2 },
+              { data: stats.map((s) => s.linkVisits), color: () => '#8B5CF6', strokeWidth: 2 },
+              { data: stats.map((s) => s.copied),     color: () => '#F59E0B', strokeWidth: 2 },
             ],
           }}
           width={CHART_W}
@@ -176,7 +180,7 @@ export function OverallLineChart({ branches, days = 7 }: OverallLineChartProps) 
           withOuterLines={false}
         />
       ) : (
-        <EmptyChart message="No scan data yet — ask customers to scan QR codes" />
+        <EmptyChart message="No data yet — ask customers to scan QR codes or share the link" />
       )}
     </View>
   );

@@ -235,8 +235,9 @@ function BranchCard({
       </View>
 
       <View style={cardStyles.statsRow}>
-        <StatItem icon="scan-outline" value={branch.analytics.totalScans} label="Scans" />
-        <StatItem icon="copy-outline" value={branch.analytics.reviewsCopied} label="Copied" />
+        <StatItem icon="scan-outline"       value={branch.analytics.totalScans}    label="QR" />
+        <StatItem icon="link-outline"       value={branch.analytics.linkVisits}    label="Link" />
+        <StatItem icon="copy-outline"       value={branch.analytics.reviewsCopied} label="Copied" />
         <StatItem icon="trending-up-outline" value={conversionRate(branch.analytics)} label="CVR" isString />
       </View>
 
@@ -319,7 +320,8 @@ export function MerchantDashboardScreen({ navigation, route }: Props) {
     return () => { stopInterval(); sub.remove(); };
   }, [handleRefresh]);
 
-  const totalScans = branches.reduce((s, b) => s + b.analytics.totalScans, 0);
+  const totalScans  = branches.reduce((s, b) => s + b.analytics.totalScans,    0);
+  const totalLinks  = branches.reduce((s, b) => s + b.analytics.linkVisits,    0);
   const totalCopied = branches.reduce((s, b) => s + b.analytics.reviewsCopied, 0);
 
   return (
@@ -354,14 +356,16 @@ export function MerchantDashboardScreen({ navigation, route }: Props) {
       {/* Summary bar */}
       {branches.length > 0 && (
         <View style={styles.summaryBar}>
-          <SummaryItem icon="scan-outline" value={totalScans} label="Total Scans" />
+          <SummaryItem icon="scan-outline"  value={totalScans}  label="QR Scans" />
           <View style={styles.summaryDivider} />
-          <SummaryItem icon="copy-outline" value={totalCopied} label="Reviews Copied" color="#F59E0B" />
+          <SummaryItem icon="link-outline"  value={totalLinks}  label="Links"    color="#8B5CF6" />
+          <View style={styles.summaryDivider} />
+          <SummaryItem icon="copy-outline"  value={totalCopied} label="Copied"   color="#F59E0B" />
           <View style={styles.summaryDivider} />
           <SummaryItem
             icon="trending-up"
-            value={totalScans > 0 ? `${((totalCopied / totalScans) * 100).toFixed(1)}%` : '—'}
-            label="Conversion"
+            value={(totalScans + totalLinks) > 0 ? `${((totalCopied / (totalScans + totalLinks)) * 100).toFixed(1)}%` : '—'}
+            label="CVR"
             color="#059669"
             isString
           />
