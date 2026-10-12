@@ -48,15 +48,15 @@ export function QRCodeCard({ qrUrl, label, address, size = 200 }: QRCodeCardProp
     });
   };
 
-  const handleShareDetails = async () => {
+  const handleShareLink = async () => {
+    // Strip QrOrigin param so shared links don't inflate scan counts
+    const shareUrl = qrUrl.replace(/[&?]QrOrigin=true/g, '');
     const name = label || 'Business';
-    const message = address
-      ? `${name}\n\n${address}`
-      : name;
+    const message = `Leave a Google review for ${name}!\n\nOpen this link on your phone and it generates a review for you — just copy and post:\n${shareUrl}`;
     try {
-      await Share.share({ message, title: name });
+      await Share.share({ message, title: `Review ${name}` });
     } catch {
-      Alert.alert('Share failed', 'Could not share business details.');
+      Alert.alert('Share failed', 'Could not share the link.');
     }
   };
 
@@ -102,9 +102,9 @@ export function QRCodeCard({ qrUrl, label, address, size = 200 }: QRCodeCardProp
           <Text style={styles.shareBtnText}>Share QR</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.shareBtn} onPress={handleShareDetails} activeOpacity={0.8}>
-          <Ionicons name="business-outline" size={16} color="#4F46E5" />
-          <Text style={styles.shareBtnText}>Share Details</Text>
+        <TouchableOpacity style={styles.shareBtn} onPress={handleShareLink} activeOpacity={0.8}>
+          <Ionicons name="link-outline" size={16} color="#4F46E5" />
+          <Text style={styles.shareBtnText}>Share Link</Text>
         </TouchableOpacity>
       </View>
     </View>
