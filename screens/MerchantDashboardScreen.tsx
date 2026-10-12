@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   RefreshControl,
+  Animated,
+  AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -269,14 +271,18 @@ function StatItem({
 // Placeholder store shown when modal is open but store data hasn't arrived yet
 const EMPTY_STORE: PrefilledStore = { name: '', placeId: '', address: '' };
 
+const AUTO_REFRESH_MS = 2 * 60 * 1000; // 2 minutes
+
 export function MerchantDashboardScreen({ navigation, route }: Props) {
   const { branches, logout, addBranch, deleteBranch, refreshBranches } = useMerchant();
   const [modalVisible, setModalVisible] = useState(false);
   const [pendingStore, setPendingStore] = useState<PrefilledStore>(EMPTY_STORE);
   const [refreshing, setRefreshing] = useState(false);
+  const spinAnim = useRef(new Animated.Value(0)).current;
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Returning from StoreSelector with a picked store → open details modal
-  React.useEffect(() => {
+  useEffect(() => {
     const fromMapStore = route.params?.fromMapStore;
     if (fromMapStore) {
       setPendingStore(fromMapStore);
@@ -285,11 +291,32 @@ export function MerchantDashboardScreen({ navigation, route }: Props) {
     }
   }, [route.params?.fromMapStore]);
 
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
+  const handleRefresh = useCallback(async (silent = false) => {
+    if (!silent) setRefreshing(true);
+    // Spin the refresh icon
+    Animated.timing(spinAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start(() => {
+      spinAnim.setValue(0);
+    });
     await refreshBranches();
-    setRefreshing(false);
-  }, [refreshBranches]);
+    if (!silent) setRefreshing(false);
+  }, [refreshBranches, spinAnim]);
+
+  // ── Auto-refresh every 2 min while app is in foreground ──
+  useEffect(() => {
+    const startInterval = () => {
+      intervalRef.current = setInterval(() => handleRefresh(true), AUTO_REFRESH_MS);
+    };
+    const stopInterval = () => {
+      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+    };
+
+    startInterval();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') startInterval();
+      else stopInterval();
+    });
+    return () => { stopInterval(); sub.remove(); };
+  }, [handleRefresh]);
 
   const totalScans = branches.reduce((s, b) => s + b.analytics.totalScans, 0);
   const totalCopied = branches.reduce((s, b) => s + b.analytics.reviewsCopied, 0);
@@ -302,9 +329,25 @@ export function MerchantDashboardScreen({ navigation, route }: Props) {
           <Text style={styles.greeting}>Merchant Dashboard</Text>
           <Text style={styles.subGreeting}>{branches.length} branch{branches.length !== 1 ? 'es' : ''} configured</Text>
         </View>
-        <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.7}>
-          <Ionicons name="log-out-outline" size={20} color="#6B7280" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => handleRefresh(false)}
+            activeOpacity={0.7}
+            disabled={refreshing}
+          >
+            <Animated.View style={{
+              transform: [{
+                rotate: spinAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }),
+              }],
+            }}>
+              <Ionicons name="refresh-outline" size={20} color="#6B7280" />
+            </Animated.View>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn} onPress={logout} activeOpacity={0.7}>
+            <Ionicons name="log-out-outline" size={20} color="#6B7280" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Summary bar */}
@@ -328,7 +371,7 @@ export function MerchantDashboardScreen({ navigation, route }: Props) {
       <ScrollView
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#4F46E5" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => handleRefresh(false)} tintColor="#4F46E5" />}
       >
         {branches.length === 0 ? (
           <View style={styles.empty}>
@@ -405,7 +448,8 @@ const styles = StyleSheet.create({
   },
   greeting: { fontSize: 20, fontWeight: '800', color: '#0F172A', letterSpacing: -0.4 },
   subGreeting: { fontSize: 12, color: '#94A3B8', marginTop: 2 },
-  logoutBtn: {
+  headerActions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  iconBtn: {
     width: 38, height: 38, borderRadius: 19,
     backgroundColor: '#F1F5F9',
     alignItems: 'center', justifyContent: 'center',
