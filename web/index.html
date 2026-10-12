@@ -1261,8 +1261,8 @@ var LANGUAGES = [
     } catch (e) { return null; }
   }
 
-  // ── Firestore REST write — register QR scan (fire-and-forget) ──────
-  async function registerQrScan(placeId) {
+  // ── Firestore REST write — shared fieldTransform helper ─────────────
+  async function firestoreIncrement(placeId, fields) {
     try {
       var docPath = 'projects/' + FIRESTORE_PROJECT
                   + '/databases/(default)/documents/branches/' + encodeURIComponent(placeId);
@@ -1271,21 +1271,26 @@ var LANGUAGES = [
       await fetch(url, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          writes: [{
-            transform: {
-              document: docPath,
-              fieldTransforms: [
-                { fieldPath: 'totalScans', increment: { integerValue: '1' } },
-                { fieldPath: 'lastScanAt', setToServerValue: 'REQUEST_TIME' },
-              ],
-            },
-          }],
-        }),
+        body: JSON.stringify({ writes: [{ transform: { document: docPath, fieldTransforms: fields } }] }),
       });
     } catch (e) {
-      console.warn('[ReviewReach] QR scan registration failed:', e.message);
+      console.warn('[ReviewReach] Firestore write failed:', e.message);
     }
+  }
+
+  // ── Firestore REST write — register QR scan (fire-and-forget) ──────
+  function registerQrScan(placeId) {
+    firestoreIncrement(placeId, [
+      { fieldPath: 'totalScans', increment: { integerValue: '1' } },
+      { fieldPath: 'lastScanAt', setToServerValue: 'REQUEST_TIME' },
+    ]);
+  }
+
+  // ── Firestore REST write — register review copied (fire-and-forget) ─
+  function registerReviewCopied(placeId) {
+    firestoreIncrement(placeId, [
+      { fieldPath: 'reviewsCopied', increment: { integerValue: '1' } },
+    ]);
   }
 
   // ── Generate & display ───────────────────────
@@ -1409,6 +1414,8 @@ var LANGUAGES = [
     function openMaps() {
       setTimeout(function () { window.location.href = mapsUrl; }, 600);
     }
+
+    if (PLACE_ID) registerReviewCopied(PLACE_ID);
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text)

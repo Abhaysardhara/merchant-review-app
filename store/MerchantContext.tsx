@@ -16,7 +16,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import type { Branch, QRPayload } from '../types';
+import type { Branch, BranchAnalytics, QRPayload } from '../types';
 import {
   loadBranches,
   saveBranches,
@@ -25,7 +25,7 @@ import {
   savePasscode,
 } from '../services/analytics';
 import { resolvePlaceFromUrl } from '../services/mapsResolver';
-import { saveBranchConfig, deleteBranchConfig } from '../services/firebase';
+import { saveBranchConfig, deleteBranchConfig, fetchBranchAnalytics } from '../services/firebase';
 import { REVIEW_WEB_URL } from '../config';
 
 // ─────────────────────────────────────────────
@@ -88,14 +88,25 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
   // Counter used to generate unique branch IDs
   const counterRef = useRef(0);
 
+  // ── Fetch live analytics from Firestore and merge into branch list ──
+  const syncAnalytics = useCallback(async (list: Branch[]): Promise<Branch[]> => {
+    if (!list.length) return list;
+    const analyticsArr = await Promise.all(list.map((b) => fetchBranchAnalytics(b.placeId)));
+    return list.map((b, i) => ({
+      ...b,
+      analytics: analyticsArr[i] as BranchAnalytics,
+    }));
+  }, []);
+
   // ── Load persisted data on mount ──
   useEffect(() => {
     (async () => {
       const stored = await loadBranches();
-      setBranches(stored);
       if (stored.length > 0) {
         counterRef.current = stored.length;
       }
+      const withAnalytics = await syncAnalytics(stored);
+      setBranches(withAnalytics);
       setIsLoading(false);
     })();
   }, []);
@@ -116,8 +127,9 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
   // ── Branch CRUD ──
   const refreshBranches = useCallback(async () => {
     const stored = await loadBranches();
-    setBranches(stored);
-  }, []);
+    const withAnalytics = await syncAnalytics(stored);
+    setBranches(withAnalytics);
+  }, [syncAnalytics]);
 
   const addBranch = useCallback(
     async (params: AddBranchParams): Promise<Branch | null> => {

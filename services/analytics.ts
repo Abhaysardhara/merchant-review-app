@@ -51,28 +51,12 @@ async function mutateBranchAnalytics(
   await saveBranches(updated);
 }
 
-/** Call this every time a customer scans a branch QR code. */
+/** @deprecated Analytics are now read from Firestore. Kept for migration safety. */
 export async function logScan(branchId: string): Promise<void> {
   await mutateBranchAnalytics(branchId, (a) => ({
     ...a,
     totalScans: a.totalScans + 1,
     lastScanAt: new Date().toISOString(),
-  }));
-}
-
-/** Call this when a customer reaches the Google Maps redirect step (4 or 5 stars). */
-export async function logFiveStarRedirect(branchId: string): Promise<void> {
-  await mutateBranchAnalytics(branchId, (a) => ({
-    ...a,
-    fiveStarRedirects: a.fiveStarRedirects + 1,
-  }));
-}
-
-/** Call this when a customer submits private (1–3 star) feedback. */
-export async function logPrivateFeedback(branchId: string): Promise<void> {
-  await mutateBranchAnalytics(branchId, (a) => ({
-    ...a,
-    privateFeedbacks: a.privateFeedbacks + 1,
   }));
 }
 
@@ -109,14 +93,13 @@ export async function clearAllData(): Promise<void> {
 export function emptyAnalytics(): BranchAnalytics {
   return {
     totalScans: 0,
-    fiveStarRedirects: 0,
-    privateFeedbacks: 0,
+    reviewsCopied: 0,
   };
 }
 
 export function conversionRate(analytics: BranchAnalytics): string {
   if (analytics.totalScans === 0) return '0%';
-  const rate = (analytics.fiveStarRedirects / analytics.totalScans) * 100;
+  const rate = (analytics.reviewsCopied / analytics.totalScans) * 100;
   return `${rate.toFixed(1)}%`;
 }
 

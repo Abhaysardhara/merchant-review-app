@@ -233,8 +233,7 @@ function BranchCard({
 
       <View style={cardStyles.statsRow}>
         <StatItem icon="scan-outline" value={branch.analytics.totalScans} label="Scans" />
-        <StatItem icon="star-outline" value={branch.analytics.fiveStarRedirects} label="5-Star" />
-        <StatItem icon="chatbubble-outline" value={branch.analytics.privateFeedbacks} label="Private" />
+        <StatItem icon="copy-outline" value={branch.analytics.reviewsCopied} label="Copied" />
         <StatItem icon="trending-up-outline" value={conversionRate(branch.analytics)} label="CVR" isString />
       </View>
 
@@ -293,7 +292,7 @@ export function MerchantDashboardScreen({ navigation, route }: Props) {
   }, [refreshBranches]);
 
   const totalScans = branches.reduce((s, b) => s + b.analytics.totalScans, 0);
-  const totalFiveStar = branches.reduce((s, b) => s + b.analytics.fiveStarRedirects, 0);
+  const totalCopied = branches.reduce((s, b) => s + b.analytics.reviewsCopied, 0);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -313,11 +312,11 @@ export function MerchantDashboardScreen({ navigation, route }: Props) {
         <View style={styles.summaryBar}>
           <SummaryItem icon="scan-outline" value={totalScans} label="Total Scans" />
           <View style={styles.summaryDivider} />
-          <SummaryItem icon="star" value={totalFiveStar} label="5-Star Redirects" color="#F59E0B" />
+          <SummaryItem icon="copy-outline" value={totalCopied} label="Reviews Copied" color="#F59E0B" />
           <View style={styles.summaryDivider} />
           <SummaryItem
             icon="trending-up"
-            value={totalScans > 0 ? `${((totalFiveStar / totalScans) * 100).toFixed(1)}%` : '—'}
+            value={totalScans > 0 ? `${((totalCopied / totalScans) * 100).toFixed(1)}%` : '—'}
             label="Conversion"
             color="#059669"
             isString

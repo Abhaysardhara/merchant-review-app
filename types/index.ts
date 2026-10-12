@@ -16,8 +16,7 @@ export type BranchCategory =
 
 export interface BranchAnalytics {
   totalScans: number;
-  fiveStarRedirects: number;
-  privateFeedbacks: number;
+  reviewsCopied: number;
   lastScanAt?: string; // ISO date string
 }
 

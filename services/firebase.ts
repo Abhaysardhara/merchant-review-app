@@ -2,6 +2,7 @@ import { initializeApp, getApps } from 'firebase/app';
 import {
   getFirestore,
   doc,
+  getDoc,
   setDoc,
   deleteDoc,
   serverTimestamp,
@@ -45,4 +46,30 @@ export async function saveBranchConfig(
 /** Remove the branch config doc when merchant deletes a branch */
 export async function deleteBranchConfig(placeId: string): Promise<void> {
   await deleteDoc(doc(db, 'branches', placeId));
+}
+
+// ─────────────────────────────────────────────
+//  Branch analytics — read live counts from Firestore
+// ─────────────────────────────────────────────
+
+export interface FirestoreAnalytics {
+  totalScans: number;
+  reviewsCopied: number;
+  lastScanAt?: string; // ISO string
+}
+
+/** Fetch live analytics for a branch from Firestore */
+export async function fetchBranchAnalytics(placeId: string): Promise<FirestoreAnalytics> {
+  try {
+    const snap = await getDoc(doc(db, 'branches', placeId));
+    if (!snap.exists()) return { totalScans: 0, reviewsCopied: 0 };
+    const d = snap.data();
+    return {
+      totalScans:    typeof d.totalScans    === 'number' ? d.totalScans    : 0,
+      reviewsCopied: typeof d.reviewsCopied === 'number' ? d.reviewsCopied : 0,
+      lastScanAt:    d.lastScanAt?.toDate?.()?.toISOString?.() ?? undefined,
+    };
+  } catch {
+    return { totalScans: 0, reviewsCopied: 0 };
+  }
 }
