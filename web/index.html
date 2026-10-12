@@ -731,6 +731,15 @@ var LANGUAGES = [
   var rawPlaceId = decodeParam(q.get('pid'));
   var PLACE_ID = isValidPlaceId(rawPlaceId) ? rawPlaceId : '';
 
+  // ── QR scan origin — strip param immediately so page refresh doesn't recount ──
+  var IS_QR_SCAN = q.get('QrOrigin') === 'true';
+  if (IS_QR_SCAN) {
+    try {
+      var cleanUrl = location.pathname + (PLACE_ID ? '?pid=' + encodeURIComponent(PLACE_ID) : '');
+      history.replaceState(null, '', cleanUrl);
+    } catch (e) { /* replaceState not supported — ignore */ }
+  }
+
   // BIZ_NAME, TONES, KEYWORDS, AREA are populated after Firestore + Places API fetch
   var BIZ_NAME = 'This Business';
   var TONES    = ['Friendly'];
@@ -1252,6 +1261,33 @@ var LANGUAGES = [
     } catch (e) { return null; }
   }
 
+  // ── Firestore REST write — register QR scan (fire-and-forget) ──────
+  async function registerQrScan(placeId) {
+    try {
+      var docPath = 'projects/' + FIRESTORE_PROJECT
+                  + '/databases/(default)/documents/branches/' + encodeURIComponent(placeId);
+      var url = 'https://firestore.googleapis.com/v1/projects/' + FIRESTORE_PROJECT
+              + '/databases/(default)/documents:commit';
+      await fetch(url, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          writes: [{
+            transform: {
+              document: docPath,
+              fieldTransforms: [
+                { fieldPath: 'totalScans', increment: { integerValue: '1' } },
+                { fieldPath: 'lastScanAt', setToServerValue: 'REQUEST_TIME' },
+              ],
+            },
+          }],
+        }),
+      });
+    } catch (e) {
+      console.warn('[ReviewReach] QR scan registration failed:', e.message);
+    }
+  }
+
   // ── Generate & display ───────────────────────
   var currentLang  = 'en';
   var cachedPlace  = undefined; // undefined = not yet fetched; null = fetched but failed
@@ -1396,6 +1432,8 @@ var LANGUAGES = [
   }
 
   // ── Init ─────────────────────────────────────
+  // Register QR scan before generating review (fire-and-forget — no await)
+  if (IS_QR_SCAN && PLACE_ID) registerQrScan(PLACE_ID);
   generateAndShow('en');
 
 }());

@@ -210,9 +210,9 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // ── QR URL builder — only placeId; everything else fetched from Firestore ──
+  // ── QR URL builder — placeId + QrOrigin flag for scan analytics ──
   const buildQRUrl = useCallback((branch: Branch): string => {
-    return `${REVIEW_WEB_URL}?pid=${encodeURIComponent(branch.placeId)}`;
+    return `${REVIEW_WEB_URL}?pid=${encodeURIComponent(branch.placeId)}&QrOrigin=true`;
   }, []);
 
   const value = useMemo<MerchantContextValue>(
