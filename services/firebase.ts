@@ -2,9 +2,14 @@ import { initializeApp, getApps } from 'firebase/app';
 import {
   getFirestore,
   doc,
+  documentId,
   getDoc,
   getDocs,
   collection,
+  query,
+  orderBy,
+  where,
+  limit,
   setDoc,
   deleteDoc,
   serverTimestamp,
@@ -79,35 +84,51 @@ export interface HourlyStat {
   copied: number;
 }
 
-/** Fetch hourly stats for a branch, optionally filtered to last N hours */
-export async function fetchHourlyStats(placeId: string, hours = 24): Promise<HourlyStat[]> {
+/** Fetch hourly stats — server-side filtered to [fromHour, toHour] inclusive */
+export async function fetchHourlyStats(
+  placeId: string,
+  fromHour: string, // YYYY-MM-DDTHH
+  toHour: string,
+): Promise<HourlyStat[]> {
   try {
-    const snap = await getDocs(collection(db, 'branches', placeId, 'hourly'));
-    const all: HourlyStat[] = snap.docs.map((d) => ({
+    const q = query(
+      collection(db, 'branches', placeId, 'hourly'),
+      where(documentId(), '>=', fromHour),
+      where(documentId(), '<=', toHour),
+      orderBy(documentId(), 'asc'),
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => ({
       hour:       d.id,
       scans:      typeof d.data().scans      === 'number' ? d.data().scans      : 0,
       linkVisits: typeof d.data().linkVisits === 'number' ? d.data().linkVisits : 0,
       copied:     typeof d.data().copied     === 'number' ? d.data().copied     : 0,
     }));
-    all.sort((a, b) => a.hour.localeCompare(b.hour));
-    return all.slice(-hours);
   } catch {
     return [];
   }
 }
 
-/** Fetch daily stats for a branch (last `days` days, sorted ascending) */
-export async function fetchDailyStats(placeId: string, days = 30): Promise<DailyStat[]> {
+/** Fetch daily stats — server-side filtered to [fromDate, toDate] inclusive */
+export async function fetchDailyStats(
+  placeId: string,
+  fromDate: string, // YYYY-MM-DD
+  toDate: string,
+): Promise<DailyStat[]> {
   try {
-    const snap = await getDocs(collection(db, 'branches', placeId, 'daily'));
-    const all: DailyStat[] = snap.docs.map((d) => ({
+    const q = query(
+      collection(db, 'branches', placeId, 'daily'),
+      where(documentId(), '>=', fromDate),
+      where(documentId(), '<=', toDate),
+      orderBy(documentId(), 'asc'),
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => ({
       date:       d.id,
       scans:      typeof d.data().scans      === 'number' ? d.data().scans      : 0,
       linkVisits: typeof d.data().linkVisits === 'number' ? d.data().linkVisits : 0,
       copied:     typeof d.data().copied     === 'number' ? d.data().copied     : 0,
     }));
-    all.sort((a, b) => a.date.localeCompare(b.date));
-    return all.slice(-days);
   } catch {
     return [];
   }

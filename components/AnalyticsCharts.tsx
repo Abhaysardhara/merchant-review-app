@@ -180,35 +180,35 @@ async function fetchPoints(
 ): Promise<ChartPoint[]> {
   const now = new Date();
 
+  // ── Hourly ranges — pass exact bounds to Firestore ──
   if (range === '1h' || range === '4h' || range === '1d') {
-    const hours  = range === '1h' ? 1 : range === '4h' ? 4 : 24;
-    const toH    = now.toISOString().slice(0, 13);
-    const fromD  = new Date(now);
+    const hours = range === '1h' ? 1 : range === '4h' ? 4 : 24;
+    const toH   = now.toISOString().slice(0, 13);
+    const fromD = new Date(now);
     fromD.setUTCHours(fromD.getUTCHours() - hours);
-    const fromH  = fromD.toISOString().slice(0, 13);
-    const raw    = await fetchHourlyStats(placeId, hours + 2);
+    const fromH = fromD.toISOString().slice(0, 13);
+    const raw   = await fetchHourlyStats(placeId, fromH, toH); // server-filtered
     return buildHourlyPoints(raw, fromH, toH);
   }
 
-  const toDate   = (customTo   ?? now).toISOString().slice(0, 10);
+  // ── Daily ranges — compute bounds, pass to Firestore ──
+  const toDate   = (customTo ?? now).toISOString().slice(0, 10);
   const fromDate = (() => {
     if (range === 'custom' && customFrom) return customFrom.toISOString().slice(0, 10);
     const d = new Date(now);
-    const days: Record<string, number> = {
+    const daysMap: Record<string, number> = {
       '3d': 3, '1w': 7, '2w': 14, '1m': 30, '3m': 90, '6m': 180, '1y': 365,
     };
-    d.setUTCDate(d.getUTCDate() - (days[range] ?? 7));
+    d.setUTCDate(d.getUTCDate() - (daysMap[range] ?? 7));
     return d.toISOString().slice(0, 10);
   })();
 
-  const raw    = await fetchDailyStats(placeId, 400); // fetch all, filter client-side
-  const subset = raw.filter((s) => s.date >= fromDate && s.date <= toDate);
-  const points = buildDailyPoints(subset, fromDate, toDate);
+  const raw    = await fetchDailyStats(placeId, fromDate, toDate); // server-filtered
+  const points = buildDailyPoints(raw, fromDate, toDate);
 
   // Aggregate for long ranges to keep chart readable
-  const days = points.length;
-  if (days > 60)  return aggregateMonthly(points, subset);
-  if (days > 21)  return aggregateWeekly(points);
+  if (points.length > 60) return aggregateMonthly(points, raw);
+  if (points.length > 21) return aggregateWeekly(points);
   return points;
 }
 
