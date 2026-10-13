@@ -10,13 +10,12 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MerchantStackParamList } from '../types';
 import { useMerchant } from '../store/MerchantContext';
 import { QRCodeCard } from '../components/QRCodeCard';
-import { BranchLineChart } from '../components/AnalyticsCharts';
 import { conversionRate, formatLastScan } from '../services/analytics';
 
 type Props = NativeStackScreenProps<MerchantStackParamList, 'BranchDetail'>;
@@ -29,13 +28,13 @@ const TONES = [
 export function BranchDetailScreen({ route, navigation }: Props) {
   const { branchId } = route.params;
   const { getBranch, updateBranch, deleteBranch, buildQRUrl } = useMerchant();
+  const insets = useSafeAreaInsets();
 
   const branch = getBranch(branchId);
 
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(branch?.name ?? '');
   const [keywords, setKeywords] = useState(branch?.keywords ?? '');
-  // tone stored as comma-separated string; split for multi-select UI
   const [tones, setTones] = useState<string[]>(
     branch?.tone ? branch.tone.split(', ').filter(Boolean) : ['Friendly'],
   );
@@ -86,76 +85,109 @@ export function BranchDetailScreen({ route, navigation }: Props) {
 
   if (!branch) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centered}>
-          <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
-          <Text style={styles.notFoundText}>Branch not found</Text>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Text style={styles.backBtnText}>Go Back</Text>
+      <View style={[styles.notFoundRoot, { paddingTop: insets.top }]}>
+        <View style={styles.notFoundContent}>
+          <View style={styles.notFoundIconWrap}>
+            <Ionicons name="alert-circle-outline" size={36} color="#EF4444" />
+          </View>
+          <Text style={styles.notFoundTitle}>Branch not found</Text>
+          <Text style={styles.notFoundSub}>This branch may have been deleted.</Text>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.notFoundBtn}>
+            <Text style={styles.notFoundBtnText}>Go Back</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   const qrUrl = buildQRUrl(branch);
+  const a = branch.analytics;
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Nav bar */}
-      <View style={styles.navbar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navBtn}>
-          <Ionicons name="chevron-back" size={22} color="#1E1B4B" />
-        </TouchableOpacity>
-        <Text style={styles.navTitle} numberOfLines={1}>{branch.name}</Text>
-        <TouchableOpacity
-          onPress={isEditing ? handleSave : () => setIsEditing(true)}
-          style={styles.navBtn}
-          disabled={isSaving}
-        >
-          <Text style={styles.navAction}>{isEditing ? (isSaving ? 'Saving…' : 'Save') : 'Edit'}</Text>
-        </TouchableOpacity>
+    <View style={styles.root}>
+      {/* ── Dark indigo header ── */}
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        {/* Blob decoration */}
+        <View style={styles.headerBlob} pointerEvents="none" />
+
+        {/* Nav row */}
+        <View style={styles.navRow}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navIconBtn}>
+            <Ionicons name="chevron-back" size={22} color="#fff" />
+          </TouchableOpacity>
+
+          <Text style={styles.navTitle} numberOfLines={1}>{branch.name}</Text>
+
+          <TouchableOpacity
+            onPress={isEditing ? handleSave : () => setIsEditing(true)}
+            style={[styles.navTextBtn, isEditing && styles.navTextBtnActive]}
+            disabled={isSaving}
+          >
+            <Text style={[styles.navAction, isEditing && styles.navActionSave]}>
+              {isEditing ? (isSaving ? 'Saving…' : 'Save') : 'Edit'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Analytics stat tiles */}
+        <View style={styles.statRow}>
+          <StatTile icon="scan-outline"        value={a.totalScans}            label="Scans"       color="#818CF8" />
+          <StatTile icon="link-outline"        value={a.linkVisits}            label="Visits"      color="#A78BFA" />
+          <StatTile icon="copy-outline"        value={a.reviewsCopied}         label="Copied"      color="#34D399" />
+          <StatTile icon="trending-up-outline" value={conversionRate(a)}       label="CVR"         color="#FCD34D" isString />
+        </View>
+
+        {a.lastScanAt && (
+          <View style={styles.lastScanRow}>
+            <Ionicons name="time-outline" size={12} color="rgba(255,255,255,0.45)" />
+            <Text style={styles.lastScanText}>Last scan {formatLastScan(a.lastScanAt)}</Text>
+          </View>
+        )}
       </View>
 
+      {/* ── Scrollable content ── */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
+          showsVerticalScrollIndicator={false}
+        >
           {/* QR Code */}
-          <QRCodeCard qrUrl={qrUrl} label={branch.name} address={branch.address} size={200} />
-
-          {/* Analytics */}
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Analytics</Text>
-            <View style={styles.analyticsGrid}>
-              <AnalyticBox icon="scan-outline"    value={branch.analytics.totalScans}    label="QR Scans"      color="#4F46E5" />
-              <AnalyticBox icon="link-outline"    value={branch.analytics.linkVisits}    label="Link Visits"   color="#8B5CF6" />
-              <AnalyticBox icon="copy-outline"    value={branch.analytics.reviewsCopied} label="Copied"        color="#F59E0B" />
-              <AnalyticBox icon="trending-up-outline" value={conversionRate(branch.analytics)} label="CVR"     color="#059669" isString />
-            </View>
-            <View style={styles.lastScanRow}>
-              <Ionicons name="time-outline" size={13} color="#9CA3AF" />
-              <Text style={styles.lastScanText}>Last scan: {formatLastScan(branch.analytics.lastScanAt)}</Text>
-            </View>
-          </View>
-
-          {/* Timeseries chart */}
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Trends</Text>
-            <BranchLineChart placeId={branch.placeId} />
-          </View>
+          <QRCodeCard qrUrl={qrUrl} label={branch.name} address={branch.address} size={210} />
 
           {/* Branch Details */}
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Branch Details</Text>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionIconWrap}>
+                <Ionicons name="information-circle" size={16} color="#4F46E5" />
+              </View>
+              <Text style={styles.sectionTitle}>Branch Details</Text>
+              {!isEditing && (
+                <TouchableOpacity onPress={() => setIsEditing(true)} style={styles.editPill}>
+                  <Ionicons name="pencil-outline" size={12} color="#4F46E5" />
+                  <Text style={styles.editPillText}>Edit</Text>
+                </TouchableOpacity>
+              )}
+            </View>
 
             <FieldRow label="Branch Name">
               {isEditing ? (
-                <TextInput style={styles.fieldInput} value={name} onChangeText={setName} />
+                <TextInput
+                  style={styles.fieldInput}
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="e.g. Downtown Location"
+                  placeholderTextColor="#CBD5E1"
+                />
               ) : (
                 <Text style={styles.fieldValue}>{branch.name}</Text>
               )}
+            </FieldRow>
+
+            <FieldRow label="Business">
+              <Text style={styles.fieldValue}>{branch.businessName || '—'}</Text>
             </FieldRow>
 
             <FieldRow label="Address">
@@ -168,7 +200,7 @@ export function BranchDetailScreen({ route, navigation }: Props) {
               </Text>
             </FieldRow>
 
-            <FieldRow label="AI Tone">
+            <FieldRow label="AI Tone" last={!isEditing}>
               {isEditing ? (
                 <View style={styles.chipWrap}>
                   {TONES.map((t) => {
@@ -176,11 +208,11 @@ export function BranchDetailScreen({ route, navigation }: Props) {
                     return (
                       <TouchableOpacity
                         key={t}
-                        style={[styles.chip, active && styles.chipActive]}
+                        style={[styles.toneChip, active && styles.toneChipActive]}
                         onPress={() => toggleTone(t)}
                       >
                         {active && <Ionicons name="checkmark" size={11} color="#FFF" />}
-                        <Text style={[styles.chipText, active && styles.chipTextActive]}>{t}</Text>
+                        <Text style={[styles.toneChipText, active && styles.toneChipTextActive]}>{t}</Text>
                       </TouchableOpacity>
                     );
                   })}
@@ -190,20 +222,45 @@ export function BranchDetailScreen({ route, navigation }: Props) {
               )}
             </FieldRow>
 
-            <FieldRow label="Keywords">
+            <FieldRow label="Keywords" last={!isEditing}>
               {isEditing ? (
                 <TextInput
-                  style={[styles.fieldInput, { minHeight: 60 }]}
+                  style={[styles.fieldInput, styles.fieldInputMulti]}
                   value={keywords}
                   onChangeText={setKeywords}
                   multiline
+                  placeholder="e.g. coffee, cozy, quick service"
+                  placeholderTextColor="#CBD5E1"
                 />
               ) : (
                 <Text style={styles.fieldValue}>{branch.keywords || '—'}</Text>
               )}
             </FieldRow>
 
-            <FieldRow label="Created">
+            {isEditing && (
+              <View style={styles.editActions}>
+                <TouchableOpacity
+                  style={styles.cancelBtn}
+                  onPress={() => {
+                    setIsEditing(false);
+                    setName(branch.name);
+                    setKeywords(branch.keywords ?? '');
+                    setTones(branch.tone ? branch.tone.split(', ').filter(Boolean) : ['Friendly']);
+                  }}
+                >
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.saveBtn, isSaving && styles.saveBtnDisabled]}
+                  onPress={handleSave}
+                  disabled={isSaving}
+                >
+                  <Text style={styles.saveBtnText}>{isSaving ? 'Saving…' : 'Save Changes'}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <FieldRow label="Added On" last>
               <Text style={styles.fieldValue}>
                 {new Date(branch.createdAt).toLocaleDateString('en-US', {
                   year: 'numeric', month: 'long', day: 'numeric',
@@ -214,12 +271,12 @@ export function BranchDetailScreen({ route, navigation }: Props) {
 
           {/* Danger zone */}
           <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} activeOpacity={0.8}>
-            <Ionicons name="trash-outline" size={18} color="#EF4444" />
+            <Ionicons name="trash-outline" size={17} color="#DC2626" />
             <Text style={styles.deleteBtnText}>Delete Branch</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -227,23 +284,26 @@ export function BranchDetailScreen({ route, navigation }: Props) {
 //  Sub-components
 // ─────────────────────────────────────────────
 
-function AnalyticBox({
+function StatTile({
   icon, value, label, color, isString,
 }: {
   icon: string; value: number | string; label: string; color: string; isString?: boolean;
 }) {
   return (
-    <View style={[styles.analyticBox, { borderColor: color + '20' }]}>
-      <Ionicons name={icon as never} size={18} color={color} />
-      <Text style={[styles.analyticValue, { color }]}>{isString ? value : String(value)}</Text>
-      <Text style={styles.analyticLabel}>{label}</Text>
+    <View style={styles.statTile}>
+      <Text style={[styles.statValue, { color }]}>{isString ? value : String(value)}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
 }
 
-function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
+function FieldRow({
+  label, children, last,
+}: {
+  label: string; children: React.ReactNode; last?: boolean;
+}) {
   return (
-    <View style={styles.fieldRow}>
+    <View style={[styles.fieldRow, last && styles.fieldRowLast]}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <View style={styles.fieldContent}>{children}</View>
     </View>
@@ -255,94 +315,204 @@ function FieldRow({ label, children }: { label: string; children: React.ReactNod
 // ─────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  notFoundText: { fontSize: 18, fontWeight: '700', color: '#374151' },
-  backBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, backgroundColor: '#4F46E5' },
-  backBtnText: { color: '#FFF', fontWeight: '700' },
-  navbar: {
+  root: { flex: 1, backgroundColor: '#F8FAFC' },
+
+  // ── Not found ──
+  notFoundRoot: { flex: 1, backgroundColor: '#1E1B4B' },
+  notFoundContent: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 32 },
+  notFoundIconWrap: {
+    width: 72, height: 72, borderRadius: 22,
+    backgroundColor: 'rgba(239,68,68,0.12)',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 4,
+  },
+  notFoundTitle: { fontSize: 20, fontWeight: '800', color: '#fff' },
+  notFoundSub: { fontSize: 14, color: 'rgba(255,255,255,0.5)', textAlign: 'center' },
+  notFoundBtn: {
+    marginTop: 8, paddingHorizontal: 28, paddingVertical: 13,
+    borderRadius: 12, backgroundColor: '#4F46E5',
+  },
+  notFoundBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+
+  // ── Header ──
+  header: {
+    backgroundColor: '#1E1B4B',
+    paddingHorizontal: 20,
+    paddingBottom: 22,
+    overflow: 'hidden',
+    gap: 16,
+  },
+  headerBlob: {
+    position: 'absolute', top: -40, right: -50,
+    width: 180, height: 180, borderRadius: 90,
+    backgroundColor: 'rgba(99,102,241,0.22)',
+  },
+
+  // Nav row
+  navRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    gap: 8,
   },
-  navBtn: { minWidth: 60, paddingHorizontal: 4 },
-  navTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#0F172A', textAlign: 'center' },
-  navAction: { color: '#4F46E5', fontSize: 15, fontWeight: '700', textAlign: 'right' },
-  content: { padding: 16, gap: 14, paddingBottom: 40 },
+  navIconBtn: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  navTitle: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: -0.3,
+    marginLeft: 4,
+  },
+  navTextBtn: {
+    paddingHorizontal: 14, paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  navTextBtnActive: { backgroundColor: '#4F46E5' },
+  navAction: { color: 'rgba(255,255,255,0.75)', fontSize: 13, fontWeight: '700' },
+  navActionSave: { color: '#fff' },
+
+  // Stat tiles
+  statRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  statTile: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.09)',
+    paddingVertical: 10,
+    alignItems: 'center',
+    gap: 2,
+  },
+  statValue: { fontSize: 20, fontWeight: '800' },
+  statLabel: { fontSize: 10, color: 'rgba(255,255,255,0.45)', fontWeight: '600' },
+
+  lastScanRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: -8,
+  },
+  lastScanText: { fontSize: 11, color: 'rgba(255,255,255,0.4)' },
+
+  // ── Content ──
+  content: { padding: 16, gap: 14 },
+
+  // ── Card ──
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
-    gap: 12,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 18,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowRadius: 8,
+    elevation: 2,
+    gap: 0,
   },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: '#0F172A', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
-  analyticsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  analyticBox: {
-    flex: 1,
-    minWidth: '45%',
+  sectionHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    backgroundColor: '#FAFAFA',
+    gap: 8,
+    marginBottom: 16,
   },
-  analyticValue: { fontSize: 20, fontWeight: '800' },
-  analyticLabel: { fontSize: 10, color: '#94A3B8', textAlign: 'center', fontWeight: '500' },
-  lastScanRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: -4 },
-  lastScanText: { fontSize: 12, color: '#94A3B8' },
-  fieldRow: { borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 10, gap: 4 },
-  fieldLabel: { fontSize: 10, fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.6 },
+  sectionIconWrap: {
+    width: 28, height: 28, borderRadius: 8,
+    backgroundColor: '#EEF2FF',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  sectionTitle: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  editPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: 20,
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+  },
+  editPillText: { fontSize: 12, color: '#4F46E5', fontWeight: '700' },
+
+  // Field rows
+  fieldRow: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    paddingVertical: 11,
+    gap: 3,
+  },
+  fieldRowLast: { borderBottomWidth: 0 },
+  fieldLabel: {
+    fontSize: 10, fontWeight: '700', color: '#94A3B8',
+    textTransform: 'uppercase', letterSpacing: 0.6,
+  },
   fieldContent: { paddingTop: 2 },
   fieldValue: { fontSize: 14, color: '#0F172A', lineHeight: 20 },
   fieldValueMono: { fontSize: 12, color: '#64748B', fontFamily: 'monospace' },
   fieldInput: {
     fontSize: 14,
     color: '#0F172A',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    backgroundColor: '#F8FAFC',
-  },
-  chipRow: { flexDirection: 'row', gap: 6, paddingVertical: 4 },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 4 },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+    borderWidth: 1.5,
+    borderColor: '#C7D2FE',
+    borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    paddingVertical: 9,
+    backgroundColor: '#FAFBFF',
   },
-  chipActive: { backgroundColor: '#4F46E5', borderColor: '#4F46E5' },
-  chipText: { fontSize: 12, fontWeight: '600', color: '#475569' },
-  chipTextActive: { color: '#FFF' },
-  deleteBtn: {
+  fieldInputMulti: { minHeight: 70, textAlignVertical: 'top' },
+
+  // Tone chips
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 4 },
+  toneChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 12, paddingVertical: 6,
+    borderRadius: 20, borderWidth: 1,
+    borderColor: '#E2E8F0', backgroundColor: '#F8FAFC',
+  },
+  toneChipActive: { backgroundColor: '#4F46E5', borderColor: '#4F46E5' },
+  toneChipText: { fontSize: 12, fontWeight: '600', color: '#475569' },
+  toneChipTextActive: { color: '#fff' },
+
+  // Edit actions
+  editActions: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
+    gap: 10,
     paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    backgroundColor: '#FFF5F5',
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    marginTop: 6,
+  },
+  cancelBtn: {
+    flex: 1, paddingVertical: 12, borderRadius: 10,
+    borderWidth: 1.5, borderColor: '#E2E8F0',
+    alignItems: 'center',
+  },
+  cancelBtnText: { fontSize: 14, fontWeight: '700', color: '#64748B' },
+  saveBtn: {
+    flex: 2, paddingVertical: 12, borderRadius: 10,
+    backgroundColor: '#4F46E5',
+    alignItems: 'center',
+    shadowColor: '#4F46E5', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3, shadowRadius: 6, elevation: 4,
+  },
+  saveBtnDisabled: { opacity: 0.55 },
+  saveBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+
+  // ── Delete ──
+  deleteBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, paddingVertical: 14, borderRadius: 14,
+    borderWidth: 1.5, borderColor: '#FECACA', backgroundColor: '#FFF5F5',
   },
   deleteBtnText: { color: '#DC2626', fontSize: 15, fontWeight: '700' },
 });

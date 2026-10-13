@@ -80,7 +80,7 @@ export function ReviewEditorScreen({ route, navigation }: Props) {
     // Log this as a 5-star redirect
     if (!hasLoggedRedirect) {
       setHasLoggedRedirect(true);
-      await logFiveStarRedirect(payload.branchId);
+      await logFiveStarRedirect(payload.uid, payload.placeId);
     }
 
     const mapsUrl = `https://search.google.com/local/writereview?placeid=${payload.placeId}`;

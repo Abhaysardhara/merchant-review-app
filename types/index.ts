@@ -44,6 +44,8 @@ export interface Branch {
 export interface QRPayload {
   branchId: string;
   placeId: string;
+  /** Firebase UID of the merchant — used to write analytics to users/{uid}/branches/{placeId} */
+  uid: string;
   branchName: string;
   businessName: string;
   tone: string;
@@ -86,8 +88,15 @@ export interface LanguageOption {
 //  Navigation param lists
 // ─────────────────────────────────────────────
 
+export type CustomerStackParamList = {
+  CustomerScanner: undefined;
+  FeedbackGate: { payload: QRPayload };
+  ReviewEditor: { payload: QRPayload; rating: number; language: Language };
+  PrivateFeedback: { payload: QRPayload; rating: number };
+};
+
 export type MerchantStackParamList = {
-  Passcode: undefined;
+  SignIn: undefined;
   MerchantDashboard: {
     /** Set by StoreSelectorScreen after a map pick — opens the modal pre-filled */
     fromMapStore?: {

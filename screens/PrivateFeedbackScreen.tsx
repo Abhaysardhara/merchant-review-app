@@ -36,14 +36,13 @@ export function PrivateFeedbackScreen({ route, navigation }: Props) {
 
     setIsSubmitting(true);
 
-    // Log to analytics
-    await logPrivateFeedback(payload.branchId);
-
-    // In production: POST to your backend with the feedback data
-    // await fetch('/api/feedback', { method: 'POST', body: JSON.stringify({ ... }) });
-
-    // Simulate network delay
-    await new Promise((r) => setTimeout(r, 800));
+    // Save feedback to Firestore under users/{uid}/branches/{placeId}/feedback
+    await logPrivateFeedback(payload.uid, payload.placeId, {
+      rating,
+      comment: comment.trim(),
+      phone:   phone.trim()  || undefined,
+      email:   email.trim()  || undefined,
+    });
 
     setIsSubmitting(false);
     setIsSubmitted(true);

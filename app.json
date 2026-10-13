@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "ReviewReach",
+    "name": "Review Reach",
     "slug": "merchant-review-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -15,7 +15,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow ReviewReach to access your camera to scan QR codes at merchant counters."
+          "cameraPermission": "Allow Review Reach to access your camera to scan QR codes at merchant counters."
         }
       ],
       "expo-font"

@@ -21,11 +21,12 @@ function isValidQRPayload(data: unknown): data is QRPayload {
   if (typeof data !== 'object' || data === null) return false;
   const d = data as Record<string, unknown>;
   return (
-    typeof d.branchId === 'string' &&
-    typeof d.placeId === 'string' &&
-    typeof d.branchName === 'string' &&
+    typeof d.branchId     === 'string' &&
+    typeof d.placeId      === 'string' &&
+    typeof d.branchName   === 'string' &&
     typeof d.businessName === 'string' &&
-    typeof d.v === 'number'
+    typeof d.v            === 'number'
+    // uid is optional for backward-compat with pre-v2 QR codes
   );
 }
 
@@ -72,6 +73,18 @@ export function CustomerScannerScreen({ navigation }: Props) {
       setScanned(true);
       setScanError(null);
 
+      // URL-based QR (current format) — open web page in browser.
+      // The web page handles all analytics tracking itself.
+      if (data.startsWith('http://') || data.startsWith('https://')) {
+        Vibration.vibrate([0, 60, 40, 80]);
+        Linking.openURL(data).catch(() => {
+          setScanError('Could not open this QR code link.');
+          setTimeout(() => setScanned(false), 2000);
+        });
+        return;
+      }
+
+      // JSON-based QR (legacy format) — use in-app customer flow.
       try {
         const parsed: unknown = JSON.parse(data);
         if (!isValidQRPayload(parsed)) {
@@ -83,8 +96,10 @@ export function CustomerScannerScreen({ navigation }: Props) {
 
         Vibration.vibrate([0, 60, 40, 80]);
 
-        // Log anonymous scan event
-        await logScan(parsed.branchId);
+        // Log scan to Firestore if uid is present (v2+ QR codes)
+        if (parsed.uid && parsed.placeId) {
+          await logScan(parsed.uid, parsed.placeId);
+        }
 
         navigation.navigate('FeedbackGate', { payload: parsed });
       } catch {

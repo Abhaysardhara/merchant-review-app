@@ -8,6 +8,11 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Branch, BranchAnalytics } from '../types';
+import {
+  incrementTotalScans,
+  incrementReviewsCopied,
+  savePrivateFeedback,
+} from './firebase';
 
 const BRANCHES_KEY = '@reviewreach:branches';
 const PASSCODE_KEY = '@reviewreach:passcode';
@@ -51,13 +56,23 @@ async function mutateBranchAnalytics(
   await saveBranches(updated);
 }
 
-/** @deprecated Analytics are now read from Firestore. Kept for migration safety. */
-export async function logScan(branchId: string): Promise<void> {
-  await mutateBranchAnalytics(branchId, (a) => ({
-    ...a,
-    totalScans: a.totalScans + 1,
-    lastScanAt: new Date().toISOString(),
-  }));
+/** Log a QR scan to Firestore. Call this from the in-app customer scanner. */
+export async function logScan(uid: string, placeId: string): Promise<void> {
+  await incrementTotalScans(uid, placeId);
+}
+
+/** Log a 5-star review copy to Firestore. Call this from ReviewEditorScreen. */
+export async function logFiveStarRedirect(uid: string, placeId: string): Promise<void> {
+  await incrementReviewsCopied(uid, placeId);
+}
+
+/** Save private (1-3 star) feedback to Firestore. Call this from PrivateFeedbackScreen. */
+export async function logPrivateFeedback(
+  uid: string,
+  placeId: string,
+  data: { rating: number; comment: string; phone?: string; email?: string },
+): Promise<void> {
+  await savePrivateFeedback(uid, placeId, data);
 }
 
 // ─────────────────────────────────────────────

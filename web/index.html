@@ -505,9 +505,9 @@
 //  IMPORTANT: restrict both keys to HTTP referrers in Google Cloud Console
 //  so they only work on your GitHub Pages domain. View source exposes them.
 // ─────────────────────────────────────────────
-var GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY';
-var GEMINI_MODEL   = 'gemini-3.5-flash-lite';
-var MAPS_API_KEY   = 'YOUR_MAPS_API_KEY';
+var GEMINI_API_KEY  = 'YOUR_GEMINI_API_KEY';
+var GEMINI_MODEL    = 'gemini-3.5-flash-lite';
+var MAPS_API_KEY    = 'YOUR_MAPS_API_KEY';
 
 // ─────────────────────────────────────────────
 //  World languages — sorted alphabetically by English name
@@ -731,12 +731,20 @@ var LANGUAGES = [
   var rawPlaceId = decodeParam(q.get('pid'));
   var PLACE_ID = isValidPlaceId(rawPlaceId) ? rawPlaceId : '';
 
+  // uid — Firebase user ID of the merchant who owns this QR code
+  // bid — branch document ID under users/{uid}/branches/{bid}
+  function isValidFirestoreId(id) {
+    return id && /^[a-zA-Z0-9_\-]{1,128}$/.test(id);
+  }
+  var UID = isValidFirestoreId(decodeParam(q.get('uid'))) ? decodeParam(q.get('uid')) : '';
+
   // ── Origin params — strip immediately so page refresh doesn't recount ──
-  var IS_QR_SCAN   = q.get('QrOrigin')   === 'true';
+  var IS_QR_SCAN    = q.get('QrOrigin')   === 'true';
   var IS_LINK_VISIT = q.get('LinkOrigin') === 'true';
   if (IS_QR_SCAN || IS_LINK_VISIT) {
     try {
       var cleanUrl = location.pathname + (PLACE_ID ? '?pid=' + encodeURIComponent(PLACE_ID) : '');
+      if (UID) cleanUrl += '&uid=' + encodeURIComponent(UID);
       history.replaceState(null, '', cleanUrl);
     } catch (e) { /* replaceState not supported — ignore */ }
   }
@@ -1240,15 +1248,19 @@ var LANGUAGES = [
     }
   }
 
-  // ── Firestore REST fetch — branch config by placeId ─────────────────
-  var FIRESTORE_PROJECT = 'review-reach-58103';
+  // ── Firestore REST fetch — branch config from users/{uid}/branches/{bid} ──
+  // Config is owned by the merchant — other users cannot overwrite it.
+  // Analytics (totalScans etc.) remain in branches/{placeId}, written by this page.
+  var FIRESTORE_PROJECT  = 'review-reach-58103';
   var cachedBranchConfig = undefined; // undefined = not fetched; null = not found
 
-  async function fetchBranchConfig(placeId) {
-    if (!placeId) return null;
+  async function fetchBranchConfig(uid, placeId) {
+    if (!uid || !placeId) return null;
     try {
+      // Branch doc ID == placeId, so no bid needed in the URL
       var url = 'https://firestore.googleapis.com/v1/projects/' + FIRESTORE_PROJECT
-              + '/databases/(default)/documents/branches/' + encodeURIComponent(placeId);
+              + '/databases/(default)/documents/users/' + encodeURIComponent(uid)
+              + '/branches/' + encodeURIComponent(placeId);
       var res = await fetch(url);
       if (!res.ok) return null;
       var data = await res.json();
@@ -1277,46 +1289,33 @@ var LANGUAGES = [
     }
   }
 
-  function branchDocPath(placeId) {
-    return 'projects/' + FIRESTORE_PROJECT + '/databases/(default)/documents/branches/' + encodeURIComponent(placeId);
+  // Analytics are written to users/{uid}/branches/{placeId} — the same doc
+  // that holds config — so each merchant's stats are fully isolated.
+  function userBranchDocPath(uid, placeId) {
+    return 'projects/' + FIRESTORE_PROJECT + '/databases/(default)/documents/users/'
+      + encodeURIComponent(uid) + '/branches/' + encodeURIComponent(placeId);
   }
 
-  function dailyDocPath(placeId) {
-    var today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD UTC
-    return branchDocPath(placeId) + '/daily/' + today;
-  }
-
-  function hourlyDocPath(placeId) {
-    var hour = new Date().toISOString().slice(0, 13); // YYYY-MM-DDTHH UTC
-    return branchDocPath(placeId) + '/hourly/' + hour;
-  }
-
-  // ── Firestore REST write — register QR scan (fire-and-forget) ──────
-  function registerQrScan(placeId) {
-    firestoreTransform(branchDocPath(placeId), [
+  function registerQrScan(uid, placeId) {
+    if (!uid || !placeId) return;
+    firestoreTransform(userBranchDocPath(uid, placeId), [
       { fieldPath: 'totalScans', increment: { integerValue: '1' } },
       { fieldPath: 'lastScanAt', setToServerValue: 'REQUEST_TIME' },
     ]);
-    firestoreTransform(dailyDocPath(placeId),  [{ fieldPath: 'scans',      increment: { integerValue: '1' } }]);
-    firestoreTransform(hourlyDocPath(placeId), [{ fieldPath: 'scans',      increment: { integerValue: '1' } }]);
   }
 
-  // ── Firestore REST write — register link visit (fire-and-forget) ────
-  function registerLinkVisit(placeId) {
-    firestoreTransform(branchDocPath(placeId), [
+  function registerLinkVisit(uid, placeId) {
+    if (!uid || !placeId) return;
+    firestoreTransform(userBranchDocPath(uid, placeId), [
       { fieldPath: 'linkVisits', increment: { integerValue: '1' } },
     ]);
-    firestoreTransform(dailyDocPath(placeId),  [{ fieldPath: 'linkVisits', increment: { integerValue: '1' } }]);
-    firestoreTransform(hourlyDocPath(placeId), [{ fieldPath: 'linkVisits', increment: { integerValue: '1' } }]);
   }
 
-  // ── Firestore REST write — register review copied (fire-and-forget) ─
-  function registerReviewCopied(placeId) {
-    firestoreTransform(branchDocPath(placeId), [
+  function registerReviewCopied(uid, placeId) {
+    if (!uid || !placeId) return;
+    firestoreTransform(userBranchDocPath(uid, placeId), [
       { fieldPath: 'reviewsCopied', increment: { integerValue: '1' } },
     ]);
-    firestoreTransform(dailyDocPath(placeId),  [{ fieldPath: 'copied',     increment: { integerValue: '1' } }]);
-    firestoreTransform(hourlyDocPath(placeId), [{ fieldPath: 'copied',     increment: { integerValue: '1' } }]);
   }
 
   // ── Generate & display ───────────────────────
@@ -1329,7 +1328,7 @@ var LANGUAGES = [
     // Fetch branch config + place details in parallel on first call
     if (cachedPlace === undefined) {
       var results = await Promise.all([
-        fetchBranchConfig(PLACE_ID),
+        fetchBranchConfig(UID, PLACE_ID),
         fetchPlaceDetails(PLACE_ID),
       ]);
       cachedBranchConfig = results[0]; // null if not found
@@ -1441,7 +1440,7 @@ var LANGUAGES = [
       setTimeout(function () { window.location.href = mapsUrl; }, 600);
     }
 
-    if (PLACE_ID) registerReviewCopied(PLACE_ID);
+    if (UID && PLACE_ID) registerReviewCopied(UID, PLACE_ID);
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text)
@@ -1466,8 +1465,8 @@ var LANGUAGES = [
 
   // ── Init ─────────────────────────────────────
   // Register origin before generating review (fire-and-forget — no await)
-  if (IS_QR_SCAN   && PLACE_ID) registerQrScan(PLACE_ID);
-  if (IS_LINK_VISIT && PLACE_ID) registerLinkVisit(PLACE_ID);
+  if (IS_QR_SCAN    && UID && PLACE_ID) registerQrScan(UID, PLACE_ID);
+  if (IS_LINK_VISIT && UID && PLACE_ID) registerLinkVisit(UID, PLACE_ID);
   generateAndShow('en');
 
 }());

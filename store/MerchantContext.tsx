@@ -1,10 +1,10 @@
 /**
  * MerchantContext.tsx
  *
- * Global state for merchant data.  Branches are persisted via AsyncStorage
- * through the analytics service.  The context also manages the in-session
- * merchant authentication flag so the passcode modal only shows once per
- * app session.
+ * Global state for merchant auth + branch data.
+ * Auth:     Firebase Google Sign-In
+ * Branches: stored in Firestore under users/{uid}/branches/{branchId}
+ * Analytics: fetched from branches/{placeId} (written by the web review page)
  */
 
 import React, {
@@ -17,15 +17,19 @@ import React, {
   useState,
 } from 'react';
 import type { Branch, BranchAnalytics, QRPayload } from '../types';
-import {
-  loadBranches,
-  saveBranches,
-  emptyAnalytics,
-  verifyPasscode,
-  savePasscode,
-} from '../services/analytics';
+import { emptyAnalytics } from '../services/analytics';
 import { resolvePlaceFromUrl } from '../services/mapsResolver';
-import { saveBranchConfig, deleteBranchConfig, fetchBranchAnalytics } from '../services/firebase';
+import {
+  onAuthStateChanged,
+  signOut,
+  signInWithGoogleCredential,
+  signInAnonymously,
+  saveUserBranch,
+  deleteUserBranch,
+  loadUserBranches,
+  fetchBranchAnalytics,
+  type User,
+} from '../services/firebase';
 import { REVIEW_WEB_URL } from '../config';
 
 // ─────────────────────────────────────────────
@@ -33,14 +37,13 @@ import { REVIEW_WEB_URL } from '../config';
 // ─────────────────────────────────────────────
 
 interface MerchantContextValue {
+  currentUser: User | null;
   branches: Branch[];
-  isMerchantAuthenticated: boolean;
   isLoading: boolean;
 
-  /** Returns true if correct, false if wrong */
-  authenticate: (pin: string) => Promise<boolean>;
-  logout: () => void;
-  changePasscode: (newPin: string) => Promise<void>;
+  signInWithGoogle: (idToken: string) => Promise<void>;
+  devSkipSignIn: () => void;
+  logout: () => Promise<void>;
 
   addBranch: (params: AddBranchParams) => Promise<Branch | null>;
   updateBranch: (id: string, updates: Partial<Branch>) => Promise<void>;
@@ -49,7 +52,6 @@ interface MerchantContextValue {
   refreshBranches: () => Promise<void>;
 
   buildQRPayload: (branch: Branch) => QRPayload;
-  /** Returns the URL encoded in the QR code — opens the customer web review page */
   buildQRUrl: (branch: Branch) => string;
 }
 
@@ -60,7 +62,6 @@ export interface AddBranchParams {
   googleMapsUrl: string;
   keywords: string;
   tone: string;
-  /** Optional override for the resolved Place ID */
   placeIdOverride?: string;
 }
 
@@ -81,127 +82,132 @@ export function useMerchant(): MerchantContextValue {
 // ─────────────────────────────────────────────
 
 export function MerchantProvider({ children }: { children: React.ReactNode }) {
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [isMerchantAuthenticated, setIsMerchantAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [branches, setBranches]       = useState<Branch[]>([]);
+  const [isLoading, setIsLoading]     = useState(true);
 
-  // Counter used to generate unique branch IDs
-  const counterRef = useRef(0);
-
-  // ── Fetch live analytics from Firestore and merge into branch list ──
-  const syncAnalytics = useCallback(async (list: Branch[]): Promise<Branch[]> => {
+  // ── Fetch live analytics and merge into branch list ──
+  const syncAnalytics = useCallback(async (uid: string, list: Branch[]): Promise<Branch[]> => {
     if (!list.length) return list;
-    const analyticsArr = await Promise.all(list.map((b) => fetchBranchAnalytics(b.placeId)));
+    const analyticsArr = await Promise.all(
+      list.map((b) => fetchBranchAnalytics(uid, b.placeId)),
+    );
     return list.map((b, i) => ({
       ...b,
       analytics: analyticsArr[i] as BranchAnalytics,
     }));
   }, []);
 
-  // ── Load persisted data on mount ──
+  // ── Load branches for the signed-in user ──
+  const loadBranches = useCallback(async (uid: string) => {
+    const raw = await loadUserBranches(uid);
+    const withAnalytics = await syncAnalytics(
+      uid,
+      raw.map((b) => ({ ...b, analytics: emptyAnalytics() })),
+    );
+    setBranches(withAnalytics);
+  }, [syncAnalytics]);
+
+  // ── Listen to Firebase Auth state ──
   useEffect(() => {
-    (async () => {
-      const stored = await loadBranches();
-      if (stored.length > 0) {
-        counterRef.current = stored.length;
+    const unsub = onAuthStateChanged(async (user) => {
+      setCurrentUser(user);
+      if (user) {
+        await loadBranches(user.uid);
+      } else {
+        setBranches([]);
       }
-      const withAnalytics = await syncAnalytics(stored);
-      setBranches(withAnalytics);
       setIsLoading(false);
-    })();
-  }, []);
+    });
+    return unsub;
+  }, [loadBranches]);
 
   // ── Auth ──
-  const authenticate = useCallback(async (pin: string): Promise<boolean> => {
-    const ok = await verifyPasscode(pin);
-    if (ok) setIsMerchantAuthenticated(true);
-    return ok;
+  const signInWithGoogle = useCallback(async (idToken: string) => {
+    await signInWithGoogleCredential(idToken);
+    // onAuthStateChanged will handle loading branches
   }, []);
 
-  const logout = useCallback(() => setIsMerchantAuthenticated(false), []);
+  // Dev-only: sign in anonymously so Firestore rules are satisfied.
+  // Firebase persists the anonymous session via AsyncStorage, so the same
+  // UID is reused across reloads on the same device.
+  const devSkipSignIn = useCallback(async () => {
+    await signInAnonymously();
+    // onAuthStateChanged fires and handles setCurrentUser + loadBranches
+  }, []);
 
-  const changePasscode = useCallback(async (newPin: string) => {
-    await savePasscode(newPin);
+  const logout = useCallback(async () => {
+    await signOut();
+    setBranches([]);
   }, []);
 
   // ── Branch CRUD ──
   const refreshBranches = useCallback(async () => {
-    const stored = await loadBranches();
-    const withAnalytics = await syncAnalytics(stored);
-    setBranches(withAnalytics);
-  }, [syncAnalytics]);
+    if (!currentUser) return;
+    await loadBranches(currentUser.uid);
+  }, [currentUser, loadBranches]);
 
   const addBranch = useCallback(
     async (params: AddBranchParams): Promise<Branch | null> => {
+      if (!currentUser) return null;
+
       const resolved = resolvePlaceFromUrl(params.googleMapsUrl);
-
-      // If the URL can't be parsed, still allow adding if caller provides placeId override
       const placeId = params.placeIdOverride ?? resolved?.placeId ?? '';
-
       if (!placeId) return null;
 
-      counterRef.current += 1;
-      const id = `BRANCH_${Date.now()}_${counterRef.current}`;
-
+      // Use placeId as the document ID so the web page can look up
+      // users/{uid}/branches/{placeId} directly — no bid needed in the QR URL.
       const branch: Branch = {
-        id,
-        name: params.name,
+        id: placeId,
+        name:         params.name,
         businessName: params.businessName,
-        address: params.address,
+        address:      params.address,
         placeId,
-        googleMapsUrl: params.googleMapsUrl,
-        keywords: params.keywords,
-        tone: params.tone,
-        analytics: emptyAnalytics(),
-        createdAt: new Date().toISOString(),
+        googleMapsUrl:params.googleMapsUrl,
+        keywords:     params.keywords,
+        tone:         params.tone,
+        analytics:    emptyAnalytics(),
+        createdAt:    new Date().toISOString(),
       };
 
       const updated = [...branches, branch];
       setBranches(updated);
-      await saveBranches(updated);
 
-      // Sync config to Firestore so the web review page can fetch it by placeId
-      await saveBranchConfig(placeId, {
-        tone:         params.tone,
-        keywords:     params.keywords,
-        businessName: params.businessName || params.name,
-      });
+      // Persist to Firestore — config lives in users/{uid}/branches/{id},
+      // read directly by the web page via uid+bid in the QR URL.
+      await saveUserBranch(currentUser.uid, branch);
 
       return branch;
     },
-    [branches],
+    [currentUser, branches],
   );
 
   const updateBranch = useCallback(
     async (id: string, updates: Partial<Branch>) => {
+      if (!currentUser) return;
       const updated = branches.map((b) => (b.id === id ? { ...b, ...updates } : b));
       setBranches(updated);
-      await saveBranches(updated);
 
-      // Sync updated config to Firestore if any AI-relevant fields changed
       const branch = branches.find((b) => b.id === id);
-      if (branch && (updates.tone !== undefined || updates.keywords !== undefined || updates.businessName !== undefined)) {
-        await saveBranchConfig(branch.placeId, {
-          tone:         updates.tone         ?? branch.tone,
-          keywords:     updates.keywords     ?? branch.keywords,
-          businessName: updates.businessName ?? branch.businessName,
-        });
-      }
+      if (!branch) return;
+
+      await saveUserBranch(currentUser.uid, { ...branch, ...updates });
     },
-    [branches],
+    [currentUser, branches],
   );
 
   const deleteBranch = useCallback(
     async (id: string) => {
+      if (!currentUser) return;
       const branch = branches.find((b) => b.id === id);
       const updated = branches.filter((b) => b.id !== id);
       setBranches(updated);
-      await saveBranches(updated);
 
-      // Remove from Firestore so stale config doesn't linger
-      if (branch) await deleteBranchConfig(branch.placeId);
+      if (branch) {
+        await deleteUserBranch(currentUser.uid, id);
+      }
     },
-    [branches],
+    [currentUser, branches],
   );
 
   const getBranch = useCallback(
@@ -209,32 +215,31 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
     [branches],
   );
 
-  // ── QR Payload builder ──
-  const buildQRPayload = useCallback((branch: Branch): QRPayload => {
-    return {
-      branchId: branch.id,
-      placeId: branch.placeId,
-      branchName: branch.name,
-      businessName: branch.businessName,
-      tone: branch.tone,
-      keywords: branch.keywords,
-      v: 1,
-    };
-  }, []);
+  // ── QR helpers ──
+  const buildQRPayload = useCallback((branch: Branch): QRPayload => ({
+    branchId:     branch.id,
+    placeId:      branch.placeId,
+    uid:          currentUser?.uid ?? '',
+    branchName:   branch.name,
+    businessName: branch.businessName,
+    tone:         branch.tone,
+    keywords:     branch.keywords,
+    v:            1,
+  }), [currentUser]);
 
-  // ── QR URL builder — placeId + QrOrigin flag for scan analytics ──
   const buildQRUrl = useCallback((branch: Branch): string => {
-    return `${REVIEW_WEB_URL}?pid=${encodeURIComponent(branch.placeId)}&QrOrigin=true`;
-  }, []);
+    const uid = currentUser?.uid ?? '';
+    return `${REVIEW_WEB_URL}?pid=${encodeURIComponent(branch.placeId)}&uid=${encodeURIComponent(uid)}&QrOrigin=true`;
+  }, [currentUser]);
 
   const value = useMemo<MerchantContextValue>(
     () => ({
+      currentUser,
       branches,
-      isMerchantAuthenticated,
       isLoading,
-      authenticate,
+      signInWithGoogle,
+      devSkipSignIn,
       logout,
-      changePasscode,
       addBranch,
       updateBranch,
       deleteBranch,
@@ -244,12 +249,12 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
       buildQRUrl,
     }),
     [
+      currentUser,
       branches,
-      isMerchantAuthenticated,
       isLoading,
-      authenticate,
+      signInWithGoogle,
+      devSkipSignIn,
       logout,
-      changePasscode,
       addBranch,
       updateBranch,
       deleteBranch,

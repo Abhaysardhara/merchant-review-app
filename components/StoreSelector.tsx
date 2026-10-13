@@ -126,6 +126,8 @@ export function StoreSelector({ onStoreSelect, initialRegion }: StoreSelectorPro
   const inputRef = useRef<TextInput>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // When query is set programmatically (from a selection), skip the search trigger
+  const skipNextSearchRef = useRef(false);
 
   // ── Camera animation ────────────────────────────────────────────────
   const animateMapTo = useCallback((
@@ -142,6 +144,12 @@ export function StoreSelector({ onStoreSelect, initialRegion }: StoreSelectorPro
   useEffect(() => {
     setSearchError(null);
     if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    // Query was set by a selection (not user typing) — don't re-search
+    if (skipNextSearchRef.current) {
+      skipNextSearchRef.current = false;
+      return;
+    }
 
     if (query.trim().length < 2) {
       setResults([]);
@@ -194,22 +202,22 @@ export function StoreSelector({ onStoreSelect, initialRegion }: StoreSelectorPro
 
   // ── Path A: search suggestion tapped → zoom map + drop pin + confirm card ──
   const handleResultPress = useCallback((place: PlaceResult) => {
+    skipNextSearchRef.current = true; // prevent setQuery from re-triggering the search
     Keyboard.dismiss();
     setShowResults(false);
     setQuery(place.name);
     animateMapTo(place.coordinate, 0.005);
-    // Drop pin and show confirm card — user sees exact location before confirming
     setSelectedStore(place);
   }, [animateMapTo]);
 
   // ── Path B: map POI tapped → show confirm card ──────────────────────
   const handlePoiClick = useCallback((event: PoiClickEvent) => {
     const { placeId, name, coordinate } = event.nativeEvent;
+    skipNextSearchRef.current = true; // prevent setQuery from re-triggering the search
     Keyboard.dismiss();
     setShowResults(false);
     setQuery(name);
     animateMapTo(coordinate, 0.005);
-    // Only update selectedStore — user must tap "Use This Business" to confirm
     setSelectedStore({ name, placeId, address: '', coordinate });
   }, [animateMapTo]);
 

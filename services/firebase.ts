@@ -1,19 +1,27 @@
 import { initializeApp, getApps } from 'firebase/app';
 import {
+  // @ts-ignore — getReactNativePersistence is in the RN metro bundle but absent from browser TS types
+  initializeAuth, getReactNativePersistence,
+  GoogleAuthProvider,
+  signInWithCredential,
+  signInAnonymously as firebaseSignInAnonymously,
+  signOut as firebaseSignOut,
+  onAuthStateChanged as firebaseOnAuthStateChanged,
+  type User,
+} from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
   getFirestore,
   doc,
-  documentId,
   getDoc,
   getDocs,
   collection,
-  query,
-  orderBy,
-  where,
-  limit,
   setDoc,
-  deleteDoc,
+  addDoc,
   serverTimestamp,
+  increment,
 } from 'firebase/firestore';
+import type { Branch } from '../types';
 
 const firebaseConfig = {
   apiKey:            'AIzaSyA_Lt5R04pq7VHqstCg8sNm2lpo-1dRmO8',
@@ -26,118 +34,164 @@ const firebaseConfig = {
 
 // Prevent re-initialization during Expo hot reload
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+
+// initializeAuth throws on hot-reload if called twice — fall back to getAuth
+let auth: ReturnType<typeof initializeAuth>;
+try {
+  // @ts-ignore
+  auth = initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) });
+} catch {
+  // @ts-ignore
+  const { getAuth } = require('firebase/auth');
+  auth = getAuth(app);
+}
+export { auth };
+
 export const db = getFirestore(app);
 
 // ─────────────────────────────────────────────
-//  Branch config stored per placeId
+//  Auth helpers
 // ─────────────────────────────────────────────
 
-export interface BranchConfig {
-  tone:         string;
-  keywords:     string;
-  businessName: string;
+/** Sign in with an ID token obtained from expo-auth-session Google flow */
+export async function signInWithGoogleCredential(idToken: string): Promise<User> {
+  const credential = GoogleAuthProvider.credential(idToken);
+  const result = await signInWithCredential(auth, credential);
+  return result.user;
 }
 
-/** Write (or overwrite) a branch config doc keyed by placeId */
-export async function saveBranchConfig(
-  placeId: string,
-  config: BranchConfig,
-): Promise<void> {
+export async function signInAnonymously(): Promise<User> {
+  const result = await firebaseSignInAnonymously(auth);
+  return result.user;
+}
+
+export async function signOut(): Promise<void> {
+  await firebaseSignOut(auth);
+}
+
+export function onAuthStateChanged(callback: (user: User | null) => void) {
+  return firebaseOnAuthStateChanged(auth, callback);
+}
+
+export type { User };
+
+// ─────────────────────────────────────────────
+//  User-scoped branch storage  users/{uid}/branches/{branchId}
+// ─────────────────────────────────────────────
+
+type BranchData = Omit<Branch, 'analytics'>;
+
+/** Write (or overwrite) a branch doc under the user's collection.
+ *  - Clears soft-delete flag so re-adding a branch restores its analytics.
+ *  - Does NOT overwrite createdAt if the doc already has one (preserves original date). */
+export async function saveUserBranch(uid: string, branch: BranchData): Promise<void> {
+  const { id, createdAt, ...rest } = branch;
+  const ref = doc(db, 'users', uid, 'branches', id);
+
+  // Check if doc already exists to preserve its createdAt
+  const existing = await getDoc(ref);
+  const payload: Record<string, unknown> = {
+    ...rest,
+    deleted: false,
+    updatedAt: serverTimestamp(),
+  };
+  if (!existing.exists() || !existing.data().createdAt) {
+    payload.createdAt = createdAt;
+  }
+
+  await setDoc(ref, payload, { merge: true });
+}
+
+/** Soft-delete a branch — marks deleted:true so analytics survive.
+ *  loadUserBranches filters these out; re-adding the same placeId restores them. */
+export async function deleteUserBranch(uid: string, branchId: string): Promise<void> {
   await setDoc(
-    doc(db, 'branches', placeId),
-    { ...config, updatedAt: serverTimestamp() },
+    doc(db, 'users', uid, 'branches', branchId),
+    { deleted: true, deletedAt: serverTimestamp() },
     { merge: true },
   );
 }
 
-/** Remove the branch config doc when merchant deletes a branch */
-export async function deleteBranchConfig(placeId: string): Promise<void> {
-  await deleteDoc(doc(db, 'branches', placeId));
+/** Load all branch docs for a user (no analytics — fetched separately).
+ *  Soft-deleted docs (deleted: true) are excluded. */
+export async function loadUserBranches(uid: string): Promise<BranchData[]> {
+  try {
+    const snap = await getDocs(collection(db, 'users', uid, 'branches'));
+    return snap.docs
+      .filter((d) => !d.data().deleted)
+      .map((d) => {
+        const data = d.data();
+        return {
+          id:           d.id,
+          name:         data.name         ?? '',
+          businessName: data.businessName ?? '',
+          address:      data.address      ?? '',
+          placeId:      data.placeId      ?? '',
+          googleMapsUrl:data.googleMapsUrl?? '',
+          keywords:     data.keywords     ?? '',
+          tone:         data.tone         ?? 'Friendly',
+          createdAt:    data.createdAt    ?? new Date().toISOString(),
+        } as BranchData;
+      });
+  } catch {
+    return [];
+  }
 }
 
 // ─────────────────────────────────────────────
-//  Branch analytics — read live counts from Firestore
+//  Analytics
 // ─────────────────────────────────────────────
 
 export interface FirestoreAnalytics {
   totalScans: number;
   linkVisits: number;
   reviewsCopied: number;
-  lastScanAt?: string; // ISO string
+  lastScanAt?: string;
 }
 
 // ─────────────────────────────────────────────
-//  Daily timeseries — subcollection branches/{placeId}/daily/{YYYY-MM-DD}
+//  Mobile analytics — atomic increments via SDK
+//  Used by the in-app customer flow (JSON QR path).
+//  The web page flow uses Firestore REST transforms instead.
 // ─────────────────────────────────────────────
 
-export interface DailyStat {
-  date: string;       // YYYY-MM-DD
-  scans: number;      // QR scans
-  linkVisits: number; // Shared link visits
-  copied: number;
-}
-
-export interface HourlyStat {
-  hour: string;       // YYYY-MM-DDTHH  e.g. "2026-10-12T14"
-  scans: number;
-  linkVisits: number;
-  copied: number;
-}
-
-/** Fetch hourly stats — server-side filtered to [fromHour, toHour] inclusive */
-export async function fetchHourlyStats(
-  placeId: string,
-  fromHour: string, // YYYY-MM-DDTHH
-  toHour: string,
-): Promise<HourlyStat[]> {
+/** Increment totalScans + set lastScanAt when a customer scans in the mobile app */
+export async function incrementTotalScans(uid: string, placeId: string): Promise<void> {
   try {
-    const q = query(
-      collection(db, 'branches', placeId, 'hourly'),
-      where(documentId(), '>=', fromHour),
-      where(documentId(), '<=', toHour),
-      orderBy(documentId(), 'asc'),
+    await setDoc(
+      doc(db, 'users', uid, 'branches', placeId),
+      { totalScans: increment(1), lastScanAt: serverTimestamp() },
+      { merge: true },
     );
-    const snap = await getDocs(q);
-    return snap.docs.map((d) => ({
-      hour:       d.id,
-      scans:      typeof d.data().scans      === 'number' ? d.data().scans      : 0,
-      linkVisits: typeof d.data().linkVisits === 'number' ? d.data().linkVisits : 0,
-      copied:     typeof d.data().copied     === 'number' ? d.data().copied     : 0,
-    }));
-  } catch {
-    return [];
-  }
+  } catch { /* best-effort */ }
 }
 
-/** Fetch daily stats — server-side filtered to [fromDate, toDate] inclusive */
-export async function fetchDailyStats(
-  placeId: string,
-  fromDate: string, // YYYY-MM-DD
-  toDate: string,
-): Promise<DailyStat[]> {
+/** Increment reviewsCopied when a customer copies a review in the mobile app */
+export async function incrementReviewsCopied(uid: string, placeId: string): Promise<void> {
   try {
-    const q = query(
-      collection(db, 'branches', placeId, 'daily'),
-      where(documentId(), '>=', fromDate),
-      where(documentId(), '<=', toDate),
-      orderBy(documentId(), 'asc'),
+    await setDoc(
+      doc(db, 'users', uid, 'branches', placeId),
+      { reviewsCopied: increment(1) },
+      { merge: true },
     );
-    const snap = await getDocs(q);
-    return snap.docs.map((d) => ({
-      date:       d.id,
-      scans:      typeof d.data().scans      === 'number' ? d.data().scans      : 0,
-      linkVisits: typeof d.data().linkVisits === 'number' ? d.data().linkVisits : 0,
-      copied:     typeof d.data().copied     === 'number' ? d.data().copied     : 0,
-    }));
-  } catch {
-    return [];
-  }
+  } catch { /* best-effort */ }
 }
 
-/** Fetch live analytics for a branch from Firestore */
-export async function fetchBranchAnalytics(placeId: string): Promise<FirestoreAnalytics> {
+/** Save private (1-3 star) feedback under users/{uid}/branches/{placeId}/feedback/{id} */
+export async function savePrivateFeedback(
+  uid: string,
+  placeId: string,
+  data: { rating: number; comment: string; phone?: string; email?: string },
+): Promise<void> {
+  await addDoc(
+    collection(db, 'users', uid, 'branches', placeId, 'feedback'),
+    { ...data, createdAt: serverTimestamp() },
+  );
+}
+
+export async function fetchBranchAnalytics(uid: string, placeId: string): Promise<FirestoreAnalytics> {
   try {
-    const snap = await getDoc(doc(db, 'branches', placeId));
+    const snap = await getDoc(doc(db, 'users', uid, 'branches', placeId));
     if (!snap.exists()) return { totalScans: 0, linkVisits: 0, reviewsCopied: 0 };
     const d = snap.data();
     return {
