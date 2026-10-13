@@ -85,7 +85,9 @@ type BranchData = Omit<Branch, 'analytics'>;
  *  - Clears soft-delete flag so re-adding a branch restores its analytics.
  *  - Does NOT overwrite createdAt if the doc already has one (preserves original date). */
 export async function saveUserBranch(uid: string, branch: BranchData): Promise<void> {
-  const { id, createdAt, ...rest } = branch;
+  // Strip id, createdAt (handled separately) and analytics
+  // (Omit<Branch,'analytics'> is compile-time only — runtime still carries the field)
+  const { id, createdAt, analytics: _drop, ...rest } = branch as Branch;
   const ref = doc(db, 'users', uid, 'branches', id);
 
   // Check if doc already exists to preserve its createdAt
