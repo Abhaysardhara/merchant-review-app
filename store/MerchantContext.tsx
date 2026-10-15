@@ -4,7 +4,7 @@
  * Global state for merchant auth + branch data.
  * Auth:     Firebase Google Sign-In
  * Branches: stored in Firestore under users/{uid}/branches/{branchId}
- * Analytics: fetched from branches/{placeId} (written by the web review page)
+ * Analytics: stored in same doc (top-level fields), written by the web review page
  */
 
 import React, {
@@ -13,10 +13,9 @@ import React, {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react';
-import type { Branch, BranchAnalytics, QRPayload } from '../types';
+import type { Branch, QRPayload } from '../types';
 import { emptyAnalytics } from '../services/analytics';
 import { resolvePlaceFromUrl } from '../services/mapsResolver';
 import {
@@ -27,7 +26,6 @@ import {
   saveUserBranch,
   deleteUserBranch,
   loadUserBranches,
-  fetchBranchAnalytics,
   type User,
 } from '../services/firebase';
 import { REVIEW_WEB_URL } from '../config';
@@ -86,27 +84,11 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
   const [branches, setBranches]       = useState<Branch[]>([]);
   const [isLoading, setIsLoading]     = useState(true);
 
-  // ── Fetch live analytics and merge into branch list ──
-  const syncAnalytics = useCallback(async (uid: string, list: Branch[]): Promise<Branch[]> => {
-    if (!list.length) return list;
-    const analyticsArr = await Promise.all(
-      list.map((b) => fetchBranchAnalytics(uid, b.placeId)),
-    );
-    return list.map((b, i) => ({
-      ...b,
-      analytics: analyticsArr[i] as BranchAnalytics,
-    }));
-  }, []);
-
-  // ── Load branches for the signed-in user ──
+  // ── Load branches for the signed-in user (config + analytics in one read) ──
   const loadBranches = useCallback(async (uid: string) => {
-    const raw = await loadUserBranches(uid);
-    const withAnalytics = await syncAnalytics(
-      uid,
-      raw.map((b) => ({ ...b, analytics: emptyAnalytics() })),
-    );
-    setBranches(withAnalytics);
-  }, [syncAnalytics]);
+    const list = await loadUserBranches(uid);
+    setBranches(list);
+  }, []);
 
   // ── Listen to Firebase Auth state ──
   useEffect(() => {

@@ -21,7 +21,7 @@ import {
   serverTimestamp,
   increment,
 } from 'firebase/firestore';
-import type { Branch } from '../types';
+import type { Branch, BranchAnalytics } from '../types';
 
 const firebaseConfig = {
   apiKey:            'AIzaSyA_Lt5R04pq7VHqstCg8sNm2lpo-1dRmO8',
@@ -114,15 +114,21 @@ export async function deleteUserBranch(uid: string, branchId: string): Promise<v
   );
 }
 
-/** Load all branch docs for a user (no analytics — fetched separately).
+/** Load all branch docs for a user — config + analytics in one read.
  *  Soft-deleted docs (deleted: true) are excluded. */
-export async function loadUserBranches(uid: string): Promise<BranchData[]> {
+export async function loadUserBranches(uid: string): Promise<Branch[]> {
   try {
     const snap = await getDocs(collection(db, 'users', uid, 'branches'));
     return snap.docs
       .filter((d) => !d.data().deleted)
       .map((d) => {
         const data = d.data();
+        const analytics: BranchAnalytics = {
+          totalScans:    typeof data.totalScans    === 'number' ? data.totalScans    : 0,
+          linkVisits:    typeof data.linkVisits    === 'number' ? data.linkVisits    : 0,
+          reviewsCopied: typeof data.reviewsCopied === 'number' ? data.reviewsCopied : 0,
+          lastScanAt:    data.lastScanAt?.toDate?.()?.toISOString?.() ?? undefined,
+        };
         return {
           id:           d.id,
           name:         data.name         ?? '',
@@ -133,7 +139,8 @@ export async function loadUserBranches(uid: string): Promise<BranchData[]> {
           keywords:     data.keywords     ?? '',
           tone:         data.tone         ?? 'Friendly',
           createdAt:    data.createdAt    ?? new Date().toISOString(),
-        } as BranchData;
+          analytics,
+        };
       });
   } catch {
     return [];
