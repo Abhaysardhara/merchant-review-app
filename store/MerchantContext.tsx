@@ -117,22 +117,31 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
   // ── Listen to Firebase Auth state ──
   useEffect(() => {
     const unsub = onAuthStateChanged(async (user) => {
-      setCurrentUser(user);
-      if (user) {
-        await loadBranches(user.uid);
-        // Restore GBP tokens if previously connected
-        const token = await getValidToken(GOOGLE_WEB_CLIENT_ID);
-        if (token) {
-          setGbpAccessToken(token);
-          const cache = await loadGBPCache();
-          if (cache) setGbpCache(cache);
+      try {
+        setCurrentUser(user);
+        if (user) {
+          await loadBranches(user.uid);
+          // Restore GBP tokens if previously connected
+          try {
+            const token = await getValidToken(GOOGLE_WEB_CLIENT_ID);
+            if (token) {
+              setGbpAccessToken(token);
+              const cache = await loadGBPCache();
+              if (cache) setGbpCache(cache);
+            }
+          } catch {
+            // GBP restore failed — continue without it
+          }
+        } else {
+          setBranches([]);
+          setGbpAccessToken(null);
+          setGbpCache(null);
         }
-      } else {
-        setBranches([]);
-        setGbpAccessToken(null);
-        setGbpCache(null);
+      } catch {
+        // Auth init failed — still allow app to render
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     });
     return unsub;
   }, [loadBranches]);

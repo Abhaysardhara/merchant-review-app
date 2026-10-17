@@ -2,12 +2,37 @@
  * i18n/index.ts — Lightweight i18n system
  *
  * Supported languages: 11 Indian + 14 Global = 25 total
- * Translations load lazily — only English is bundled eagerly.
  */
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import en, { type TranslationKeys } from './en';
+// Indian languages
+import hi from './hi';
+import gu from './gu';
+import mr from './mr';
+import ta from './ta';
+import te from './te';
+import kn from './kn';
+import ml from './ml';
+import bn from './bn';
+import pa from './pa';
+import ur from './ur';
+import or_ from './or';
+// Global languages
+import es from './es';
+import fr from './fr';
+import pt from './pt';
+import ar from './ar';
+import zh from './zh';
+import ja from './ja';
+import ko from './ko';
+import de from './de';
+import it from './it';
+import ru from './ru';
+import tr from './tr';
+import th from './th';
+import idLang from './id';
 
 const LANG_KEY = '@reviewreach:app_language';
 
@@ -55,42 +80,14 @@ export const LANGUAGES: LangMeta[] = [
 ];
 
 // ─────────────────────────────────────────────
-//  Lazy translation loaders
+//  Translation map
 // ─────────────────────────────────────────────
 
 type Translations = Record<TranslationKeys, string>;
 
-// Eagerly import all translations (Metro doesn't support dynamic imports well)
-// Indian languages
-import hi from './hi';
-import gu from './gu';
-import mr from './mr';
-import ta from './ta';
-import te from './te';
-import kn from './kn';
-import ml from './ml';
-import bn from './bn';
-import pa from './pa';
-import ur from './ur';
-import or_ from './or';
-// Global languages
-import es from './es';
-import fr from './fr';
-import pt from './pt';
-import ar from './ar';
-import zh from './zh';
-import ja from './ja';
-import ko from './ko';
-import de from './de';
-import it from './it';
-import ru from './ru';
-import tr from './tr';
-import th from './th';
-import id from './id';
-
 const translationMap: Record<string, Translations> = {
   en, hi, gu, mr, ta, te, kn, ml, bn, pa, ur, or: or_,
-  es, fr, pt, ar, zh, ja, ko, de, it, ru, tr, th, id,
+  es, fr, pt, ar, zh, ja, ko, de, it, ru, tr, th, id: idLang,
 };
 
 function loadTranslation(code: string): Translations {
