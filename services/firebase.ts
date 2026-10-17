@@ -1,7 +1,7 @@
 import { initializeApp, getApps } from 'firebase/app';
 import {
-  // @ts-ignore — getReactNativePersistence is in the RN metro bundle but absent from browser TS types
-  initializeAuth, getReactNativePersistence,
+  // @ts-ignore — getReactNativePersistence is in the RN bundle; TSC sees browser types
+  initializeAuth, getReactNativePersistence, getAuth,
   GoogleAuthProvider,
   signInWithCredential,
   signInAnonymously as firebaseSignInAnonymously,
@@ -39,14 +39,13 @@ const firebaseConfig = {
 // Prevent re-initialization during Expo hot reload
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
-// initializeAuth throws on hot-reload if called twice — fall back to getAuth
+// initializeAuth with RN persistence — throws on hot-reload if called twice
 let auth: ReturnType<typeof initializeAuth>;
 try {
-  // @ts-ignore
-  auth = initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) });
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage),
+  });
 } catch {
-  // @ts-ignore
-  const { getAuth } = require('firebase/auth');
   auth = getAuth(app);
 }
 export { auth };
@@ -79,11 +78,9 @@ export function onAuthStateChanged(callback: (user: User | null) => void) {
 
 /** Delete all user data from Firestore, then remove the Firebase Auth account. */
 export async function deleteUserAccount(uid: string): Promise<void> {
-  // Delete all branch docs (hard-delete — user wants data gone)
   const branchSnap = await getDocs(collection(db, 'users', uid, 'branches'));
   await Promise.all(branchSnap.docs.map((d) => deleteDoc(d.ref)));
 
-  // Delete the Firebase Auth account
   if (auth.currentUser) {
     await deleteUser(auth.currentUser);
   }

@@ -41,7 +41,7 @@ export function ReviewEditorScreen({ route, navigation }: Props) {
       const draft = generateReviewDraft({
         branchName: payload.branchName,
         businessName: payload.businessName,
-        category: payload.category,
+        category: (payload as any).category ?? '',
         tone: payload.tone,
         keywords: payload.keywords,
         rating,

@@ -33,10 +33,10 @@ function GoogleSignInButton() {
   useEffect(() => {
     if (!response) return;
     if (response.type === 'success') {
-      handleSuccess(response);
+      handleSuccess(response as typeof response & { type: 'success' });
     } else if (response.type === 'error') {
       setLoading(false);
-      Alert.alert('Sign-in failed', response.error?.message ?? 'An error occurred.');
+      Alert.alert('Sign-in failed', (response.error as any)?.message ?? 'An error occurred.');
     } else if (response.type === 'dismiss' || response.type === 'cancel') {
       setLoading(false);
     }
