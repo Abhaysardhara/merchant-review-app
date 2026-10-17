@@ -7,6 +7,7 @@ import {
   signInAnonymously as firebaseSignInAnonymously,
   signOut as firebaseSignOut,
   onAuthStateChanged as firebaseOnAuthStateChanged,
+  deleteUser,
   type User,
 } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -18,8 +19,11 @@ import {
   collection,
   setDoc,
   addDoc,
+  deleteDoc,
   serverTimestamp,
   increment,
+  query,
+  orderBy,
 } from 'firebase/firestore';
 import type { Branch, BranchAnalytics } from '../types';
 
@@ -71,6 +75,18 @@ export async function signOut(): Promise<void> {
 
 export function onAuthStateChanged(callback: (user: User | null) => void) {
   return firebaseOnAuthStateChanged(auth, callback);
+}
+
+/** Delete all user data from Firestore, then remove the Firebase Auth account. */
+export async function deleteUserAccount(uid: string): Promise<void> {
+  // Delete all branch docs (hard-delete — user wants data gone)
+  const branchSnap = await getDocs(collection(db, 'users', uid, 'branches'));
+  await Promise.all(branchSnap.docs.map((d) => deleteDoc(d.ref)));
+
+  // Delete the Firebase Auth account
+  if (auth.currentUser) {
+    await deleteUser(auth.currentUser);
+  }
 }
 
 export type { User };
@@ -196,6 +212,43 @@ export async function savePrivateFeedback(
     collection(db, 'users', uid, 'branches', placeId, 'feedback'),
     { ...data, createdAt: serverTimestamp() },
   );
+}
+
+// ─────────────────────────────────────────────
+//  Private feedback — read
+// ─────────────────────────────────────────────
+
+export interface FeedbackItem {
+  id: string;
+  rating: number;
+  comment: string;
+  phone?: string;
+  email?: string;
+  createdAt: string; // ISO date string
+}
+
+/** Load all private feedback for a branch, newest first. */
+export async function loadBranchFeedback(uid: string, placeId: string): Promise<FeedbackItem[]> {
+  try {
+    const q = query(
+      collection(db, 'users', uid, 'branches', placeId, 'feedback'),
+      orderBy('createdAt', 'desc'),
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id:        d.id,
+        rating:    typeof data.rating === 'number' ? data.rating : 0,
+        comment:   data.comment ?? '',
+        phone:     data.phone   ?? undefined,
+        email:     data.email   ?? undefined,
+        createdAt: data.createdAt?.toDate?.()?.toISOString?.() ?? new Date().toISOString(),
+      };
+    });
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchBranchAnalytics(uid: string, placeId: string): Promise<FirestoreAnalytics> {

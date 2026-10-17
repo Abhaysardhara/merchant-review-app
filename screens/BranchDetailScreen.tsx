@@ -9,6 +9,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -156,6 +157,35 @@ export function BranchDetailScreen({ route, navigation }: Props) {
         >
           {/* QR Code */}
           <QRCodeCard qrUrl={qrUrl} label={branch.name} address={branch.address} size={210} />
+
+          {/* Quick actions */}
+          <View style={styles.quickActions}>
+            <TouchableOpacity
+              style={styles.quickBtn}
+              activeOpacity={0.8}
+              onPress={() => {
+                const msg = `Hi! Thank you for visiting ${branch.businessName}. We'd love your feedback — it only takes 30 seconds:\n\n${qrUrl.replace('QrOrigin=true', 'LinkOrigin=true')}`;
+                const encoded = encodeURIComponent(msg);
+                Linking.openURL(`https://wa.me/?text=${encoded}`);
+              }}
+            >
+              <View style={[styles.quickBtnIcon, { backgroundColor: '#D1FAE5' }]}>
+                <Ionicons name="logo-whatsapp" size={20} color="#059669" />
+              </View>
+              <Text style={styles.quickBtnLabel}>WhatsApp{'\n'}Follow-Up</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickBtn}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('FeedbackInbox', { branchId: branch.id, branchName: branch.name })}
+            >
+              <View style={[styles.quickBtnIcon, { backgroundColor: '#FEF2F2' }]}>
+                <Ionicons name="chatbubbles" size={20} color="#EF4444" />
+              </View>
+              <Text style={styles.quickBtnLabel}>Feedback{'\n'}Inbox</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Branch Details */}
           <View style={styles.card}>
@@ -400,6 +430,24 @@ const styles = StyleSheet.create({
 
   // ── Content ──
   content: { padding: 16, gap: 14 },
+
+  // ── Quick actions ──
+  quickActions: {
+    flexDirection: 'row', gap: 10,
+  },
+  quickBtn: {
+    flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 14,
+    alignItems: 'center', gap: 8,
+    borderWidth: 1, borderColor: '#E2E8F0',
+  },
+  quickBtnIcon: {
+    width: 44, height: 44, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  quickBtnLabel: {
+    fontSize: 11, fontWeight: '700', color: '#475569',
+    textAlign: 'center', lineHeight: 15,
+  },
 
   // ── Card ──
   card: {

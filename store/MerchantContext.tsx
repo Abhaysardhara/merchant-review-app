@@ -26,6 +26,7 @@ import {
   saveUserBranch,
   deleteUserBranch,
   loadUserBranches,
+  deleteUserAccount,
   type User,
 } from '../services/firebase';
 import { REVIEW_WEB_URL } from '../config';
@@ -42,6 +43,7 @@ interface MerchantContextValue {
   signInWithGoogle: (idToken: string) => Promise<void>;
   devSkipSignIn: () => void;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 
   addBranch: (params: AddBranchParams) => Promise<Branch | null>;
   updateBranch: (id: string, updates: Partial<Branch>) => Promise<void>;
@@ -122,6 +124,13 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
     await signOut();
     setBranches([]);
   }, []);
+
+  const deleteAccount = useCallback(async () => {
+    if (!currentUser) return;
+    await deleteUserAccount(currentUser.uid);
+    setBranches([]);
+    // deleteUser signs out automatically — onAuthStateChanged handles setCurrentUser(null)
+  }, [currentUser]);
 
   // ── Branch CRUD ──
   const refreshBranches = useCallback(async () => {
@@ -222,6 +231,7 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
       signInWithGoogle,
       devSkipSignIn,
       logout,
+      deleteAccount,
       addBranch,
       updateBranch,
       deleteBranch,
@@ -237,6 +247,7 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
       signInWithGoogle,
       devSkipSignIn,
       logout,
+      deleteAccount,
       addBranch,
       updateBranch,
       deleteBranch,

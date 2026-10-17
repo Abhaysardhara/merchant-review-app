@@ -267,8 +267,8 @@ export function MerchantDashboardScreen({ navigation, route }: Props) {
                 <Ionicons name="refresh-outline" size={19} color="rgba(255,255,255,0.7)" />
               </Animated.View>
             </TouchableOpacity>
-            <TouchableOpacity style={s.iconBtn} onPress={() => logout()}>
-              <Ionicons name="log-out-outline" size={19} color="rgba(255,255,255,0.7)" />
+            <TouchableOpacity style={s.iconBtn} onPress={() => navigation.navigate('Settings')}>
+              <Ionicons name="settings-outline" size={19} color="rgba(255,255,255,0.7)" />
             </TouchableOpacity>
           </View>
         </View>

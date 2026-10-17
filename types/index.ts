@@ -107,6 +107,14 @@ export type MerchantStackParamList = {
     };
   } | undefined;
   BranchDetail: { branchId: string };
+  FeedbackInbox: { branchId: string; branchName: string };
   StoreSelector: undefined;
+  Settings: undefined;
+  PrivacyPolicy: undefined;
+  TermsOfService: undefined;
+  ContactUs: undefined;
+  FAQ: undefined;
+  About: undefined;
+  DeleteAccount: undefined;
 };
 

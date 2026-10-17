@@ -10,6 +10,14 @@ import { SignInScreen }            from '../screens/SignInScreen';
 import { MerchantDashboardScreen } from '../screens/MerchantDashboardScreen';
 import { BranchDetailScreen }      from '../screens/BranchDetailScreen';
 import { StoreSelectorScreen }     from '../screens/StoreSelectorScreen';
+import { FeedbackInboxScreen }     from '../screens/FeedbackInboxScreen';
+import { SettingsScreen }          from '../screens/SettingsScreen';
+import { PrivacyPolicyScreen }     from '../screens/PrivacyPolicyScreen';
+import { TermsOfServiceScreen }    from '../screens/TermsOfServiceScreen';
+import { ContactUsScreen }         from '../screens/ContactUsScreen';
+import { FAQScreen }               from '../screens/FAQScreen';
+import { AboutScreen }             from '../screens/AboutScreen';
+import { DeleteAccountScreen }     from '../screens/DeleteAccountScreen';
 
 const MerchantStack = createNativeStackNavigator<MerchantStackParamList>();
 
@@ -32,6 +40,14 @@ export function AppNavigator() {
             <MerchantStack.Screen name="MerchantDashboard" component={MerchantDashboardScreen} />
             <MerchantStack.Screen name="BranchDetail"      component={BranchDetailScreen} />
             <MerchantStack.Screen name="StoreSelector"     component={StoreSelectorScreen} />
+            <MerchantStack.Screen name="FeedbackInbox"     component={FeedbackInboxScreen} />
+            <MerchantStack.Screen name="Settings"          component={SettingsScreen} />
+            <MerchantStack.Screen name="PrivacyPolicy"     component={PrivacyPolicyScreen} />
+            <MerchantStack.Screen name="TermsOfService"    component={TermsOfServiceScreen} />
+            <MerchantStack.Screen name="ContactUs"         component={ContactUsScreen} />
+            <MerchantStack.Screen name="FAQ"               component={FAQScreen} />
+            <MerchantStack.Screen name="About"             component={AboutScreen} />
+            <MerchantStack.Screen name="DeleteAccount"     component={DeleteAccountScreen} />
           </>
         ) : (
           <MerchantStack.Screen name="SignIn" component={SignInScreen} />

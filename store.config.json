@@ -1,0 +1,54 @@
+{
+  "configVersion": 0,
+  "apple": {},
+  "android": {
+    "icon": "./assets/icon.png",
+    "featureGraphic": "./assets/feature-graphic.png",
+    "category": "BUSINESS",
+    "contentRating": "EVERYONE",
+    "contactEmail": "support@reviewreach.app",
+    "contactWebsite": "https://abhaysardhara.github.io/merchant-review-app",
+    "privacyPolicyUrl": "https://abhaysardhara.github.io/merchant-review-app/privacy",
+    "defaultLanguage": "en-US",
+    "listing": {
+      "en-US": {
+        "title": "ReviewReach: Google Reviews QR",
+        "shortDescription": "AI review generator with QR codes. Get more 5-star Google reviews for your business.",
+        "fullDescription": "ReviewReach is the smartest way for local businesses to collect more Google reviews. Generate AI-powered review drafts, create QR codes for your counter, and watch your online reputation grow — all from one simple app.\n\n★ HOW IT WORKS\n1. Add your business by searching Google Maps\n2. Customize your AI review tone & keywords\n3. Print the QR code and place it at your counter\n4. Customers scan → get a personalized review draft → post to Google\n\n★ KEY FEATURES\n\n✦ AI-Powered Review Drafts\nGenerate natural, human-sounding review suggestions using Google Gemini AI. Customize the tone (Friendly, Professional, Luxury, Casual, and more) and add keywords that matter to your business.\n\n✦ Instant QR Code Generation\nEvery branch gets a unique QR code. Print it, display it at your counter, share it on social media — customers scan and review in seconds.\n\n✦ Shareable Review Links\nNot just QR codes — share your review link via WhatsApp, SMS, email, or any messaging app to reach customers who've already left.\n\n✦ Real-Time Analytics Dashboard\nTrack QR scans, link visits, reviews copied, and conversion rates. Know exactly how your review campaign is performing.\n\n✦ Multi-Branch Management\nManage multiple locations from a single dashboard. Each branch gets its own QR code, analytics, and AI configuration.\n\n✦ Smart Feedback Routing\nHappy customers (4-5 stars) are guided to Google to leave a public review. Unhappy customers (1-3 stars) submit private feedback directly to you — protecting your public rating.\n\n✦ Multilingual Support\nGenerate reviews in English, Spanish, Hindi, and Gujarati — reaching customers in their preferred language.\n\n★ PERFECT FOR\n• Restaurants, cafes & bakeries\n• Salons, spas & fitness studios\n• Hotels & resorts\n• Retail stores & showrooms\n• Clinics, hospitals & pharmacies\n• Auto service centers\n• Any local business that wants more Google reviews\n\n★ WHY REVIEWREACH?\n• 90% of customers read reviews before visiting a business\n• Businesses with 50+ reviews earn 4.6x more revenue\n• ReviewReach makes getting reviews effortless for both you and your customers\n\n★ PRIVACY & SECURITY\n• Sign in securely with Google\n• Your data is stored on Google Firebase\n• No customer personal data is collected\n• Delete your account and all data anytime\n\nStart getting more 5-star Google reviews today. Download ReviewReach now!\n\nQuestions? Contact us at support@reviewreach.app",
+        "video": ""
+      },
+      "hi-IN": {
+        "title": "ReviewReach: Google Reviews QR",
+        "shortDescription": "AI रिव्यू जनरेटर QR कोड के साथ। अपने बिज़नेस के लिए ज़्यादा 5-स्टार Google रिव्यू पाएं।",
+        "fullDescription": "ReviewReach स्थानीय व्यवसायों के लिए अधिक Google समीक्षाएं एकत्र करने का सबसे स्मार्ट तरीका है। AI-संचालित समीक्षा ड्राफ्ट बनाएं, अपने काउंटर के लिए QR कोड बनाएं, और अपनी ऑनलाइन प्रतिष्ठा को बढ़ते देखें।\n\n★ यह कैसे काम करता है\n1. Google Maps पर अपना व्यवसाय खोजें\n2. AI रिव्यू टोन और कीवर्ड कस्टमाइज़ करें\n3. QR कोड प्रिंट करें और काउंटर पर रखें\n4. ग्राहक स्कैन करें → व्यक्तिगत रिव्यू ड्राफ्ट पाएं → Google पर पोस्ट करें\n\n★ प्रमुख विशेषताएं\n• AI-संचालित रिव्यू ड्राफ्ट\n• तुरंत QR कोड जनरेशन\n• शेयर करने योग्य रिव्यू लिंक\n• रियल-टाइम एनालिटिक्स डैशबोर्ड\n• मल्टी-ब्रांच प्रबंधन\n• स्मार्ट फीडबैक रूटिंग\n• बहुभाषी समर्थन\n\nआज ही अधिक 5-स्टार Google रिव्यू पाना शुरू करें!",
+        "video": ""
+      },
+      "gu": {
+        "title": "ReviewReach: Google Reviews QR",
+        "shortDescription": "AI રિવ્યુ જનરેટર QR કોડ સાથે। તમારા બિઝનેસ માટે વધુ 5-સ્ટાર Google રિવ્યુ મેળવો.",
+        "fullDescription": "ReviewReach સ્થાનિક વ્યવસાયો માટે વધુ Google સમીક્ષાઓ એકત્ર કરવાનો સૌથી સ્માર્ટ રસ્તો છે। AI-સંચાલિત સમીક્ષા ડ્રાફ્ટ બનાવો, તમારા કાઉન્ટર માટે QR કોડ બનાવો, અને તમારી ઓનલાઈન પ્રતિષ્ઠા વધતી જુઓ।\n\n★ આ કેવી રીતે કામ કરે છે\n1. Google Maps પર તમારો વ્યવસાય શોધો\n2. AI રિવ્યુ ટોન અને કીવર્ડ કસ્ટમાઇઝ કરો\n3. QR કોડ પ્રિન્ટ કરો અને કાઉન્ટર પર રાખો\n4. ગ્રાહકો સ્કેન કરે → વ્યક્તિગત રિવ્યુ ડ્રાફ્ટ મેળવે → Google પર પોસ્ટ કરે\n\n★ મુખ્ય વિશેષતાઓ\n• AI-સંચાલિત રિવ્યુ ડ્રાફ્ટ\n• ત્વરિત QR કોડ જનરેશન\n• શેર કરી શકાય તેવી રિવ્યુ લિંક\n• રિયલ-ટાઇમ એનાલિટિક્સ ડેશબોર્ડ\n• મલ્ટી-બ્રાન્ચ મેનેજમેન્ટ\n• સ્માર્ટ ફીડબેક રૂટિંગ\n• બહુભાષી સપોર્ટ\n\nઆજે જ વધુ 5-સ્ટાર Google રિવ્યુ મેળવવાનું શરૂ કરો!",
+        "video": ""
+      }
+    },
+    "releaseNotes": {
+      "en-US": "Initial release of ReviewReach — AI-powered Google review collection for local businesses. Features: QR code generation, AI review drafts, real-time analytics, multi-branch support, smart feedback routing, and multilingual reviews."
+    },
+    "tags": [
+      "google reviews",
+      "review generator",
+      "qr code",
+      "business reviews",
+      "ai reviews",
+      "reputation management",
+      "local business",
+      "review collection",
+      "customer feedback",
+      "5 star reviews",
+      "review booster",
+      "google my business",
+      "merchant tools",
+      "review management",
+      "customer reviews"
+    ]
+  }
+}

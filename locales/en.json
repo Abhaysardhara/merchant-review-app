@@ -1,0 +1,4 @@
+{
+  "CFBundleDisplayName": "ReviewReach",
+  "NSCameraUsageDescription": "ReviewReach needs camera access to scan QR codes at merchant counters so customers can leave Google reviews."
+}
