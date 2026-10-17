@@ -406,32 +406,31 @@
       font-size: 12px; font-weight: 600; color: #DC2626; cursor: pointer;
     }
 
-    /* ── Rating gate ── */
-    .rating-gate { text-align: center; }
-    .rating-gate-title {
-      font-size: 18px; font-weight: 800; color: var(--gray-900);
-      margin-bottom: 4px;
+    /* ── Star bar (always visible) ── */
+    .star-bar { text-align: center; }
+    .star-bar-title {
+      font-size: 15px; font-weight: 700; color: var(--gray-900);
+      margin-bottom: 12px;
     }
-    .rating-gate-sub {
-      font-size: 13px; color: var(--gray-400); margin-bottom: 20px;
+    .star-bar-sub {
+      font-size: 12px; color: var(--gray-400); margin-top: 2px;
+      min-height: 16px;
     }
     .star-select {
-      display: flex; justify-content: center; gap: 8px; margin-bottom: 16px;
+      display: flex; justify-content: center; gap: 8px;
     }
     .star-select button {
-      width: 52px; height: 52px; border-radius: 14px;
+      width: 48px; height: 48px; border-radius: 14px;
       border: 2px solid var(--gray-200); background: #fff;
-      font-size: 26px; cursor: pointer;
+      font-size: 24px; cursor: pointer;
       transition: all .15s;
       -webkit-tap-highlight-color: transparent;
       display: flex; align-items: center; justify-content: center;
+      color: var(--gray-200);
     }
     .star-select button:active { transform: scale(0.92); }
     .star-select button.active {
-      border-color: #F59E0B; background: #FFFBEB;
-    }
-    .rating-gate-hint {
-      font-size: 12px; color: var(--gray-400); margin-top: 8px;
+      border-color: #F59E0B; background: #FFFBEB; color: #F59E0B;
     }
 
     /* ── Feedback form (1-3 stars) ── */
@@ -503,10 +502,9 @@
 
   <div class="container" id="appRoot">
 
-    <!-- ── Rating gate ── -->
-    <div class="card rating-gate" id="ratingGate">
-      <div class="rating-gate-title">How was your experience?</div>
-      <div class="rating-gate-sub">Tap a star to rate</div>
+    <!-- ── Star bar (always visible) ── -->
+    <div class="card star-bar" id="starBar">
+      <div class="star-bar-title" id="starBarTitle">How was your experience?</div>
       <div class="star-select" id="starSelect">
         <button onclick="selectRating(1)" data-star="1">★</button>
         <button onclick="selectRating(2)" data-star="2">★</button>
@@ -514,7 +512,7 @@
         <button onclick="selectRating(4)" data-star="4">★</button>
         <button onclick="selectRating(5)" data-star="5">★</button>
       </div>
-      <div class="rating-gate-hint">Your honest rating helps the business improve</div>
+      <div class="star-bar-sub" id="starBarSub">Tap a star to rate</div>
     </div>
 
     <!-- ── Feedback form (1-3 stars) ── -->
@@ -1601,11 +1599,13 @@ var LANGUAGES = [
     document.body.removeChild(ta);
   }
 
-  // ── Rating gate ──────────────────────────────
+  // ── Star rating (persistent) ─────────────────
   var selectedRating = 0;
+  var reviewGenerated = false;
 
   window.selectRating = function (n) {
     selectedRating = n;
+
     // Highlight stars up to n
     var btns = document.querySelectorAll('#starSelect button');
     btns.forEach(function (btn) {
@@ -1613,19 +1613,31 @@ var LANGUAGES = [
       btn.classList.toggle('active', star <= n);
     });
 
-    // Small delay so the user sees their selection
-    setTimeout(function () {
-      document.getElementById('ratingGate').style.display = 'none';
+    // Update title and subtitle
+    var title = document.getElementById('starBarTitle');
+    var sub   = document.getElementById('starBarSub');
 
-      if (n >= 4) {
-        // Happy path → show AI review flow
-        document.getElementById('reviewFlow').style.display = 'block';
+    if (n >= 4) {
+      title.textContent = 'Great! Here\'s a review draft for you';
+      sub.textContent   = 'Tap a star to change your rating';
+
+      // Show review flow, hide feedback
+      document.getElementById('feedbackSection').style.display = 'none';
+      document.getElementById('reviewFlow').style.display = 'block';
+
+      // Only call Gemini once — reuse the generated review on re-select
+      if (!reviewGenerated) {
+        reviewGenerated = true;
         generateAndShow('en');
-      } else {
-        // Unhappy path → show private feedback form
-        document.getElementById('feedbackSection').style.display = 'block';
       }
-    }, 300);
+    } else {
+      title.textContent = 'We\'re sorry — tell us what went wrong';
+      sub.textContent   = 'Tap a star to change your rating';
+
+      // Show feedback form, hide review flow
+      document.getElementById('reviewFlow').style.display = 'none';
+      document.getElementById('feedbackSection').style.display = 'block';
+    }
   };
 
   // ── Feedback submission (Firestore REST) ────
