@@ -18,6 +18,7 @@ import type { MerchantStackParamList } from '../types';
 import { useMerchant } from '../store/MerchantContext';
 import { QRCodeCard } from '../components/QRCodeCard';
 import { conversionRate, formatLastScan } from '../services/analytics';
+import { useI18n } from '../i18n';
 
 type Props = NativeStackScreenProps<MerchantStackParamList, 'BranchDetail'>;
 
@@ -28,8 +29,9 @@ const TONES = [
 
 export function BranchDetailScreen({ route, navigation }: Props) {
   const { branchId } = route.params;
-  const { getBranch, updateBranch, deleteBranch, buildQRUrl } = useMerchant();
+  const { getBranch, updateBranch, deleteBranch, buildQRUrl, gbpConnected, getLocationName } = useMerchant();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
 
   const branch = getBranch(branchId);
 
@@ -68,12 +70,12 @@ export function BranchDetailScreen({ route, navigation }: Props) {
 
   const handleDelete = () => {
     Alert.alert(
-      'Delete Branch',
-      `Are you sure you want to delete "${branch?.name}"? This action cannot be undone.`,
+      t('branch_delete'),
+      t('branch_deleteConfirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common_cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common_delete'),
           style: 'destructive',
           onPress: async () => {
             await deleteBranch(branchId);
@@ -91,10 +93,10 @@ export function BranchDetailScreen({ route, navigation }: Props) {
           <View style={styles.notFoundIconWrap}>
             <Ionicons name="alert-circle-outline" size={36} color="#EF4444" />
           </View>
-          <Text style={styles.notFoundTitle}>Branch not found</Text>
-          <Text style={styles.notFoundSub}>This branch may have been deleted.</Text>
+          <Text style={styles.notFoundTitle}>{t('branch_notFound')}</Text>
+          <Text style={styles.notFoundSub}>{t('branch_notFoundSub')}</Text>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.notFoundBtn}>
-            <Text style={styles.notFoundBtnText}>Go Back</Text>
+            <Text style={styles.notFoundBtnText}>{t('common_back')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -125,17 +127,17 @@ export function BranchDetailScreen({ route, navigation }: Props) {
             disabled={isSaving}
           >
             <Text style={[styles.navAction, isEditing && styles.navActionSave]}>
-              {isEditing ? (isSaving ? 'Saving…' : 'Save') : 'Edit'}
+              {isEditing ? (isSaving ? t('branch_saving') : t('common_save')) : t('common_edit')}
             </Text>
           </TouchableOpacity>
         </View>
 
         {/* Analytics stat tiles */}
         <View style={styles.statRow}>
-          <StatTile icon="scan-outline"        value={a.totalScans}            label="Scans"       color="#818CF8" />
-          <StatTile icon="link-outline"        value={a.linkVisits}            label="Visits"      color="#A78BFA" />
-          <StatTile icon="copy-outline"        value={a.reviewsCopied}         label="Copied"      color="#34D399" />
-          <StatTile icon="trending-up-outline" value={conversionRate(a)}       label="CVR"         color="#FCD34D" isString />
+          <StatTile icon="scan-outline"        value={a.totalScans}            label={t('branch_scans')}   color="#818CF8" />
+          <StatTile icon="link-outline"        value={a.linkVisits}            label={t('branch_visits')}  color="#A78BFA" />
+          <StatTile icon="copy-outline"        value={a.reviewsCopied}         label={t('branch_copied')}  color="#34D399" />
+          <StatTile icon="trending-up-outline" value={conversionRate(a)}       label={t('branch_cvr')}     color="#FCD34D" isString />
         </View>
 
         {a.lastScanAt && (
@@ -172,7 +174,7 @@ export function BranchDetailScreen({ route, navigation }: Props) {
               <View style={[styles.quickBtnIcon, { backgroundColor: '#D1FAE5' }]}>
                 <Ionicons name="logo-whatsapp" size={20} color="#059669" />
               </View>
-              <Text style={styles.quickBtnLabel}>WhatsApp{'\n'}Follow-Up</Text>
+              <Text style={styles.quickBtnLabel}>{t('branch_whatsapp')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -183,8 +185,30 @@ export function BranchDetailScreen({ route, navigation }: Props) {
               <View style={[styles.quickBtnIcon, { backgroundColor: '#FEF2F2' }]}>
                 <Ionicons name="chatbubbles" size={20} color="#EF4444" />
               </View>
-              <Text style={styles.quickBtnLabel}>Feedback{'\n'}Inbox</Text>
+              <Text style={styles.quickBtnLabel}>{t('branch_feedback')}</Text>
             </TouchableOpacity>
+
+            {gbpConnected && getLocationName(branch.placeId) && (
+              <TouchableOpacity
+                style={styles.quickBtn}
+                activeOpacity={0.8}
+                onPress={() => {
+                  const locationName = getLocationName(branch.placeId);
+                  if (locationName) {
+                    navigation.navigate('Reviews', {
+                      branchId: branch.id,
+                      branchName: branch.name,
+                      locationName,
+                    });
+                  }
+                }}
+              >
+                <View style={[styles.quickBtnIcon, { backgroundColor: '#EEF2FF' }]}>
+                  <Ionicons name="star" size={20} color="#4F46E5" />
+                </View>
+                <Text style={styles.quickBtnLabel}>{t('branch_reviews')}</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Branch Details */}
@@ -193,16 +217,16 @@ export function BranchDetailScreen({ route, navigation }: Props) {
               <View style={styles.sectionIconWrap}>
                 <Ionicons name="information-circle" size={16} color="#4F46E5" />
               </View>
-              <Text style={styles.sectionTitle}>Branch Details</Text>
+              <Text style={styles.sectionTitle}>{t('branch_details')}</Text>
               {!isEditing && (
                 <TouchableOpacity onPress={() => setIsEditing(true)} style={styles.editPill}>
                   <Ionicons name="pencil-outline" size={12} color="#4F46E5" />
-                  <Text style={styles.editPillText}>Edit</Text>
+                  <Text style={styles.editPillText}>{t('common_edit')}</Text>
                 </TouchableOpacity>
               )}
             </View>
 
-            <FieldRow label="Branch Name">
+            <FieldRow label={t('branch_name')}>
               {isEditing ? (
                 <TextInput
                   style={styles.fieldInput}
@@ -216,21 +240,21 @@ export function BranchDetailScreen({ route, navigation }: Props) {
               )}
             </FieldRow>
 
-            <FieldRow label="Business">
+            <FieldRow label={t('branch_business')}>
               <Text style={styles.fieldValue}>{branch.businessName || '—'}</Text>
             </FieldRow>
 
-            <FieldRow label="Address">
+            <FieldRow label={t('branch_address')}>
               <Text style={styles.fieldValue} numberOfLines={2}>{branch.address || '—'}</Text>
             </FieldRow>
 
-            <FieldRow label="Place ID">
+            <FieldRow label={t('branch_placeId')}>
               <Text style={styles.fieldValueMono} numberOfLines={1} ellipsizeMode="middle">
                 {branch.placeId}
               </Text>
             </FieldRow>
 
-            <FieldRow label="AI Tone" last={!isEditing}>
+            <FieldRow label={t('branch_aiTone')} last={!isEditing}>
               {isEditing ? (
                 <View style={styles.chipWrap}>
                   {TONES.map((t) => {
@@ -252,7 +276,7 @@ export function BranchDetailScreen({ route, navigation }: Props) {
               )}
             </FieldRow>
 
-            <FieldRow label="Keywords" last={!isEditing}>
+            <FieldRow label={t('branch_keywords')} last={!isEditing}>
               {isEditing ? (
                 <TextInput
                   style={[styles.fieldInput, styles.fieldInputMulti]}
@@ -278,19 +302,19 @@ export function BranchDetailScreen({ route, navigation }: Props) {
                     setTones(branch.tone ? branch.tone.split(', ').filter(Boolean) : ['Friendly']);
                   }}
                 >
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                  <Text style={styles.cancelBtnText}>{t('common_cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.saveBtn, isSaving && styles.saveBtnDisabled]}
                   onPress={handleSave}
                   disabled={isSaving}
                 >
-                  <Text style={styles.saveBtnText}>{isSaving ? 'Saving…' : 'Save Changes'}</Text>
+                  <Text style={styles.saveBtnText}>{isSaving ? t('branch_saving') : t('branch_saveChanges')}</Text>
                 </TouchableOpacity>
               </View>
             )}
 
-            <FieldRow label="Added On" last>
+            <FieldRow label={t('branch_addedOn')} last>
               <Text style={styles.fieldValue}>
                 {new Date(branch.createdAt).toLocaleDateString('en-US', {
                   year: 'numeric', month: 'long', day: 'numeric',
@@ -302,7 +326,7 @@ export function BranchDetailScreen({ route, navigation }: Props) {
           {/* Danger zone */}
           <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} activeOpacity={0.8}>
             <Ionicons name="trash-outline" size={17} color="#DC2626" />
-            <Text style={styles.deleteBtnText}>Delete Branch</Text>
+            <Text style={styles.deleteBtnText}>{t('branch_delete')}</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>

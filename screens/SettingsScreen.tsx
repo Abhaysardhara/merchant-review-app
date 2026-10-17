@@ -1,10 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Share, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Share, Platform, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as AuthSession from 'expo-auth-session';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MerchantStackParamList } from '../types';
 import { useMerchant } from '../store/MerchantContext';
+import { GOOGLE_WEB_CLIENT_ID } from '../config';
+import { useI18n, LANGUAGES } from '../i18n';
 
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.reviewreach.app';
 
@@ -35,9 +38,62 @@ function SettingsRow({ icon, iconColor, iconBg, label, sub, onPress, danger }: R
   );
 }
 
+const GBP_DISCOVERY = {
+  authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+  tokenEndpoint: 'https://oauth2.googleapis.com/token',
+};
+
 export function SettingsScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const { currentUser, logout } = useMerchant();
+  const { currentUser, logout, gbpConnected, connectGBP, disconnectGBP } = useMerchant();
+  const { locale, t } = useI18n();
+  const currentLang = LANGUAGES.find((l) => l.code === locale);
+
+  const handleConnectGBP = async () => {
+    try {
+      const redirectUri = AuthSession.makeRedirectUri({ scheme: 'com.reviewreach.app' });
+      const request = new AuthSession.AuthRequest({
+        clientId: GOOGLE_WEB_CLIENT_ID,
+        scopes: ['https://www.googleapis.com/auth/business.manage'],
+        redirectUri,
+        usePKCE: true,
+        responseType: AuthSession.ResponseType.Code,
+        extraParams: { access_type: 'offline', prompt: 'consent' },
+      });
+      const result = await request.promptAsync(GBP_DISCOVERY);
+      if (result.type === 'success' && result.params.code) {
+        // Exchange authorization code for tokens
+        const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: [
+            'grant_type=authorization_code',
+            `code=${encodeURIComponent(result.params.code)}`,
+            `client_id=${encodeURIComponent(GOOGLE_WEB_CLIENT_ID)}`,
+            `redirect_uri=${encodeURIComponent(redirectUri)}`,
+            `code_verifier=${encodeURIComponent(request.codeVerifier ?? '')}`,
+          ].join('&'),
+        });
+        if (!tokenRes.ok) throw new Error('Token exchange failed');
+        const data = await tokenRes.json();
+        await connectGBP({
+          accessToken: data.access_token,
+          refreshToken: data.refresh_token ?? '',
+          expiresAt: Date.now() + (data.expires_in ?? 3600) * 1000,
+        });
+        Alert.alert(t('common_success'), t('settings_gbpSuccess'));
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to connect Google Business Profile.');
+    }
+  };
+
+  const handleDisconnectGBP = () => {
+    Alert.alert(t('settings_gbpDisconnectTitle'), t('settings_gbpDisconnectMsg'), [
+      { text: t('common_cancel'), style: 'cancel' },
+      { text: 'Disconnect', style: 'destructive', onPress: () => disconnectGBP() },
+    ]);
+  };
 
   const email = currentUser?.email ?? (currentUser?.isAnonymous ? 'Anonymous (Dev)' : '');
   const name  = currentUser?.displayName ?? '';
@@ -49,7 +105,7 @@ export function SettingsScreen({ navigation }: Props) {
         <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Settings</Text>
+        <Text style={s.headerTitle}>{t('settings_title')}</Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -65,77 +121,108 @@ export function SettingsScreen({ navigation }: Props) {
           </View>
         </View>
 
+        {/* Preferences */}
+        <Text style={s.sectionTitle}>{t('settings_preferences')}</Text>
+        <View style={s.card}>
+          <SettingsRow
+            icon="language-outline" iconColor="#4F46E5" iconBg="#EEF2FF"
+            label={currentLang?.label ?? 'English'}
+            sub={currentLang ? `${currentLang.flag} ${currentLang.nativeLabel}` : 'Change app language'}
+            onPress={() => navigation.navigate('Language')}
+          />
+        </View>
+
+        {/* Google Business Profile */}
+        <Text style={s.sectionTitle}>{t('settings_integrations')}</Text>
+        <View style={s.card}>
+          {gbpConnected ? (
+            <>
+              <SettingsRow
+                icon="checkmark-circle" iconColor="#059669" iconBg="#D1FAE5"
+                label={t('settings_gbpConnected')} sub={t('settings_gbpConnectedSub')}
+                onPress={handleDisconnectGBP}
+              />
+            </>
+          ) : (
+            <SettingsRow
+              icon="business-outline" iconColor="#4285F4" iconBg="#E8F0FE"
+              label={t('settings_gbpConnect')} sub={t('settings_gbpConnectSub')}
+              onPress={handleConnectGBP}
+            />
+          )}
+        </View>
+
         {/* Legal */}
-        <Text style={s.sectionTitle}>LEGAL</Text>
+        <Text style={s.sectionTitle}>{t('settings_legal')}</Text>
         <View style={s.card}>
           <SettingsRow
             icon="shield-checkmark-outline" iconColor="#059669" iconBg="#D1FAE5"
-            label="Privacy Policy" sub="How we handle your data"
+            label={t('settings_privacy')} sub={t('settings_privacySub')}
             onPress={() => navigation.navigate('PrivacyPolicy')}
           />
           <View style={s.divider} />
           <SettingsRow
             icon="document-text-outline" iconColor="#0891B2" iconBg="#E0F2FE"
-            label="Terms of Service" sub="Usage agreement"
+            label={t('settings_terms')} sub={t('settings_termsSub')}
             onPress={() => navigation.navigate('TermsOfService')}
           />
         </View>
 
         {/* Support */}
-        <Text style={s.sectionTitle}>SUPPORT</Text>
+        <Text style={s.sectionTitle}>{t('settings_support')}</Text>
         <View style={s.card}>
           <SettingsRow
             icon="help-circle-outline" iconColor="#7C3AED" iconBg="#F5F3FF"
-            label="FAQ" sub="Frequently asked questions"
+            label={t('settings_faq')} sub={t('settings_faqSub')}
             onPress={() => navigation.navigate('FAQ')}
           />
           <View style={s.divider} />
           <SettingsRow
             icon="mail-outline" iconColor="#4F46E5" iconBg="#EEF2FF"
-            label="Contact Us" sub="Get help or share feedback"
+            label={t('settings_contact')} sub={t('settings_contactSub')}
             onPress={() => navigation.navigate('ContactUs')}
           />
         </View>
 
         {/* App */}
-        <Text style={s.sectionTitle}>APP</Text>
+        <Text style={s.sectionTitle}>{t('settings_app')}</Text>
         <View style={s.card}>
           <SettingsRow
             icon="star-outline" iconColor="#F59E0B" iconBg="#FFFBEB"
-            label="Rate Us" sub="Love ReviewReach? Leave a review!"
+            label={t('settings_rateUs')} sub={t('settings_rateUsSub')}
             onPress={() => Linking.openURL(PLAY_STORE_URL)}
           />
           <View style={s.divider} />
           <SettingsRow
             icon="share-social-outline" iconColor="#059669" iconBg="#D1FAE5"
-            label="Share App" sub="Tell a fellow business owner"
+            label={t('settings_share')} sub={t('settings_shareSub')}
             onPress={() => Share.share({
               message: Platform.select({
-                android: `Check out ReviewReach — the easiest way to get more Google reviews for your business!\n\n${PLAY_STORE_URL}`,
-                default: 'Check out ReviewReach — the easiest way to get more Google reviews for your business!',
+                android: `${t('settings_shareMsg')}\n\n${PLAY_STORE_URL}`,
+                default: t('settings_shareMsg'),
               }),
             })}
           />
           <View style={s.divider} />
           <SettingsRow
             icon="information-circle-outline" iconColor="#0F172A" iconBg="#F1F5F9"
-            label="About" sub="Version & credits"
+            label={t('settings_about')} sub={t('settings_aboutSub')}
             onPress={() => navigation.navigate('About')}
           />
         </View>
 
         {/* Account */}
-        <Text style={s.sectionTitle}>ACCOUNT</Text>
+        <Text style={s.sectionTitle}>{t('settings_account')}</Text>
         <View style={s.card}>
           <SettingsRow
             icon="log-out-outline" iconColor="#64748B" iconBg="#F1F5F9"
-            label="Sign Out"
+            label={t('settings_signOut')}
             onPress={async () => { await logout(); }}
           />
           <View style={s.divider} />
           <SettingsRow
             icon="trash-outline" iconColor="#EF4444" iconBg="#FEF2F2"
-            label="Delete Account" sub="Permanently remove all data" danger
+            label={t('settings_deleteAccount')} sub={t('settings_deleteAccountSub')} danger
             onPress={() => navigation.navigate('DeleteAccount')}
           />
         </View>

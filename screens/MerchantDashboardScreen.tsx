@@ -21,6 +21,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MerchantStackParamList, Branch } from '../types';
 import { useMerchant, type AddBranchParams } from '../store/MerchantContext';
 import { conversionRate, formatLastScan } from '../services/analytics';
+import { useI18n } from '../i18n';
 
 type Props = NativeStackScreenProps<MerchantStackParamList, 'MerchantDashboard'>;
 
@@ -43,6 +44,7 @@ interface BranchDetailsModalProps {
 }
 
 function BranchDetailsModal({ visible, store, onClose, onAdd }: BranchDetailsModalProps) {
+  const { t } = useI18n();
   const [branchName, setBranchName] = useState(store.name);
   const [keywords, setKeywords]     = useState('');
   const [tones, setTones]           = useState<string[]>(['Friendly']);
@@ -76,14 +78,14 @@ function BranchDetailsModal({ visible, store, onClose, onAdd }: BranchDetailsMod
             <TouchableOpacity onPress={onClose} style={ms.closeBtn}>
               <Ionicons name="close" size={20} color="#6B7280" />
             </TouchableOpacity>
-            <Text style={ms.title}>New Branch</Text>
+            <Text style={ms.title}>{t('addBranch_title')}</Text>
             <TouchableOpacity
               style={[ms.saveHeaderBtn, isSaving && { opacity: 0.5 }]}
               onPress={handleSave} disabled={isSaving}
             >
               {isSaving
                 ? <ActivityIndicator size="small" color="#fff" />
-                : <Text style={ms.saveHeaderBtnText}>Add</Text>}
+                : <Text style={ms.saveHeaderBtnText}>{t('addBranch_submit')}</Text>}
             </TouchableOpacity>
           </View>
 
@@ -101,15 +103,15 @@ function BranchDetailsModal({ visible, store, onClose, onAdd }: BranchDetailsMod
             </View>
 
             <View style={ms.section}>
-              <Text style={ms.label}>Branch Name <Text style={ms.required}>*</Text></Text>
+              <Text style={ms.label}>{t('addBranch_nameLabel')} <Text style={ms.required}>*</Text></Text>
               <TextInput
                 style={ms.input} value={branchName} onChangeText={setBranchName}
-                placeholder="e.g. Downtown Branch" placeholderTextColor="#9CA3AF" autoFocus
+                placeholder={t('addBranch_namePlaceholder')} placeholderTextColor="#9CA3AF" autoFocus
               />
             </View>
 
             <View style={ms.section}>
-              <Text style={ms.label}>AI Review Tone <Text style={ms.labelHint}>(pick one or more)</Text></Text>
+              <Text style={ms.label}>{t('addBranch_toneLabel')} <Text style={ms.labelHint}>(pick one or more)</Text></Text>
               <View style={ms.chipWrap}>
                 {TONES.map((t) => {
                   const active = tones.includes(t);
@@ -127,11 +129,11 @@ function BranchDetailsModal({ visible, store, onClose, onAdd }: BranchDetailsMod
             </View>
 
             <View style={ms.section}>
-              <Text style={ms.label}>Keywords <Text style={ms.labelHint}>(optional)</Text></Text>
+              <Text style={ms.label}>{t('addBranch_keywordsLabel')} <Text style={ms.labelHint}>(optional)</Text></Text>
               <TextInput
                 style={[ms.input, { minHeight: 72, textAlignVertical: 'top', paddingTop: 12 }]}
                 value={keywords} onChangeText={setKeywords} multiline
-                placeholder="e.g. quick service, clean rooms, friendly staff"
+                placeholder={t('addBranch_keywordsPlaceholder')}
                 placeholderTextColor="#9CA3AF"
               />
               <Text style={ms.hint}>Comma-separated — woven into the AI-generated review.</Text>
@@ -148,6 +150,7 @@ function BranchDetailsModal({ visible, store, onClose, onAdd }: BranchDetailsMod
 // ─────────────────────────────────────────────
 
 function BranchCard({ branch, onPress, onDelete }: { branch: Branch; onPress: () => void; onDelete: () => void }) {
+  const { t } = useI18n();
   const handleDelete = () =>
     Alert.alert('Remove Branch', `Remove "${branch.name}"? This cannot be undone.`, [
       { text: 'Cancel', style: 'cancel' },
@@ -174,10 +177,10 @@ function BranchCard({ branch, onPress, onDelete }: { branch: Branch; onPress: ()
 
       {/* Stats row */}
       <View style={cs.statsRow}>
-        <StatPill icon="qr-code-outline"    value={branch.analytics.totalScans}    label="Scans"  color="#4F46E5" bg="#EEF2FF" />
-        <StatPill icon="link-outline"       value={branch.analytics.linkVisits}    label="Links"  color="#7C3AED" bg="#F5F3FF" />
-        <StatPill icon="copy-outline"       value={branch.analytics.reviewsCopied} label="Copied" color="#0891B2" bg="#E0F2FE" />
-        <StatPill icon="trending-up-outline" value={cvr}                           label="CVR"    color="#059669" bg="#D1FAE5" isString />
+        <StatPill icon="qr-code-outline"    value={branch.analytics.totalScans}    label={t('branch_scans')}  color="#4F46E5" bg="#EEF2FF" />
+        <StatPill icon="link-outline"       value={branch.analytics.linkVisits}    label={t('branch_visits')} color="#7C3AED" bg="#F5F3FF" />
+        <StatPill icon="copy-outline"       value={branch.analytics.reviewsCopied} label={t('branch_copied')} color="#0891B2" bg="#E0F2FE" />
+        <StatPill icon="trending-up-outline" value={cvr}                           label={t('branch_cvr')}    color="#059669" bg="#D1FAE5" isString />
       </View>
 
       {/* Footer */}
@@ -211,6 +214,7 @@ const AUTO_REFRESH_MS = 2 * 60 * 1000;
 
 export function MerchantDashboardScreen({ navigation, route }: Props) {
   const { branches, currentUser, logout, addBranch, deleteBranch, refreshBranches } = useMerchant();
+  const { t } = useI18n();
   const [modalVisible, setModalVisible] = useState(false);
   const [pendingStore, setPendingStore] = useState<PrefilledStore>(EMPTY_STORE);
   const [refreshing, setRefreshing]     = useState(false);
@@ -276,9 +280,9 @@ export function MerchantDashboardScreen({ navigation, route }: Props) {
         {/* Summary pills */}
         {branches.length > 0 && (
           <View style={s.summaryRow}>
-            <SummaryTile value={totalScans}  label="QR Scans" icon="qr-code-outline"    accent="#818CF8" />
-            <SummaryTile value={totalLinks}  label="Links"    icon="link-outline"        accent="#A78BFA" />
-            <SummaryTile value={totalCopied} label="Copied"   icon="copy-outline"        accent="#34D399" />
+            <SummaryTile value={totalScans}  label={t('dash_totalScans')}  icon="qr-code-outline"    accent="#818CF8" />
+            <SummaryTile value={totalLinks}  label={t('dash_totalVisits')} icon="link-outline"        accent="#A78BFA" />
+            <SummaryTile value={totalCopied} label={t('dash_totalCopied')} icon="copy-outline"        accent="#34D399" />
             <SummaryTile value={totalCvr}    label="CVR"      icon="trending-up-outline" accent="#FCD34D" isString />
           </View>
         )}
@@ -295,16 +299,16 @@ export function MerchantDashboardScreen({ navigation, route }: Props) {
             <View style={s.emptyIcon}>
               <Ionicons name="storefront-outline" size={40} color="#4F46E5" />
             </View>
-            <Text style={s.emptyTitle}>No branches yet</Text>
-            <Text style={s.emptySub}>Tap the + button to find your business on the map and set up your first branch.</Text>
+            <Text style={s.emptyTitle}>{t('dash_noBranches')}</Text>
+            <Text style={s.emptySub}>{t('dash_noBranchesSub')}</Text>
             <TouchableOpacity style={s.emptyBtn} onPress={() => navigation.navigate('StoreSelector')}>
               <Ionicons name="add" size={16} color="#fff" />
-              <Text style={s.emptyBtnText}>Add First Branch</Text>
+              <Text style={s.emptyBtnText}>{t('dash_addBranch')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <>
-            <Text style={s.sectionLabel}>YOUR BRANCHES</Text>
+            <Text style={s.sectionLabel}>{t('dash_title').toUpperCase()}</Text>
             {branches.map((branch) => (
               <BranchCard
                 key={branch.id}
@@ -325,7 +329,7 @@ export function MerchantDashboardScreen({ navigation, route }: Props) {
           activeOpacity={0.88}
         >
           <Ionicons name="add" size={26} color="#fff" />
-          <Text style={s.fabText}>Add Branch</Text>
+          <Text style={s.fabText}>{t('dash_addBranch')}</Text>
         </TouchableOpacity>
       )}
 

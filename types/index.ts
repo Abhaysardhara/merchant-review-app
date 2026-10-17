@@ -108,8 +108,22 @@ export type MerchantStackParamList = {
   } | undefined;
   BranchDetail: { branchId: string };
   FeedbackInbox: { branchId: string; branchName: string };
+  Reviews: { branchId: string; branchName: string; locationName: string };
+  ReviewReply: {
+    branchName: string;
+    businessTone: string;
+    review: {
+      name: string;
+      reviewerName: string;
+      rating: number;
+      comment: string;
+      createTime: string;
+      existingReply?: string;
+    };
+  };
   StoreSelector: undefined;
   Settings: undefined;
+  Language: undefined;
   PrivacyPolicy: undefined;
   TermsOfService: undefined;
   ContactUs: undefined;

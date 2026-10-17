@@ -15,6 +15,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MerchantStackParamList } from '../types';
 import { useMerchant } from '../store/MerchantContext';
 import { loadBranchFeedback, type FeedbackItem } from '../services/firebase';
+import { useI18n } from '../i18n';
 
 type Props = NativeStackScreenProps<MerchantStackParamList, 'FeedbackInbox'>;
 
@@ -42,6 +43,7 @@ function formatDate(iso: string): string {
 }
 
 function FeedbackCard({ item }: { item: FeedbackItem }) {
+  const { t } = useI18n();
   const hasContact = Boolean(item.phone || item.email);
 
   return (
@@ -85,6 +87,7 @@ export function FeedbackInboxScreen({ route, navigation }: Props) {
   const { branchId, branchName } = route.params;
   const { currentUser } = useMerchant();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
 
   const [feedback, setFeedback] = useState<FeedbackItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,7 +117,7 @@ export function FeedbackInboxScreen({ route, navigation }: Props) {
           <Ionicons name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={s.headerCenter}>
-          <Text style={s.headerTitle} numberOfLines={1}>Feedback</Text>
+          <Text style={s.headerTitle} numberOfLines={1}>{t('feedback_title')}</Text>
           <Text style={s.headerSub} numberOfLines={1}>{branchName}</Text>
         </View>
         <View style={s.badge}>
@@ -131,10 +134,8 @@ export function FeedbackInboxScreen({ route, navigation }: Props) {
           <View style={s.emptyIcon}>
             <Ionicons name="chatbubbles-outline" size={40} color="#94A3B8" />
           </View>
-          <Text style={s.emptyTitle}>No feedback yet</Text>
-          <Text style={s.emptySub}>
-            When customers with 1-3 star ratings submit private feedback, it will appear here.
-          </Text>
+          <Text style={s.emptyTitle}>{t('feedback_empty')}</Text>
+          <Text style={s.emptySub}>{t('feedback_emptySub')}</Text>
         </View>
       ) : (
         <FlatList

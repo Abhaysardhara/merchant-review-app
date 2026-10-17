@@ -29,7 +29,17 @@ import {
   deleteUserAccount,
   type User,
 } from '../services/firebase';
-import { REVIEW_WEB_URL } from '../config';
+import { REVIEW_WEB_URL, GOOGLE_WEB_CLIENT_ID } from '../config';
+import {
+  loadGBPTokens,
+  saveGBPTokens,
+  clearGBPTokens,
+  getValidToken,
+  discoverLocations,
+  loadGBPCache,
+  type GBPTokens,
+  type GBPCache,
+} from '../services/gbp';
 
 // ─────────────────────────────────────────────
 //  Context shape
@@ -53,6 +63,14 @@ interface MerchantContextValue {
 
   buildQRPayload: (branch: Branch) => QRPayload;
   buildQRUrl: (branch: Branch) => string;
+
+  // GBP integration
+  gbpAccessToken: string | null;
+  gbpConnected: boolean;
+  gbpCache: GBPCache | null;
+  connectGBP: (tokens: GBPTokens) => Promise<void>;
+  disconnectGBP: () => Promise<void>;
+  getLocationName: (placeId: string) => string | null;
 }
 
 export interface AddBranchParams {
@@ -86,6 +104,10 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
   const [branches, setBranches]       = useState<Branch[]>([]);
   const [isLoading, setIsLoading]     = useState(true);
 
+  // GBP state
+  const [gbpAccessToken, setGbpAccessToken] = useState<string | null>(null);
+  const [gbpCache, setGbpCache]             = useState<GBPCache | null>(null);
+
   // ── Load branches for the signed-in user (config + analytics in one read) ──
   const loadBranches = useCallback(async (uid: string) => {
     const list = await loadUserBranches(uid);
@@ -98,8 +120,17 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
       setCurrentUser(user);
       if (user) {
         await loadBranches(user.uid);
+        // Restore GBP tokens if previously connected
+        const token = await getValidToken(GOOGLE_WEB_CLIENT_ID);
+        if (token) {
+          setGbpAccessToken(token);
+          const cache = await loadGBPCache();
+          if (cache) setGbpCache(cache);
+        }
       } else {
         setBranches([]);
+        setGbpAccessToken(null);
+        setGbpCache(null);
       }
       setIsLoading(false);
     });
@@ -206,6 +237,34 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
     [branches],
   );
 
+  // ── GBP integration ──
+  const gbpConnected = gbpAccessToken !== null;
+
+  const connectGBP = useCallback(async (tokens: GBPTokens) => {
+    await saveGBPTokens(tokens);
+    setGbpAccessToken(tokens.accessToken);
+    // Discover locations and build cache
+    try {
+      const cache = await discoverLocations(tokens.accessToken);
+      setGbpCache(cache);
+    } catch {
+      // Cache will be built on next use
+    }
+  }, []);
+
+  const disconnectGBP = useCallback(async () => {
+    await clearGBPTokens();
+    setGbpAccessToken(null);
+    setGbpCache(null);
+  }, []);
+
+  const getLocationName = useCallback(
+    (placeId: string): string | null => {
+      return gbpCache?.locationMap[placeId] ?? null;
+    },
+    [gbpCache],
+  );
+
   // ── QR helpers ──
   const buildQRPayload = useCallback((branch: Branch): QRPayload => ({
     branchId:     branch.id,
@@ -239,6 +298,12 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
       refreshBranches,
       buildQRPayload,
       buildQRUrl,
+      gbpAccessToken,
+      gbpConnected,
+      gbpCache,
+      connectGBP,
+      disconnectGBP,
+      getLocationName,
     }),
     [
       currentUser,
@@ -255,6 +320,12 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
       refreshBranches,
       buildQRPayload,
       buildQRUrl,
+      gbpAccessToken,
+      gbpConnected,
+      gbpCache,
+      connectGBP,
+      disconnectGBP,
+      getLocationName,
     ],
   );
 

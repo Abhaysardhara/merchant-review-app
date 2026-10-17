@@ -18,6 +18,9 @@ import { ContactUsScreen }         from '../screens/ContactUsScreen';
 import { FAQScreen }               from '../screens/FAQScreen';
 import { AboutScreen }             from '../screens/AboutScreen';
 import { DeleteAccountScreen }     from '../screens/DeleteAccountScreen';
+import { ReviewsScreen }           from '../screens/ReviewsScreen';
+import { ReviewReplyScreen }       from '../screens/ReviewReplyScreen';
+import { LanguageScreen }          from '../screens/LanguageScreen';
 
 const MerchantStack = createNativeStackNavigator<MerchantStackParamList>();
 
@@ -48,6 +51,9 @@ export function AppNavigator() {
             <MerchantStack.Screen name="FAQ"               component={FAQScreen} />
             <MerchantStack.Screen name="About"             component={AboutScreen} />
             <MerchantStack.Screen name="DeleteAccount"     component={DeleteAccountScreen} />
+            <MerchantStack.Screen name="Reviews"           component={ReviewsScreen} />
+            <MerchantStack.Screen name="ReviewReply"       component={ReviewReplyScreen} />
+            <MerchantStack.Screen name="Language"          component={LanguageScreen} />
           </>
         ) : (
           <MerchantStack.Screen name="SignIn" component={SignInScreen} />
