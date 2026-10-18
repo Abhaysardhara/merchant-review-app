@@ -2,6 +2,7 @@
   "expo": {
     "name": "ReviewReach: Google Reviews QR",
     "slug": "merchant-review-app",
+    "scheme": "reviewreach",
     "version": "1.0.0",
     "description": "AI-powered Google review generator for local businesses. Create QR codes, collect 5-star reviews, and boost your online reputation effortlessly.",
     "orientation": "portrait",
