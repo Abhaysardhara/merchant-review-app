@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "533006527655",
+    "project_id": "review-reach-58103",
+    "storage_bucket": "review-reach-58103.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:533006527655:android:ac1f431cff8fdfdc3aff82",
+        "android_client_info": {
+          "package_name": "com.reviewreach.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCgytDt_4EyoqPjlHp9nwH6M63g2rLm9yw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
