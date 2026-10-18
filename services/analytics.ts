@@ -114,8 +114,9 @@ export function emptyAnalytics(): BranchAnalytics {
 }
 
 export function conversionRate(analytics: BranchAnalytics): string {
-  if (analytics.totalScans === 0) return '0%';
-  const rate = (analytics.reviewsCopied / analytics.totalScans) * 100;
+  const total = analytics.totalScans + analytics.linkVisits;
+  if (total === 0) return '—';
+  const rate = (analytics.reviewsCopied / total) * 100;
   return `${rate.toFixed(1)}%`;
 }
 

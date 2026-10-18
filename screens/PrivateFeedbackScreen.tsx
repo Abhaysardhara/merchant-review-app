@@ -35,17 +35,20 @@ export function PrivateFeedbackScreen({ route, navigation }: Props) {
     }
 
     setIsSubmitting(true);
-
-    // Save feedback to Firestore under users/{uid}/branches/{placeId}/feedback
-    await logPrivateFeedback(payload.uid, payload.placeId, {
-      rating,
-      comment: comment.trim(),
-      phone:   phone.trim()  || undefined,
-      email:   email.trim()  || undefined,
-    });
-
-    setIsSubmitting(false);
-    setIsSubmitted(true);
+    try {
+      // Save feedback to Firestore under users/{uid}/branches/{placeId}/feedback
+      await logPrivateFeedback(payload.uid, payload.placeId, {
+        rating,
+        comment: comment.trim(),
+        phone:   phone.trim()  || undefined,
+        email:   email.trim()  || undefined,
+      });
+      setIsSubmitted(true);
+    } catch {
+      Alert.alert('Error', 'Failed to send feedback. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isSubmitted) {

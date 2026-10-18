@@ -76,14 +76,16 @@ export function onAuthStateChanged(callback: (user: User | null) => void) {
   return firebaseOnAuthStateChanged(auth, callback);
 }
 
-/** Delete all user data from Firestore, then remove the Firebase Auth account. */
+/** Delete the Firebase Auth account first, then wipe Firestore data.
+ *  Auth deletion is done first so that if it fails (e.g. requires-recent-login)
+ *  the user's data is not lost. */
 export async function deleteUserAccount(uid: string): Promise<void> {
-  const branchSnap = await getDocs(collection(db, 'users', uid, 'branches'));
-  await Promise.all(branchSnap.docs.map((d) => deleteDoc(d.ref)));
-
   if (auth.currentUser) {
     await deleteUser(auth.currentUser);
   }
+
+  const branchSnap = await getDocs(collection(db, 'users', uid, 'branches'));
+  await Promise.all(branchSnap.docs.map((d) => deleteDoc(d.ref)));
 }
 
 export type { User };

@@ -61,13 +61,18 @@ function BranchDetailsModal({ visible, store, onClose, onAdd }: BranchDetailsMod
     if (!branchName.trim()) { Alert.alert('Missing field', 'Please enter a branch name.'); return; }
     if (tones.length === 0) { Alert.alert('Select tone', 'Please select at least one AI tone.'); return; }
     setIsSaving(true);
-    await onAdd({
-      name: branchName.trim(), businessName: store.name, address: store.address,
-      googleMapsUrl: '', keywords: keywords.trim(), tone: tones.join(', '),
-      placeIdOverride: store.placeId || undefined,
-    });
-    setIsSaving(false);
-    onClose();
+    try {
+      await onAdd({
+        name: branchName.trim(), businessName: store.name, address: store.address,
+        googleMapsUrl: '', keywords: keywords.trim(), tone: tones.join(', '),
+        placeIdOverride: store.placeId || undefined,
+      });
+      onClose();
+    } catch {
+      Alert.alert('Error', 'Failed to add branch. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -240,7 +245,7 @@ export function MerchantDashboardScreen({ navigation, route }: Props) {
   }, [refreshBranches, spinAnim]);
 
   useEffect(() => {
-    const start = () => { intervalRef.current = setInterval(() => handleRefresh(true), AUTO_REFRESH_MS); };
+    const start = () => { stop(); intervalRef.current = setInterval(() => handleRefresh(true), AUTO_REFRESH_MS); };
     const stop  = () => { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; } };
     start();
     const sub = AppState.addEventListener('change', (s) => { if (s === 'active') start(); else stop(); });

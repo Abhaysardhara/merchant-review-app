@@ -1576,7 +1576,10 @@ var LANGUAGES = [
       setTimeout(function () { window.location.href = mapsUrl; }, 600);
     }
 
-    if (UID && PLACE_ID) registerReviewCopied(UID, PLACE_ID);
+    if (UID && PLACE_ID && !window._reviewCopiedLogged) {
+      window._reviewCopiedLogged = true;
+      registerReviewCopied(UID, PLACE_ID);
+    }
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text)

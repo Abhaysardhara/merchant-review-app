@@ -166,8 +166,7 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
         createdAt:    new Date().toISOString(),
       };
 
-      const updated = [...branches, branch];
-      setBranches(updated);
+      setBranches(prev => [...prev, branch]);
 
       // Persist to Firestore — config lives in users/{uid}/branches/{id},
       // read directly by the web page via uid+bid in the QR URL.
@@ -175,14 +174,13 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
 
       return branch;
     },
-    [currentUser, branches],
+    [currentUser],
   );
 
   const updateBranch = useCallback(
     async (id: string, updates: Partial<Branch>) => {
       if (!currentUser) return;
-      const updated = branches.map((b) => (b.id === id ? { ...b, ...updates } : b));
-      setBranches(updated);
+      setBranches(prev => prev.map((b) => (b.id === id ? { ...b, ...updates } : b)));
 
       const branch = branches.find((b) => b.id === id);
       if (!branch) return;
@@ -196,8 +194,7 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
     async (id: string) => {
       if (!currentUser) return;
       const branch = branches.find((b) => b.id === id);
-      const updated = branches.filter((b) => b.id !== id);
-      setBranches(updated);
+      setBranches(prev => prev.filter((b) => b.id !== id));
 
       if (branch) {
         await deleteUserBranch(currentUser.uid, id);
