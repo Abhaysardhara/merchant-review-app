@@ -8,15 +8,25 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
 import { GOOGLE_WEB_CLIENT_ID } from '../config';
+
+// Web Client ID from google-services.json (client_type: 3)
+const FIREBASE_WEB_CLIENT_ID = '533006527655-3oqflg7jdrdbe1ft3hvo6qfg2kvlcf96.apps.googleusercontent.com';
 import { useMerchant } from '../store/MerchantContext';
 
-GoogleSignin.configure({
-  webClientId: GOOGLE_WEB_CLIENT_ID,
-  offlineAccess: true,
-});
+const isExpoGo = Constants.appOwnership === 'expo';
+
+// Native Google Sign-In — only available in custom builds (APK/AAB), not Expo Go
+let GoogleSignin: any = null;
+if (!isExpoGo) {
+  GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
+  GoogleSignin.configure({
+    webClientId: FIREBASE_WEB_CLIENT_ID,
+    offlineAccess: true,
+  });
+}
 
 // ─────────────────────────────────────────────
 //  Google Sign-In (native)
@@ -130,8 +140,8 @@ export function SignInScreen() {
 
         <View style={styles.divider} />
 
-        {/* Always show Google sign-in; also show dev skip in __DEV__ */}
-        <GoogleSignInButton />
+        {/* Native Google sign-in (APK only); dev skip in Expo Go */}
+        {!isExpoGo && <GoogleSignInButton />}
         {__DEV__ && <DevSkipButton />}
 
         <Text style={styles.disclaimer}>

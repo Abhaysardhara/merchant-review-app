@@ -12,7 +12,20 @@
           "package_name": "com.reviewreach.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "533006527655-r0aa7unnqrtjg6n8gk8vcedb22qcgj88.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.reviewreach.app",
+            "certificate_hash": "0d7c8cc892d1c12e518f808c710307332892116e"
+          }
+        },
+        {
+          "client_id": "533006527655-3oqflg7jdrdbe1ft3hvo6qfg2kvlcf96.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCgytDt_4EyoqPjlHp9nwH6M63g2rLm9yw"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "533006527655-3oqflg7jdrdbe1ft3hvo6qfg2kvlcf96.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
