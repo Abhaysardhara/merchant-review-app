@@ -49,13 +49,6 @@ export function ContactUsScreen({ navigation }: Props) {
           onPress={() => Linking.openURL('mailto:support@reviewreach.app')}
         />
 
-        <ContactCard
-          icon="chatbubble-ellipses-outline" iconColor="#059669" iconBg="#D1FAE5"
-          title="WhatsApp"
-          subtitle="Chat with us directly"
-          onPress={() => Linking.openURL('https://wa.me/919876543210')}
-        />
-
         <View style={s.note}>
           <Ionicons name="time-outline" size={16} color="#94A3B8" />
           <Text style={s.noteText}>

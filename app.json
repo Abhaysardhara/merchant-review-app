@@ -4,7 +4,7 @@
     "slug": "merchant-review-app",
     "scheme": "reviewreach",
     "version": "1.0.0",
-    "description": "AI-powered Google review generator for local businesses. Create QR codes, collect 5-star reviews, and boost your online reputation effortlessly.",
+    "description": "AI-powered review assistant for local businesses. Create QR codes, help customers write Google reviews, and grow your online reputation.",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

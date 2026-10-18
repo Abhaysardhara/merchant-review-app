@@ -16,7 +16,7 @@ import React, {
   useState,
 } from 'react';
 import type { Branch, QRPayload } from '../types';
-import { emptyAnalytics } from '../services/analytics';
+import { emptyAnalytics, clearAllData } from '../services/analytics';
 import { resolvePlaceFromUrl } from '../services/mapsResolver';
 import {
   onAuthStateChanged,
@@ -27,6 +27,7 @@ import {
   deleteUserBranch,
   loadUserBranches,
   deleteUserAccount,
+  getBranchStatus,
   type User,
 } from '../services/firebase';
 import { REVIEW_WEB_URL } from '../config';
@@ -133,6 +134,7 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
   const deleteAccount = useCallback(async () => {
     if (!currentUser) return;
     await deleteUserAccount(currentUser.uid);
+    await clearAllData();
     setBranches([]);
     // deleteUser signs out automatically — onAuthStateChanged handles setCurrentUser(null)
   }, [currentUser]);
@@ -151,8 +153,25 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
       const placeId = params.placeIdOverride ?? resolved?.placeId ?? '';
       if (!placeId) return null;
 
-      // Use placeId as the document ID so the web page can look up
-      // users/{uid}/branches/{placeId} directly — no bid needed in the QR URL.
+      // Check if this placeId already exists in Firestore
+      const existing = await getBranchStatus(currentUser.uid, placeId);
+
+      if (existing?.status === 'active') {
+        throw new Error('This business is already added.');
+      }
+
+      // Build the branch object — if restoring an inactive branch,
+      // preserve the previous analytics from Firestore
+      const restoredAnalytics =
+        existing?.status === 'inactive'
+          ? {
+              totalScans:    typeof existing.data.totalScans    === 'number' ? existing.data.totalScans    : 0,
+              linkVisits:    typeof existing.data.linkVisits    === 'number' ? existing.data.linkVisits    : 0,
+              reviewsCopied: typeof existing.data.reviewsCopied === 'number' ? existing.data.reviewsCopied : 0,
+              lastScanAt:    (existing.data.lastScanAt as any)?.toDate?.()?.toISOString?.() ?? undefined,
+            }
+          : emptyAnalytics();
+
       const branch: Branch = {
         id: placeId,
         name:         params.name,
@@ -162,14 +181,13 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
         googleMapsUrl:params.googleMapsUrl,
         keywords:     params.keywords,
         tone:         params.tone,
-        analytics:    emptyAnalytics(),
-        createdAt:    new Date().toISOString(),
+        analytics:    restoredAnalytics,
+        createdAt:    (existing?.data.createdAt as string) ?? new Date().toISOString(),
       };
 
       setBranches(prev => [...prev, branch]);
 
-      // Persist to Firestore — config lives in users/{uid}/branches/{id},
-      // read directly by the web page via uid+bid in the QR URL.
+      // Persist to Firestore — clears the deleted flag if restoring.
       await saveUserBranch(currentUser.uid, branch);
 
       return branch;

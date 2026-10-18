@@ -14,6 +14,8 @@ android/
 .env
 .env.local
 .env*.local
+*.jks
+*.keystore
 
 # OS
 .DS_Store

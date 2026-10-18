@@ -68,8 +68,8 @@ function BranchDetailsModal({ visible, store, onClose, onAdd }: BranchDetailsMod
         placeIdOverride: store.placeId || undefined,
       });
       onClose();
-    } catch {
-      Alert.alert('Error', 'Failed to add branch. Please try again.');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to add branch. Please try again.');
     } finally {
       setIsSaving(false);
     }

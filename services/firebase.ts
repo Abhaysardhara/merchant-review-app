@@ -76,16 +76,24 @@ export function onAuthStateChanged(callback: (user: User | null) => void) {
   return firebaseOnAuthStateChanged(auth, callback);
 }
 
-/** Delete the Firebase Auth account first, then wipe Firestore data.
- *  Auth deletion is done first so that if it fails (e.g. requires-recent-login)
- *  the user's data is not lost. */
+/** Wipe all Firestore data (branches + feedback subcollections), then delete the
+ *  Firebase Auth account.  Data is deleted first because Firestore security rules
+ *  require an authenticated user — deleting auth first would block the writes. */
 export async function deleteUserAccount(uid: string): Promise<void> {
+  // 1. Delete all feedback docs under each branch, then the branch doc itself
+  const branchSnap = await getDocs(collection(db, 'users', uid, 'branches'));
+  for (const branchDoc of branchSnap.docs) {
+    const feedbackSnap = await getDocs(
+      collection(db, 'users', uid, 'branches', branchDoc.id, 'feedback'),
+    );
+    await Promise.all(feedbackSnap.docs.map((f) => deleteDoc(f.ref)));
+    await deleteDoc(branchDoc.ref);
+  }
+
+  // 2. Delete the auth account last
   if (auth.currentUser) {
     await deleteUser(auth.currentUser);
   }
-
-  const branchSnap = await getDocs(collection(db, 'users', uid, 'branches'));
-  await Promise.all(branchSnap.docs.map((d) => deleteDoc(d.ref)));
 }
 
 export type { User };
@@ -127,6 +135,18 @@ export async function deleteUserBranch(uid: string, branchId: string): Promise<v
     { deleted: true, deletedAt: serverTimestamp() },
     { merge: true },
   );
+}
+
+/** Check if a branch doc exists and return its status: 'active' | 'inactive' | null */
+export async function getBranchStatus(
+  uid: string,
+  placeId: string,
+): Promise<{ status: 'active' | 'inactive'; data: Record<string, unknown> } | null> {
+  const ref = doc(db, 'users', uid, 'branches', placeId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return null;
+  const data = snap.data();
+  return { status: data.deleted ? 'inactive' : 'active', data };
 }
 
 /** Load all branch docs for a user — config + analytics in one read.

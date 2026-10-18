@@ -96,6 +96,7 @@ export type CustomerStackParamList = {
 };
 
 export type MerchantStackParamList = {
+  Welcome: undefined;
   SignIn: undefined;
   MerchantDashboard: {
     /** Set by StoreSelectorScreen after a map pick — opens the modal pre-filled */

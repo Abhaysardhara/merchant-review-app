@@ -6,6 +6,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { MerchantStackParamList } from '../types';
 import { useMerchant } from '../store/MerchantContext';
 
+import { WelcomeScreen }            from '../screens/WelcomeScreen';
 import { SignInScreen }            from '../screens/SignInScreen';
 import { MerchantDashboardScreen } from '../screens/MerchantDashboardScreen';
 import { BranchDetailScreen }      from '../screens/BranchDetailScreen';
@@ -52,7 +53,10 @@ export function AppNavigator() {
             <MerchantStack.Screen name="Language"          component={LanguageScreen} />
           </>
         ) : (
-          <MerchantStack.Screen name="SignIn" component={SignInScreen} />
+          <>
+            <MerchantStack.Screen name="Welcome" component={WelcomeScreen} />
+            <MerchantStack.Screen name="SignIn" component={SignInScreen} />
+          </>
         )}
       </MerchantStack.Navigator>
     </NavigationContainer>

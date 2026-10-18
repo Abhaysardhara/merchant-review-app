@@ -42,7 +42,7 @@ export function SettingsScreen({ navigation }: Props) {
   const { locale, t } = useI18n();
   const currentLang = LANGUAGES.find((l) => l.code === locale);
 
-  const email = currentUser?.email ?? (currentUser?.isAnonymous ? 'Anonymous (Dev)' : '');
+  const email = currentUser?.email ?? '';
   const name  = currentUser?.displayName ?? '';
 
   return (
