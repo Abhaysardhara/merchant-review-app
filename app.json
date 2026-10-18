@@ -55,7 +55,10 @@
               "pathPrefix": "/merchant-review-app"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -80,6 +83,12 @@
       "eas": {
         "projectId": "c3dadfd5-6f3a-4f2d-9500-39e9e5247811"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/c3dadfd5-6f3a-4f2d-9500-39e9e5247811"
     }
   }
 }
