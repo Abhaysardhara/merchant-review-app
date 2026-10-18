@@ -56,41 +56,6 @@ const en = {
   // ── Quick Actions ──
   quick_whatsappMsg: 'Hi! Thank you for visiting {{business}}. We\'d love your feedback \u2014 it only takes 30 seconds:',
 
-  // ── Reviews ──
-  reviews_title: 'Google Reviews',
-  reviews_all: 'All',
-  reviews_needsReply: 'Needs Reply',
-  reviews_replied: 'Replied',
-  reviews_noReviews: 'No reviews yet',
-  reviews_allCaughtUp: 'All caught up!',
-  reviews_noReplies: 'No replies yet',
-  reviews_repliedAll: 'You\'ve replied to all reviews.',
-  reviews_willAppear: 'Reviews from Google will appear here.',
-  reviews_gbpNotConnected: 'GBP not connected',
-  reviews_connectGBP: 'Connect Google Business Profile in Settings to view reviews.',
-  reviews_noComment: 'No comment \u2014 rating only',
-  reviews_anonymous: 'Anonymous',
-
-  // ── Review Reply ──
-  reply_title: 'Reply to Review',
-  reply_editTitle: 'Edit Reply',
-  reply_yourReply: 'Your Reply',
-  reply_aiDraft: 'AI Draft',
-  reply_regenerate: 'Regenerate',
-  reply_generating: 'Generating AI reply...',
-  reply_post: 'Post Reply',
-  reply_update: 'Update Reply',
-  reply_deleteReply: 'Delete Reply',
-  reply_posted: 'Reply posted',
-  reply_postedSub: 'Your reply has been published on Google.',
-  reply_deleted: 'Deleted',
-  reply_deletedSub: 'Reply removed.',
-  reply_deleteConfirm: 'This will remove your reply from Google.',
-  reply_emptyError: 'Please write a reply before posting.',
-  reply_notConnected: 'Please connect Google Business Profile in Settings.',
-  reply_placeholder: 'Write your reply here...',
-  reply_generateError: 'Could not generate reply. Please try again or write manually.',
-
   // ── Feedback Inbox ──
   feedback_title: 'Feedback Inbox',
   feedback_empty: 'No feedback yet',
@@ -100,14 +65,6 @@ const en = {
 
   // ── Settings ──
   settings_title: 'Settings',
-  settings_integrations: 'INTEGRATIONS',
-  settings_gbpConnected: 'Google Business Profile',
-  settings_gbpConnectedSub: 'Connected \u2014 tap to disconnect',
-  settings_gbpConnect: 'Connect Google Business',
-  settings_gbpConnectSub: 'View & reply to Google reviews',
-  settings_gbpDisconnectTitle: 'Disconnect GBP?',
-  settings_gbpDisconnectMsg: 'You will no longer be able to view or reply to Google reviews from this app.',
-  settings_gbpSuccess: 'Google Business Profile linked successfully.',
   settings_legal: 'LEGAL',
   settings_privacy: 'Privacy Policy',
   settings_privacySub: 'How we handle your data',

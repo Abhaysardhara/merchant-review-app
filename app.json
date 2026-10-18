@@ -40,7 +40,7 @@
       ],
       "config": {
         "googleMaps": {
-          "apiKey": "GOOGLE_MAPS_API_KEY"
+          "apiKey": "AIzaSyDhvYzvwNkEvilUq_ixLQ2dxz8tBGKGu7M"
         }
       },
       "intentFilters": [
@@ -63,7 +63,7 @@
       "bundleIdentifier": "com.reviewreach.app",
       "buildNumber": "1",
       "config": {
-        "googleMapsApiKey": "GOOGLE_MAPS_API_KEY"
+        "googleMapsApiKey": "AIzaSyDhvYzvwNkEvilUq_ixLQ2dxz8tBGKGu7M"
       },
       "associatedDomains": [
         "applinks:abhaysardhara.github.io"

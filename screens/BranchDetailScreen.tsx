@@ -29,7 +29,7 @@ const TONES = [
 
 export function BranchDetailScreen({ route, navigation }: Props) {
   const { branchId } = route.params;
-  const { getBranch, updateBranch, deleteBranch, buildQRUrl, gbpConnected, getLocationName } = useMerchant();
+  const { getBranch, updateBranch, deleteBranch, buildQRUrl } = useMerchant();
   const insets = useSafeAreaInsets();
   const { t } = useI18n();
 
@@ -188,27 +188,6 @@ export function BranchDetailScreen({ route, navigation }: Props) {
               <Text style={styles.quickBtnLabel}>{t('branch_feedback')}</Text>
             </TouchableOpacity>
 
-            {gbpConnected && getLocationName(branch.placeId) && (
-              <TouchableOpacity
-                style={styles.quickBtn}
-                activeOpacity={0.8}
-                onPress={() => {
-                  const locationName = getLocationName(branch.placeId);
-                  if (locationName) {
-                    navigation.navigate('Reviews', {
-                      branchId: branch.id,
-                      branchName: branch.name,
-                      locationName,
-                    });
-                  }
-                }}
-              >
-                <View style={[styles.quickBtnIcon, { backgroundColor: '#EEF2FF' }]}>
-                  <Ionicons name="star" size={20} color="#4F46E5" />
-                </View>
-                <Text style={styles.quickBtnLabel}>{t('branch_reviews')}</Text>
-              </TouchableOpacity>
-            )}
           </View>
 
           {/* Branch Details */}

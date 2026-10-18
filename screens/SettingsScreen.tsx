@@ -2,11 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Share, Platform, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as AuthSession from 'expo-auth-session';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MerchantStackParamList } from '../types';
 import { useMerchant } from '../store/MerchantContext';
-import { GOOGLE_WEB_CLIENT_ID } from '../config';
 import { useI18n, LANGUAGES } from '../i18n';
 
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.reviewreach.app';
@@ -38,62 +36,11 @@ function SettingsRow({ icon, iconColor, iconBg, label, sub, onPress, danger }: R
   );
 }
 
-const GBP_DISCOVERY = {
-  authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
-  tokenEndpoint: 'https://oauth2.googleapis.com/token',
-};
-
 export function SettingsScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const { currentUser, logout, gbpConnected, connectGBP, disconnectGBP } = useMerchant();
+  const { currentUser, logout } = useMerchant();
   const { locale, t } = useI18n();
   const currentLang = LANGUAGES.find((l) => l.code === locale);
-
-  const handleConnectGBP = async () => {
-    try {
-      const redirectUri = AuthSession.makeRedirectUri({ scheme: 'com.reviewreach.app' });
-      const request = new AuthSession.AuthRequest({
-        clientId: GOOGLE_WEB_CLIENT_ID,
-        scopes: ['https://www.googleapis.com/auth/business.manage'],
-        redirectUri,
-        usePKCE: true,
-        responseType: AuthSession.ResponseType.Code,
-        extraParams: { access_type: 'offline', prompt: 'consent' },
-      });
-      const result = await request.promptAsync(GBP_DISCOVERY);
-      if (result.type === 'success' && result.params.code) {
-        // Exchange authorization code for tokens
-        const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: [
-            'grant_type=authorization_code',
-            `code=${encodeURIComponent(result.params.code)}`,
-            `client_id=${encodeURIComponent(GOOGLE_WEB_CLIENT_ID)}`,
-            `redirect_uri=${encodeURIComponent(redirectUri)}`,
-            `code_verifier=${encodeURIComponent(request.codeVerifier ?? '')}`,
-          ].join('&'),
-        });
-        if (!tokenRes.ok) throw new Error('Token exchange failed');
-        const data = await tokenRes.json();
-        await connectGBP({
-          accessToken: data.access_token,
-          refreshToken: data.refresh_token ?? '',
-          expiresAt: Date.now() + (data.expires_in ?? 3600) * 1000,
-        });
-        Alert.alert(t('common_success'), t('settings_gbpSuccess'));
-      }
-    } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed to connect Google Business Profile.');
-    }
-  };
-
-  const handleDisconnectGBP = () => {
-    Alert.alert(t('settings_gbpDisconnectTitle'), t('settings_gbpDisconnectMsg'), [
-      { text: t('common_cancel'), style: 'cancel' },
-      { text: 'Disconnect', style: 'destructive', onPress: () => disconnectGBP() },
-    ]);
-  };
 
   const email = currentUser?.email ?? (currentUser?.isAnonymous ? 'Anonymous (Dev)' : '');
   const name  = currentUser?.displayName ?? '';
@@ -130,26 +77,6 @@ export function SettingsScreen({ navigation }: Props) {
             sub={currentLang ? `${currentLang.flag} ${currentLang.nativeLabel}` : 'Change app language'}
             onPress={() => navigation.navigate('Language')}
           />
-        </View>
-
-        {/* Google Business Profile */}
-        <Text style={s.sectionTitle}>{t('settings_integrations')}</Text>
-        <View style={s.card}>
-          {gbpConnected ? (
-            <>
-              <SettingsRow
-                icon="checkmark-circle" iconColor="#059669" iconBg="#D1FAE5"
-                label={t('settings_gbpConnected')} sub={t('settings_gbpConnectedSub')}
-                onPress={handleDisconnectGBP}
-              />
-            </>
-          ) : (
-            <SettingsRow
-              icon="business-outline" iconColor="#4285F4" iconBg="#E8F0FE"
-              label={t('settings_gbpConnect')} sub={t('settings_gbpConnectSub')}
-              onPress={handleConnectGBP}
-            />
-          )}
         </View>
 
         {/* Legal */}
