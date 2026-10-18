@@ -159,8 +159,9 @@ export function SignInScreen() {
 
         <View style={styles.divider} />
 
-        {/* In dev: show skip button. In production: show real Google sign-in. */}
-        {__DEV__ ? <DevSkipButton /> : <GoogleSignInButton />}
+        {/* Always show Google sign-in; also show dev skip in __DEV__ */}
+        <GoogleSignInButton />
+        {__DEV__ && <DevSkipButton />}
 
         <Text style={styles.disclaimer}>
           By signing in you agree to our Terms of Service.{'\n'}
