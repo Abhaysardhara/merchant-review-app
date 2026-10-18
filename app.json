@@ -21,7 +21,8 @@
           "cameraPermission": "Allow ReviewReach to access your camera to scan QR codes at merchant counters."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "@react-native-google-signin/google-signin"
     ],
     "assetBundlePatterns": [
       "**/*"

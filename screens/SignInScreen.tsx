@@ -8,62 +8,33 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
-import * as AuthSession from 'expo-auth-session';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { Ionicons } from '@expo/vector-icons';
-import { GOOGLE_ANDROID_CLIENT_ID } from '../config';
+import { GOOGLE_WEB_CLIENT_ID } from '../config';
 import { useMerchant } from '../store/MerchantContext';
 
-WebBrowser.maybeCompleteAuthSession();
+GoogleSignin.configure({
+  webClientId: GOOGLE_WEB_CLIENT_ID,
+  offlineAccess: true,
+});
 
 // ─────────────────────────────────────────────
-//  Google Sign-In (production Android builds only)
+//  Google Sign-In (native)
 // ─────────────────────────────────────────────
 function GoogleSignInButton() {
   const { signInWithGoogle } = useMerchant();
   const [loading, setLoading] = useState(false);
 
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    androidClientId: GOOGLE_ANDROID_CLIENT_ID || undefined,
-    usePKCE:         true,
-    scopes:          ['openid', 'profile', 'email'],
-  });
-
-  useEffect(() => {
-    if (!response) return;
-    if (response.type === 'success') {
-      handleSuccess(response as typeof response & { type: 'success' });
-    } else if (response.type === 'error') {
-      setLoading(false);
-      Alert.alert('Sign-in failed', (response.error as any)?.message ?? 'An error occurred.');
-    } else if (response.type === 'dismiss' || response.type === 'cancel') {
-      setLoading(false);
-    }
-  }, [response]);
-
-  const handleSuccess = async (res: typeof response & { type: 'success' }) => {
+  const handlePress = async () => {
     try {
-      // Try id_token directly (some flows return it in params)
-      const idToken = res.params?.id_token;
-      if (idToken) {
-        await signInWithGoogle(idToken);
-        return;
+      setLoading(true);
+      await GoogleSignin.hasPlayServices();
+      const response = await GoogleSignin.signIn();
+      if (response.type === 'success' && response.data?.idToken) {
+        await signInWithGoogle(response.data.idToken);
+      } else {
+        setLoading(false);
       }
-      // Otherwise exchange the authorization code
-      const tokenResponse = await AuthSession.exchangeCodeAsync(
-        {
-          clientId:    GOOGLE_ANDROID_CLIENT_ID,
-          code:        res.params.code,
-          redirectUri: request?.redirectUri ?? '',
-          extraParams: request?.codeVerifier
-            ? { code_verifier: request.codeVerifier }
-            : {},
-        },
-        { tokenEndpoint: 'https://oauth2.googleapis.com/token' },
-      );
-      if (!tokenResponse.idToken) throw new Error('No ID token returned from Google.');
-      await signInWithGoogle(tokenResponse.idToken);
     } catch (e: any) {
       setLoading(false);
       Alert.alert('Sign-in failed', e?.message ?? 'Could not sign in. Please try again.');
@@ -72,9 +43,9 @@ function GoogleSignInButton() {
 
   return (
     <TouchableOpacity
-      style={[styles.googleBtn, (loading || !request) && styles.googleBtnDisabled]}
-      onPress={() => { setLoading(true); promptAsync(); }}
-      disabled={loading || !request}
+      style={[styles.googleBtn, loading && styles.googleBtnDisabled]}
+      onPress={handlePress}
+      disabled={loading}
       activeOpacity={0.88}
     >
       {loading ? (
