@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { GoogleGenAI } from "@google/genai";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_MODEL = "gemini-3.1-flash-lite";
 
 export const reviewRouter = Router();
 

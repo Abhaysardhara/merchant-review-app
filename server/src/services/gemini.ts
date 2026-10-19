@@ -1,5 +1,5 @@
 /**
- * Gemini review generation service using gemini-2.5-flash via @google/genai.
+ * Gemini review generation service using gemini-3.1-flash-lite via @google/genai.
  * Takes a raw transcript and produces a polished 5-star Google review.
  */
 
@@ -33,7 +33,7 @@ export async function generateReview(
   const userPrompt = buildUserPrompt(input);
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-3.1-flash-lite",
     contents: [{ role: "user", parts: [{ text: userPrompt }] }],
     config: {
       systemInstruction: systemPrompt,

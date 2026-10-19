@@ -26,6 +26,9 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Test files with secrets
+web/test.html
+
 # Logs
 *.log
 npm-debug.log*

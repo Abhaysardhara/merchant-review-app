@@ -29,8 +29,8 @@ feedbackRouter.post(
         return;
       }
 
-      if (typeof rating !== "number" || rating < 1 || rating > 5) {
-        res.status(400).json({ success: false, error: "Rating must be 1-5" });
+      if (typeof rating !== "number" || rating < 0 || rating > 5) {
+        res.status(400).json({ success: false, error: "Rating must be 0-5" });
         return;
       }
 
