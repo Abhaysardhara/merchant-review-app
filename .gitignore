@@ -14,6 +14,7 @@ android/
 .env
 .env.local
 .env*.local
+server/.env
 *.jks
 *.keystore
 
@@ -24,6 +25,9 @@ Thumbs.db
 # Editor
 .vscode/
 .idea/
+
+# Test files with secrets
+web/test.html
 
 # Logs
 *.log

@@ -10,7 +10,8 @@
   <meta name="robots" content="noindex, nofollow" />
 
   <!--
-    Security: restrict outbound connections to only the two APIs this page needs.
+    Security: all API calls now go through our backend server.
+    No third-party API keys are exposed in this page.
     frame-ancestors 'none' blocks clickjacking.
     script-src 'unsafe-inline' is required because all JS is inline in this static file.
   -->
@@ -18,7 +19,7 @@
     default-src 'none';
     script-src 'unsafe-inline';
     style-src 'unsafe-inline';
-    connect-src https://generativelanguage.googleapis.com https://places.googleapis.com https://firestore.googleapis.com;
+    connect-src https://api.reviewreach.app wss://api.reviewreach.app http://localhost:3000 ws://localhost:3000;
     img-src 'self' data:;
     frame-ancestors 'none';
   " />
@@ -406,34 +407,22 @@
       font-size: 12px; font-weight: 600; color: #DC2626; cursor: pointer;
     }
 
-    /* ── Star bar (always visible) ── */
-    .star-bar { text-align: center; }
-    .star-bar-title {
-      font-size: 15px; font-weight: 700; color: var(--gray-900);
-      margin-bottom: 12px;
+    /* ── Private feedback link ── */
+    .fb-link {
+      text-align: center;
+      margin-top: 4px;
+      margin-bottom: 8px;
     }
-    .star-bar-sub {
-      font-size: 12px; color: var(--gray-400); margin-top: 2px;
-      min-height: 16px;
+    .fb-link a {
+      font-size: 12px;
+      color: var(--gray-400);
+      text-decoration: none;
+      cursor: pointer;
     }
-    .star-select {
-      display: flex; justify-content: center; gap: 8px;
-    }
-    .star-select button {
-      width: 48px; height: 48px; border-radius: 14px;
-      border: 2px solid var(--gray-200); background: #fff;
-      font-size: 24px; cursor: pointer;
-      transition: all .15s;
-      -webkit-tap-highlight-color: transparent;
-      display: flex; align-items: center; justify-content: center;
-      color: var(--gray-200);
-    }
-    .star-select button:active { transform: scale(0.92); }
-    .star-select button.active {
-      border-color: #F59E0B; background: #FFFBEB; color: #F59E0B;
-    }
+    .fb-link a:hover { color: var(--purple); }
+    .fb-link a span { margin-right: 3px; }
 
-    /* ── Feedback form (1-3 stars) ── */
+    /* ── Feedback form ── */
     .fb-badge {
       display: flex; align-items: flex-start; gap: 10px;
       background: #F5F3FF; border: 1px solid #DDD6FE;
@@ -489,6 +478,151 @@
     .fb-success-msg {
       font-size: 14px; color: var(--gray-500); line-height: 1.6;
     }
+    /* ── Mode toggle (Type / Speak) ── */
+    .mode-toggle {
+      display: flex;
+      background: var(--gray-100);
+      border-radius: 10px;
+      padding: 3px;
+      margin-bottom: 16px;
+    }
+    .mode-tab {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 9px 10px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--gray-400);
+      cursor: pointer;
+      transition: all .2s;
+      font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mode-tab.active {
+      background: #fff;
+      color: var(--gray-900);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .mode-tab .tab-icon { font-size: 15px; }
+
+    /* Mode panels */
+    .mode-panel { display: none; }
+    .mode-panel.active { display: block; }
+
+    /* ── Speak mode ── */
+    .speak-area {
+      text-align: center;
+      padding: 8px 0 4px;
+    }
+    .mic-btn {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      border: 3px solid var(--gray-200);
+      background: #fff;
+      font-size: 32px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all .2s;
+      -webkit-tap-highlight-color: transparent;
+      position: relative;
+    }
+    .mic-btn:active { transform: scale(0.94); }
+    .mic-btn.recording {
+      border-color: #EF4444;
+      background: #FEF2F2;
+      animation: pulse-ring 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse-ring {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.35); }
+      50% { box-shadow: 0 0 0 14px rgba(239,68,68,0); }
+    }
+    .mic-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--gray-500);
+      margin-top: 10px;
+    }
+    .mic-label strong { color: var(--gray-900); }
+    .mic-timer {
+      display: none;
+      font-size: 22px;
+      font-weight: 700;
+      color: #EF4444;
+      margin-top: 6px;
+      letter-spacing: 1px;
+      font-variant-numeric: tabular-nums;
+    }
+    .mic-timer.visible { display: block; }
+    .mic-lang-hint {
+      font-size: 11px;
+      color: var(--gray-400);
+      margin-top: 8px;
+    }
+
+    /* Live transcript */
+    .live-transcript {
+      display: none;
+      background: var(--gray-50);
+      border: 1.5px dashed var(--gray-200);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-top: 14px;
+      min-height: 48px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--gray-700);
+      text-align: left;
+      transition: border-color .2s;
+    }
+    .live-transcript.visible { display: block; }
+    .live-transcript.active {
+      border-color: #EF4444;
+      border-style: solid;
+    }
+    .live-transcript-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--gray-400);
+      margin-bottom: 4px;
+    }
+    .live-transcript-text { min-height: 20px; }
+    .live-transcript-text .interim {
+      color: var(--gray-400);
+      font-style: italic;
+    }
+
+    /* Polish spinner */
+    .polish-overlay {
+      display: none;
+      text-align: center;
+      padding: 16px 12px;
+      margin-top: 14px;
+    }
+    .polish-overlay.visible { display: block; }
+    .polish-overlay .polish-spinner {
+      display: inline-block;
+      width: 22px; height: 22px;
+      border: 2.5px solid var(--gray-200);
+      border-top-color: var(--indigo);
+      border-radius: 50%;
+      animation: spin-anim 0.6s linear infinite;
+    }
+    @keyframes spin-anim { to { transform: rotate(360deg); } }
+    .polish-overlay .polish-text {
+      font-size: 13px;
+      color: var(--gray-500);
+      margin-top: 8px;
+    }
   </style>
 </head>
 
@@ -502,82 +636,69 @@
 
   <div class="container" id="appRoot">
 
-    <!-- ── Star bar (always visible) ── -->
-    <div class="card star-bar" id="starBar">
-      <div class="star-bar-title" id="starBarTitle">How was your experience?</div>
-      <div class="star-select" id="starSelect">
-        <button onclick="selectRating(1)" data-star="1">★</button>
-        <button onclick="selectRating(2)" data-star="2">★</button>
-        <button onclick="selectRating(3)" data-star="3">★</button>
-        <button onclick="selectRating(4)" data-star="4">★</button>
-        <button onclick="selectRating(5)" data-star="5">★</button>
-      </div>
-      <div class="star-bar-sub" id="starBarSub">Tap a star to rate</div>
-    </div>
-
-    <!-- ── Feedback form (1-3 stars) ── -->
-    <div id="feedbackSection" style="display:none">
-      <div class="card">
-        <div class="fb-badge">
-          <span class="fb-badge-icon">🔒</span>
-          <span class="fb-badge-text">
-            This feedback is completely private and goes directly to the manager — it will never appear on Google.
-          </span>
-        </div>
-        <div class="fb-label">What went wrong? *</div>
-        <textarea class="fb-textarea" id="fbComment" placeholder="Please describe your experience so we can improve…" spellcheck="true"></textarea>
-        <div class="fb-contact-title">Contact (Optional)</div>
-        <div class="fb-contact-sub">Leave your details if you'd like a follow-up</div>
-        <div class="fb-label">Phone</div>
-        <input class="fb-input" id="fbPhone" type="tel" placeholder="+91 98765 43210" />
-        <div class="fb-label">Email</div>
-        <input class="fb-input" id="fbEmail" type="email" placeholder="you@example.com" />
-        <button class="fb-submit" id="fbSubmitBtn" onclick="submitFeedback()">
-          <span>📩</span> Send to Manager
-        </button>
-      </div>
-    </div>
-
-    <!-- ── Feedback success ── -->
-    <div id="feedbackSuccess" style="display:none">
-      <div class="card fb-success">
-        <div class="fb-success-icon">✅</div>
-        <div class="fb-success-title">Thank You!</div>
-        <div class="fb-success-msg">
-          Your feedback has been sent directly to the manager. We take every concern seriously and will work to improve your experience.
-        </div>
-      </div>
-    </div>
-
-    <!-- ── Review flow (4-5 stars) ── -->
-    <div id="reviewFlow" style="display:none">
+    <!-- ── Review flow (shown immediately) ── -->
+    <div id="reviewFlow">
 
     <!-- Review card -->
     <div class="card">
-      <div class="lang-wrap">
-        <span class="lang-icon">🌐</span>
-        <div class="lang-dropdown" id="langDropdown">
-          <input class="lang-input" id="langInput" type="text"
-                 placeholder="Search language…" autocomplete="off" spellcheck="false" />
-          <div class="lang-list" id="langList"></div>
+
+      <!-- ── Mode toggle ── -->
+      <div class="mode-toggle">
+        <button class="mode-tab active" id="tabType" onclick="switchMode('type')">
+          <span class="tab-icon">✍️</span> Type
+        </button>
+        <button class="mode-tab" id="tabSpeak" onclick="switchMode('speak')">
+          <span class="tab-icon">🎙️</span> Speak
+        </button>
+      </div>
+
+      <!-- ── Type mode (existing AI draft flow) ── -->
+      <div class="mode-panel active" id="panelType">
+        <div class="lang-wrap">
+          <span class="lang-icon">🌐</span>
+          <div class="lang-dropdown" id="langDropdown">
+            <input class="lang-input" id="langInput" type="text"
+                   placeholder="Search language…" autocomplete="off" spellcheck="false" />
+            <div class="lang-list" id="langList"></div>
+          </div>
+        </div>
+
+        <!-- AI error banner -->
+        <div class="ai-error" id="aiError">
+          <span class="ai-error-icon">⚠️</span>
+          <div class="ai-error-body">
+            <div class="ai-error-title">Could not generate review</div>
+            <div class="ai-error-msg" id="aiErrorMsg"></div>
+            <button class="ai-error-retry" onclick="regenerate()">🔄 Try again</button>
+          </div>
         </div>
       </div>
 
-
-      <!-- AI error banner — shown instead of putting error in textarea -->
-      <div class="ai-error" id="aiError">
-        <span class="ai-error-icon">⚠️</span>
-        <div class="ai-error-body">
-          <div class="ai-error-title">Could not generate review</div>
-          <div class="ai-error-msg" id="aiErrorMsg"></div>
-          <button class="ai-error-retry" onclick="regenerate()">🔄 Try again</button>
+      <!-- ── Speak mode (voice recording) ── -->
+      <div class="mode-panel" id="panelSpeak">
+        <div class="speak-area">
+          <button class="mic-btn" id="micBtn" onclick="toggleRecording()">🎙️</button>
+          <div class="mic-label" id="micLabel">Tap to <strong>start recording</strong></div>
+          <div class="mic-timer" id="micTimer">0:00</div>
+          <div class="mic-lang-hint">Speak in any language — we'll detect it automatically</div>
+        </div>
+        <div class="live-transcript" id="liveTranscript">
+          <div class="live-transcript-label">What we heard</div>
+          <div class="live-transcript-text" id="liveText"></div>
+        </div>
+        <div class="polish-overlay" id="polishOverlay">
+          <div class="polish-spinner"></div>
+          <div class="polish-text">Polishing your review…</div>
         </div>
       </div>
 
-      <div class="review-label">Your Review — edit if you like</div>
-      <textarea class="review-box" id="reviewText" rows="6" spellcheck="true"></textarea>
+      <!-- ── Shared: review textarea + regenerate ── -->
+      <div id="reviewSection">
+        <div class="review-label">Your Review — edit if you like</div>
+        <textarea class="review-box" id="reviewText" rows="6" spellcheck="true"></textarea>
+      </div>
 
-      <div class="regen-row">
+      <div class="regen-row" id="regenRow">
         <button class="regen-btn" id="regenBtn" onclick="regenerate()">
           <span class="spin" id="spinIcon">🔄</span> Different review
         </button>
@@ -629,6 +750,45 @@
 
     </div><!-- /reviewFlow -->
 
+    <!-- ── Private feedback link ── -->
+    <div class="fb-link" id="fbLink">
+      <a onclick="showFeedbackForm()"><span>💬</span>Had a bad experience? Send private feedback instead</a>
+    </div>
+
+    <!-- ── Feedback form (hidden, shown via link) ── -->
+    <div id="feedbackSection" style="display:none">
+      <div class="card">
+        <div class="fb-badge">
+          <span class="fb-badge-icon">🔒</span>
+          <span class="fb-badge-text">
+            This feedback is completely private and goes directly to the manager — it will never appear on Google.
+          </span>
+        </div>
+        <div class="fb-label">What happened? *</div>
+        <textarea class="fb-textarea" id="fbComment" placeholder="Please describe your experience so we can improve…" spellcheck="true"></textarea>
+        <div class="fb-contact-title">Contact (Optional)</div>
+        <div class="fb-contact-sub">Leave your details if you'd like a follow-up</div>
+        <div class="fb-label">Phone</div>
+        <input class="fb-input" id="fbPhone" type="tel" placeholder="+91 98765 43210" />
+        <div class="fb-label">Email</div>
+        <input class="fb-input" id="fbEmail" type="email" placeholder="you@example.com" />
+        <button class="fb-submit" id="fbSubmitBtn" onclick="submitFeedback()">
+          <span>📩</span> Send Private Feedback
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Feedback success ── -->
+    <div id="feedbackSuccess" style="display:none">
+      <div class="card fb-success">
+        <div class="fb-success-icon">✅</div>
+        <div class="fb-success-title">Thank You!</div>
+        <div class="fb-success-msg">
+          Your feedback has been sent directly to the manager. We take every concern seriously and will work to improve your experience.
+        </div>
+      </div>
+    </div>
+
     <div class="footer">Powered by ReviewReach</div>
   </div>
 
@@ -638,12 +798,11 @@
 <script>
 // ─────────────────────────────────────────────
 //  Config
-//  IMPORTANT: restrict both keys to HTTP referrers in Google Cloud Console
-//  so they only work on your GitHub Pages domain. View source exposes them.
+//  All API calls go through our backend — no keys exposed here.
 // ─────────────────────────────────────────────
-var GEMINI_API_KEY  = 'YOUR_GEMINI_API_KEY';
-var GEMINI_MODEL    = 'gemini-3.5-flash-lite';
-var MAPS_API_KEY    = 'YOUR_MAPS_API_KEY';
+var API_BASE = (window.location.hostname === 'localhost' || window.location.protocol === 'file:')
+  ? 'http://localhost:3000'
+  : 'https://api.reviewreach.app';
 
 // ─────────────────────────────────────────────
 //  World languages — sorted alphabetically by English name
@@ -1007,25 +1166,6 @@ var LANGUAGES = [
     return 'service'; // final fallback
   }
 
-  // ── Google Places API — fetch rich place attributes ──
-  var PLACE_FIELDS = [
-    // Pro
-    'displayName','primaryType','primaryTypeDisplayName','types','businessStatus',
-    'formattedAddress','shortFormattedAddress',
-    // Enterprise
-    'priceLevel','priceRange','rating','userRatingCount',
-    // Enterprise + Atmosphere
-    'editorialSummary','generativeSummary','reviewSummary',
-    'reviews',
-    'delivery','dineIn','takeout','curbsidePickup','reservable',
-    'outdoorSeating','liveMusic','goodForWatchingSports',
-    'servesBeer','servesWine','servesCocktails','servesCoffee',
-    'servesBreakfast','servesBrunch','servesLunch','servesDinner',
-    'servesDessert','servesVegetarianFood',
-    'allowsDogs','menuForChildren','goodForChildren','goodForGroups',
-    'restroom','parkingOptions','paymentOptions','accessibilityOptions',
-  ].join(',');
-
   // ── Places API cache (localStorage, 7-day expiry) ────────────────
   // Key:   rr_place_v1_{placeId}   (namespaced to avoid collisions)
   // Value: { data: <API response>, expiresAt: <unix ms> }
@@ -1060,23 +1200,22 @@ var LANGUAGES = [
   }
 
   async function fetchPlaceDetails(placeId) {
-    if (!placeId || !MAPS_API_KEY || MAPS_API_KEY.startsWith('YOUR_')) return null;
+    if (!placeId) return null;
 
     // 1. Try cache first
     var cached = cacheGet(placeId);
     if (cached) return cached;
 
-    // 2. Fetch from API
+    // 2. Fetch from backend (API key stays server-side)
     try {
-      var url = 'https://places.googleapis.com/v1/places/' + encodeURIComponent(placeId)
-                + '?fields=' + PLACE_FIELDS + '&key=' + MAPS_API_KEY;
-      var res = await fetch(url);
+      var res = await fetch(API_BASE + '/api/v1/places/' + encodeURIComponent(placeId));
       if (!res.ok) return null;
-      var data = await res.json();
-      if (data && !data.error) {
-        cacheSet(placeId, data); // store only valid responses
+      var json = await res.json();
+      if (json.success && json.data) {
+        cacheSet(placeId, json.data);
+        return json.data;
       }
-      return data.error ? null : data;
+      return null;
     } catch (e) { return null; }
   }
 
@@ -1329,42 +1468,24 @@ var LANGUAGES = [
   ].join(' ');
 
   async function fetchGeminiReview(lang, placeDetails) {
-    if (!GEMINI_API_KEY || GEMINI_API_KEY.startsWith('YOUR_')) {
-      throw new Error('GEMINI_API_KEY not injected — placeholder still present in HTML');
-    }
-    console.log('[Gemini] model:', GEMINI_MODEL, '| key prefix:', GEMINI_API_KEY.slice(0, 8) + '…');
-    var url = 'https://generativelanguage.googleapis.com/v1beta/models/'
-              + GEMINI_MODEL + ':generateContent?key=' + GEMINI_API_KEY;
-    var res = await fetch(url, {
+    var res = await fetch(API_BASE + '/api/v1/review/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-        contents: [{ role: 'user', parts: [{ text: buildPrompt(lang, placeDetails) }] }],
-        generationConfig: { temperature: 1.1, maxOutputTokens: 320, topP: 0.95 },
-        safetySettings: [
-          { category: 'HARM_CATEGORY_HARASSMENT',        threshold: 'BLOCK_NONE' },
-          { category: 'HARM_CATEGORY_HATE_SPEECH',       threshold: 'BLOCK_NONE' },
-          { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-        ],
+        systemInstruction: SYSTEM_INSTRUCTION,
+        prompt: buildPrompt(lang, placeDetails),
       }),
     });
     if (!res.ok) {
       var errBody = '';
-      try { errBody = JSON.stringify(await res.json()); } catch(e) {}
-      console.error('[Gemini] HTTP', res.status, errBody);
+      try { errBody = (await res.json()).error || ''; } catch(e) {}
       throw new Error('HTTP ' + res.status + ' — ' + errBody);
     }
-    var data = await res.json();
-    console.log('[Gemini] raw response:', JSON.stringify(data).slice(0, 500));
-    var text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) {
-      var reason = data?.candidates?.[0]?.finishReason || data?.promptFeedback?.blockReason || 'unknown';
-      console.error('[Gemini] empty text, reason:', reason, JSON.stringify(data));
-      throw new Error('Empty response — reason: ' + reason);
+    var json = await res.json();
+    if (!json.success || !json.data || !json.data.text) {
+      throw new Error(json.error || 'Empty response from review API');
     }
-    return text.trim();
+    return json.data.text;
   }
 
 
@@ -1387,76 +1508,46 @@ var LANGUAGES = [
   // ── Firestore REST fetch — branch config from users/{uid}/branches/{bid} ──
   // Config is owned by the merchant — other users cannot overwrite it.
   // Analytics (totalScans etc.) remain in branches/{placeId}, written by this page.
-  var FIRESTORE_PROJECT  = 'review-reach-58103';
   var cachedBranchConfig = undefined; // undefined = not fetched; null = not found
 
   async function fetchBranchConfig(uid, placeId) {
     if (!uid || !placeId) return null;
     try {
-      // Branch doc ID == placeId, so no bid needed in the URL
-      var url = 'https://firestore.googleapis.com/v1/projects/' + FIRESTORE_PROJECT
-              + '/databases/(default)/documents/users/' + encodeURIComponent(uid)
-              + '/branches/' + encodeURIComponent(placeId);
-      var res = await fetch(url);
+      var res = await fetch(API_BASE + '/api/v1/merchants/' + encodeURIComponent(uid)
+                + '/branches/' + encodeURIComponent(placeId));
       if (!res.ok) return null;
-      var data = await res.json();
-      var f = data.fields;
-      if (!f) return null;
+      var json = await res.json();
+      if (!json.success || !json.data) return null;
       return {
-        tone:         f.tone         && f.tone.stringValue         ? f.tone.stringValue         : '',
-        keywords:     f.keywords     && f.keywords.stringValue     ? f.keywords.stringValue     : '',
-        businessName: f.businessName && f.businessName.stringValue ? f.businessName.stringValue : '',
+        tone:         json.data.tone         || '',
+        keywords:     json.data.keywords     || '',
+        businessName: json.data.businessName || '',
       };
     } catch (e) { return null; }
   }
 
-  // ── Firestore REST write — shared transform helper ───────────────────
-  async function firestoreTransform(docPath, fields) {
-    try {
-      var url = 'https://firestore.googleapis.com/v1/projects/' + FIRESTORE_PROJECT
-              + '/databases/(default)/documents:commit';
-      await fetch(url, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ writes: [{ transform: { document: docPath, fieldTransforms: fields } }] }),
-      });
-    } catch (e) {
-      console.warn('[ReviewReach] Firestore write failed:', e.message);
-    }
-  }
-
-  // Analytics are written to users/{uid}/branches/{placeId} — the same doc
-  // that holds config — so each merchant's stats are fully isolated.
-  function userBranchDocPath(uid, placeId) {
-    return 'projects/' + FIRESTORE_PROJECT + '/databases/(default)/documents/users/'
-      + encodeURIComponent(uid) + '/branches/' + encodeURIComponent(placeId);
-  }
-
-  function registerQrScan(uid, placeId) {
+  // ── Analytics — proxied through backend ──────────────────────────────
+  function postAnalytics(uid, placeId, event) {
     if (!uid || !placeId) return;
-    firestoreTransform(userBranchDocPath(uid, placeId), [
-      { fieldPath: 'totalScans', increment: { integerValue: '1' } },
-      { fieldPath: 'lastScanAt', setToServerValue: 'REQUEST_TIME' },
-    ]);
+    fetch(API_BASE + '/api/v1/merchants/' + encodeURIComponent(uid)
+      + '/branches/' + encodeURIComponent(placeId) + '/analytics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: event }),
+    }).catch(function (e) {
+      console.warn('[ReviewReach] Analytics write failed:', e.message);
+    });
   }
 
-  function registerLinkVisit(uid, placeId) {
-    if (!uid || !placeId) return;
-    firestoreTransform(userBranchDocPath(uid, placeId), [
-      { fieldPath: 'linkVisits', increment: { integerValue: '1' } },
-    ]);
-  }
-
-  function registerReviewCopied(uid, placeId) {
-    if (!uid || !placeId) return;
-    firestoreTransform(userBranchDocPath(uid, placeId), [
-      { fieldPath: 'reviewsCopied', increment: { integerValue: '1' } },
-    ]);
-  }
+  function registerQrScan(uid, placeId)      { postAnalytics(uid, placeId, 'qr_scan'); }
+  function registerLinkVisit(uid, placeId)    { postAnalytics(uid, placeId, 'link_visit'); }
+  function registerReviewCopied(uid, placeId) { postAnalytics(uid, placeId, 'review_copied'); }
 
   // ── Generate & display ───────────────────────
-  var currentLang  = 'en';
-  var cachedPlace  = undefined; // undefined = not yet fetched; null = fetched but failed
+  var currentLang      = 'en';
+  var cachedPlace      = undefined; // undefined = not yet fetched; null = fetched but failed
+  var cachedTypeReview  = '';       // last AI-generated (or user-edited) type review
+  var cachedVoiceReview = '';       // last voice-polished review
 
   async function generateAndShow(lang) {
     setLoading(true);
@@ -1527,6 +1618,7 @@ var LANGUAGES = [
     if (cta) { cta.disabled = false; cta.style.opacity = ''; }
     setLoading(false);
     document.getElementById('reviewText').value = text;
+    cachedTypeReview = text;
   }
 
   // ── Language switcher ────────────────────────
@@ -1602,48 +1694,14 @@ var LANGUAGES = [
     document.body.removeChild(ta);
   }
 
-  // ── Star rating (persistent) ─────────────────
-  var selectedRating = 0;
-  var reviewGenerated = false;
-
-  window.selectRating = function (n) {
-    selectedRating = n;
-
-    // Highlight stars up to n
-    var btns = document.querySelectorAll('#starSelect button');
-    btns.forEach(function (btn) {
-      var star = parseInt(btn.getAttribute('data-star'));
-      btn.classList.toggle('active', star <= n);
-    });
-
-    // Update title and subtitle
-    var title = document.getElementById('starBarTitle');
-    var sub   = document.getElementById('starBarSub');
-
-    if (n >= 4) {
-      title.textContent = 'Great! Here\'s a review draft for you';
-      sub.textContent   = 'Tap a star to change your rating';
-
-      // Show review flow, hide feedback
-      document.getElementById('feedbackSection').style.display = 'none';
-      document.getElementById('reviewFlow').style.display = 'block';
-
-      // Only call Gemini once — reuse the generated review on re-select
-      if (!reviewGenerated) {
-        reviewGenerated = true;
-        generateAndShow('en');
-      }
-    } else {
-      title.textContent = 'We\'re sorry — tell us what went wrong';
-      sub.textContent   = 'Tap a star to change your rating';
-
-      // Show feedback form, hide review flow
-      document.getElementById('reviewFlow').style.display = 'none';
-      document.getElementById('feedbackSection').style.display = 'block';
-    }
+  // ── Show private feedback form ────────────────
+  window.showFeedbackForm = function () {
+    document.getElementById('fbLink').style.display = 'none';
+    document.getElementById('feedbackSection').style.display = 'block';
+    document.getElementById('fbComment').focus();
   };
 
-  // ── Feedback submission (Firestore REST) ────
+  // ── Feedback submission (via backend) ────────
   window.submitFeedback = function () {
     var comment = (document.getElementById('fbComment').value || '').trim();
     if (!comment) {
@@ -1657,80 +1715,315 @@ var LANGUAGES = [
     btn.disabled = true;
     btn.textContent = 'Sending…';
 
-    var docFields = {
-      rating:    { integerValue: selectedRating },
-      comment:   { stringValue: comment },
-      createdAt: { timestampValue: new Date().toISOString() },
+    var feedbackBody = {
+      rating:  0,
+      comment: comment,
     };
-    if (phone) docFields.phone = { stringValue: phone };
-    if (email) docFields.email = { stringValue: email };
+    if (phone) feedbackBody.phone = phone;
+    if (email) feedbackBody.email = email;
 
-    var url = 'https://firestore.googleapis.com/v1/projects/' + FIRESTORE_PROJECT
-            + '/databases/(default)/documents/users/' + encodeURIComponent(UID)
-            + '/branches/' + encodeURIComponent(PLACE_ID) + '/feedback';
-
-    fetch(url, {
+    fetch(API_BASE + '/api/v1/merchants/' + encodeURIComponent(UID)
+      + '/branches/' + encodeURIComponent(PLACE_ID) + '/feedback', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fields: docFields }),
+      body: JSON.stringify(feedbackBody),
     })
     .then(function () {
       document.getElementById('feedbackSection').style.display = 'none';
       document.getElementById('feedbackSuccess').style.display = 'block';
     })
     .catch(function () {
-      // Still show success — feedback is best-effort
       document.getElementById('feedbackSection').style.display = 'none';
       document.getElementById('feedbackSuccess').style.display = 'block';
     });
   };
 
+  // ── Mode toggle (Type / Speak) ────────────────
+  var currentMode = 'type'; // 'type' or 'speak'
+
+  window.switchMode = function (mode) {
+    if (mode === currentMode) return;
+    var ta = document.getElementById('reviewText');
+
+    // Save current textarea content to the appropriate cache before switching
+    if (currentMode === 'type') {
+      cachedTypeReview = ta.value;
+    } else {
+      cachedVoiceReview = ta.value;
+    }
+
+    currentMode = mode;
+
+    // Toggle tab active state
+    document.getElementById('tabType').classList.toggle('active', mode === 'type');
+    document.getElementById('tabSpeak').classList.toggle('active', mode === 'speak');
+
+    // Toggle panel visibility
+    document.getElementById('panelType').classList.toggle('active', mode === 'type');
+    document.getElementById('panelSpeak').classList.toggle('active', mode === 'speak');
+
+    // Show regenerate button only in type mode
+    document.getElementById('regenRow').style.display = mode === 'type' ? '' : 'none';
+
+    // Restore cached review for the target mode
+    var reviewSection = document.getElementById('reviewSection');
+    if (mode === 'type') {
+      ta.value = cachedTypeReview;
+      reviewSection.style.display = '';
+      // If switching away from speak while recording, stop it
+      if (isRecording) stopRecording();
+    } else {
+      // In speak mode, only show textarea if there's a polished voice review
+      if (cachedVoiceReview) {
+        ta.value = cachedVoiceReview;
+        reviewSection.style.display = '';
+      } else {
+        ta.value = '';
+        reviewSection.style.display = 'none';
+      }
+    }
+  };
+
+  // ── Voice recording (WebSocket streaming) ────
+  var voiceWs        = null;
+  var mediaRecorder  = null;
+  var isRecording    = false;
+  var finalParts     = [];    // accumulated final transcript segments
+  var lastInterim    = '';     // current interim text
+  var detectedLang   = '';
+  var recTimerInterval = null;
+  var recStartTime   = 0;
+
+  function getWsBase() {
+    var proto = API_BASE.indexOf('https') === 0 ? 'wss' : 'ws';
+    return proto + API_BASE.replace(/^https?/, '');
+  }
+
+  function formatTimer(seconds) {
+    var m = Math.floor(seconds / 60);
+    var s = seconds % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function startTimer() {
+    recStartTime = Date.now();
+    var timerEl = document.getElementById('micTimer');
+    timerEl.textContent = '0:00';
+    timerEl.classList.add('visible');
+    recTimerInterval = setInterval(function () {
+      var elapsed = Math.floor((Date.now() - recStartTime) / 1000);
+      timerEl.textContent = formatTimer(elapsed);
+    }, 1000);
+  }
+
+  function stopTimer() {
+    clearInterval(recTimerInterval);
+    recTimerInterval = null;
+    document.getElementById('micTimer').classList.remove('visible');
+  }
+
+  window.toggleRecording = function () {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  };
+
+  function startRecording() {
+    var micBtn   = document.getElementById('micBtn');
+    var label    = document.getElementById('micLabel');
+    var live     = document.getElementById('liveTranscript');
+    var liveText = document.getElementById('liveText');
+    var polish   = document.getElementById('polishOverlay');
+
+    // Reset state
+    finalParts   = [];
+    lastInterim  = '';
+    detectedLang = '';
+    cachedVoiceReview = '';
+    liveText.innerHTML = '<span class="interim">Listening…</span>';
+    polish.classList.remove('visible');
+    document.getElementById('reviewText').value = '';
+
+    // Open WebSocket to backend
+    voiceWs = new WebSocket(getWsBase() + '/api/v1/voice-stream');
+
+    voiceWs.onmessage = function (e) {
+      try {
+        var msg = JSON.parse(e.data);
+        if (msg.type === 'ready') {
+          startMic();
+        } else if (msg.type === 'transcript') {
+          if (msg.detected_language) detectedLang = msg.detected_language;
+          if (msg.is_final) {
+            if (msg.transcript) finalParts.push(msg.transcript);
+            lastInterim = '';
+          } else {
+            lastInterim = msg.transcript || '';
+          }
+          renderLiveTranscript();
+        } else if (msg.type === 'error') {
+          console.error('[voice] Server error:', msg.message);
+          stopRecording();
+        }
+      } catch (err) { /* ignore */ }
+    };
+
+    voiceWs.onerror = function () {
+      console.error('[voice] WebSocket error');
+      stopRecording();
+    };
+
+    voiceWs.onclose = function () {
+      if (isRecording) stopRecording();
+    };
+
+    // Update UI
+    isRecording = true;
+    micBtn.classList.add('recording');
+    micBtn.textContent = '⏹️';
+    label.innerHTML = 'Tap to <strong>stop recording</strong>';
+    live.classList.add('visible', 'active');
+    startTimer();
+  }
+
+  function startMic() {
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(function (stream) {
+        var mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : MediaRecorder.isTypeSupported('audio/webm')
+            ? 'audio/webm'
+            : '';
+
+        var options = mimeType ? { mimeType: mimeType } : {};
+        mediaRecorder = new MediaRecorder(stream, options);
+
+        mediaRecorder.ondataavailable = function (e) {
+          if (e.data.size > 0 && voiceWs && voiceWs.readyState === WebSocket.OPEN) {
+            voiceWs.send(e.data);
+          }
+        };
+
+        mediaRecorder.start(250);
+      })
+      .catch(function (err) {
+        console.error('[voice] Mic access denied:', err);
+        alert('Please allow microphone access to use voice review.');
+        stopRecording();
+      });
+  }
+
+  function stopRecording() {
+    var micBtn = document.getElementById('micBtn');
+    var label  = document.getElementById('micLabel');
+    var live   = document.getElementById('liveTranscript');
+
+    isRecording = false;
+    micBtn.classList.remove('recording');
+    micBtn.textContent = '🎙️';
+    label.innerHTML = 'Tap to <strong>start recording</strong>';
+    live.classList.remove('active');
+    stopTimer();
+
+    // Stop MediaRecorder + release mic
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+      mediaRecorder.stream.getTracks().forEach(function (t) { t.stop(); });
+    }
+    mediaRecorder = null;
+
+    // Tell Deepgram we're done, then close
+    if (voiceWs && voiceWs.readyState === WebSocket.OPEN) {
+      voiceWs.send(JSON.stringify({ type: 'finalize' }));
+      setTimeout(function () {
+        if (voiceWs) { voiceWs.close(); voiceWs = null; }
+        polishTranscript();
+      }, 1200);
+    } else {
+      voiceWs = null;
+      polishTranscript();
+    }
+  }
+
+  function renderLiveTranscript() {
+    var liveText = document.getElementById('liveText');
+    var finalText = finalParts.join(' ');
+    var html = escHtml(finalText);
+    if (lastInterim) {
+      html += (finalText ? ' ' : '') + '<span class="interim">' + escHtml(lastInterim) + '</span>';
+    }
+    liveText.innerHTML = html || '<span class="interim">Listening…</span>';
+  }
+
+  function polishTranscript() {
+    var fullTranscript = finalParts.join(' ').trim();
+    if (!fullTranscript) return;
+
+    var polish = document.getElementById('polishOverlay');
+    polish.classList.add('visible');
+
+    var prompt = 'Transform this voice transcript into a polished 5-star Google review:\n\n'
+      + 'Transcript: "' + fullTranscript + '"\n\n'
+      + 'Detected spoken language: ' + (detectedLang || 'en');
+
+    if (BIZ_NAME && BIZ_NAME !== 'This Business') {
+      prompt += '\nBusiness name: ' + BIZ_NAME;
+    }
+    if (KEYWORDS.length) {
+      prompt += '\nMerchant keywords: ' + KEYWORDS.join(', ');
+    }
+
+    var sysPrompt = [
+      'You are a review polishing assistant. Take a raw voice transcript from a real customer and transform it into a polished, natural-sounding 5-star Google review.',
+      'Rules:',
+      '- If the transcript is non-English, translate the core meaning into natural English.',
+      '- Remove filler words (um, uh, like, you know), stutters, false starts, and repetitions.',
+      '- Produce a crisp, enthusiastic 2-3 sentence review that reads like a genuine 5-star Google review.',
+      '- Write in first person, past tense, with natural contractions.',
+      '- The tone should feel authentic and personal.',
+      BIZ_NAME !== 'This Business' ? '- Reference "' + BIZ_NAME + '" naturally in the review.' : '',
+      KEYWORDS.length ? '- Naturally weave in 1-2 of these keywords: ' + KEYWORDS.join(', ') : '',
+      '- No emojis, no hashtags, no star symbols.',
+      '- BANNED phrases: "exceeded my expectations", "highly recommend", "must-visit", "truly exceptional", "five stars", "top-notch", "gem", "world-class".',
+      'Output: Review text only — no labels, no preamble.',
+    ].filter(Boolean).join('\n');
+
+    fetch(API_BASE + '/api/v1/review/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ systemInstruction: sysPrompt, prompt: prompt }),
+    })
+    .then(function (res) { return res.json(); })
+    .then(function (json) {
+      polish.classList.remove('visible');
+      if (json.success && json.data && json.data.text) {
+        cachedVoiceReview = json.data.text;
+        document.getElementById('reviewText').value = json.data.text;
+        document.getElementById('reviewSection').style.display = '';
+        var cta = document.getElementById('ctaBtn');
+        if (cta) { cta.disabled = false; cta.style.opacity = ''; }
+      } else {
+        throw new Error(json.error || 'Empty response');
+      }
+    })
+    .catch(function (err) {
+      polish.classList.remove('visible');
+      console.error('[voice] Polish failed:', err);
+      cachedVoiceReview = fullTranscript;
+      document.getElementById('reviewText').value = fullTranscript;
+      document.getElementById('reviewSection').style.display = '';
+    });
+  }
+
   // ── Init ─────────────────────────────────────
   // Register origin (fire-and-forget — no await)
-  // Review generation is deferred until user selects 4-5 stars
   if (IS_QR_SCAN    && UID && PLACE_ID) registerQrScan(UID, PLACE_ID);
   if (IS_LINK_VISIT && UID && PLACE_ID) registerLinkVisit(UID, PLACE_ID);
 
-  // Pre-fetch branch config + place details so they're cached when user picks 4-5 stars
-  // (this doesn't generate a review — just warms the cache)
-  if (PLACE_ID) {
-    Promise.all([
-      fetchBranchConfig(UID, PLACE_ID),
-      fetchPlaceDetails(PLACE_ID),
-    ]).then(function (results) {
-      cachedBranchConfig = results[0];
-      cachedPlace        = results[1];
-
-      // Update header with real business name + area
-      if (cachedBranchConfig && cachedBranchConfig.businessName) {
-        BIZ_NAME = sanitize(cachedBranchConfig.businessName, 100);
-        document.getElementById('bizName').textContent = BIZ_NAME;
-        document.title = 'Review \u2014 ' + BIZ_NAME;
-      }
-      if (cachedBranchConfig && cachedBranchConfig.tone) {
-        TONES = cachedBranchConfig.tone.split(',').map(trim).filter(Boolean);
-      }
-      if (cachedBranchConfig && cachedBranchConfig.keywords) {
-        KEYWORDS = cachedBranchConfig.keywords.split(',').map(trim).filter(Boolean).slice(0, 4);
-      }
-      if (cachedPlace) {
-        var addr = cachedPlace.shortFormattedAddress || cachedPlace.formattedAddress || '';
-        if (addr) {
-          var parts = addr.split(',').map(function(p){return p.trim();})
-            .filter(function(p){ return p && !/^[0-9]+$/.test(p) && !/^india$/i.test(p); });
-          AREA = parts.slice(-2).join(', ');
-        }
-        if (cachedPlace.displayName && cachedPlace.displayName.text) {
-          BIZ_NAME = sanitize(cachedPlace.displayName.text, 100);
-          document.getElementById('bizName').textContent = BIZ_NAME;
-          document.title = 'Review \u2014 ' + BIZ_NAME;
-        }
-        if (AREA) {
-          document.getElementById('bizArea').innerHTML = '<span>\uD83D\uDCCD</span>' + escHtml(AREA);
-        }
-      }
-    }).catch(function () { /* best-effort prefetch */ });
-  }
+  // Generate AI review immediately on page load
+  generateAndShow('en');
 
 }());
 </script>
