@@ -17,7 +17,9 @@ AI-powered Google review generator for local businesses. Merchants create QR cod
 | Language | TypeScript 5.7 |
 | Auth | Firebase Auth + Google Sign-In (native) |
 | Database | Cloud Firestore |
-| AI | Gemini API (review generation on web page) |
+| AI | Gemini API (proxied through backend server) |
+| STT | Deepgram nova-3 (voice-to-review via backend) |
+| Backend | Express.js API server (API key proxy) |
 | Navigation | React Navigation 6 (native stack) |
 | i18n | 25 languages (custom lightweight system) |
 | OTA Updates | EAS Update |
@@ -55,8 +57,24 @@ merchant-review-app/
 ├── i18n/                    # 25 translation files + index
 ├── types/
 │   └── index.ts             # Domain types, nav param lists
-└── web/
-    └── index.html           # Customer-facing review page (GitHub Pages)
+├── web/
+│   └── index.html           # Customer-facing review page (GitHub Pages)
+└── server/                  # Express.js API proxy (keeps all keys server-side)
+    ├── src/
+    │   ├── index.ts         # Server entry point
+    │   ├── routes/
+    │   │   ├── voiceReview.ts   # POST /merchants/:id/voice-review (Deepgram + Gemini)
+    │   │   ├── review.ts       # POST /review/generate (Gemini proxy)
+    │   │   ├── places.ts       # GET  /places/:placeId (Google Places proxy)
+    │   │   ├── branches.ts     # GET  /merchants/:uid/branches/:placeId
+    │   │   ├── analytics.ts    # POST /merchants/:uid/branches/:placeId/analytics
+    │   │   └── feedback.ts     # POST /merchants/:uid/branches/:placeId/feedback
+    │   └── services/
+    │       ├── deepgram.ts     # Deepgram STT (nova-3)
+    │       ├── gemini.ts       # Gemini review generation
+    │       └── firestore.ts    # Firestore REST client
+    ├── .env.example
+    └── package.json
 ```
 
 ## Setup
@@ -110,6 +128,64 @@ npx eas-cli build --platform android --profile production
 CI=1 npx eas-cli update --branch main --message "description" --environment production
 ```
 
+## Backend Server (API Proxy)
+
+All external API calls (Gemini, Google Places, Firestore) are proxied through an Express.js backend so that **no API keys are exposed in client-side code**.
+
+### Environment Variables
+
+Create `server/.env` (see `server/.env.example`):
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DEEPGRAM_API_KEY` | Yes | [Deepgram console](https://console.deepgram.com/) — used for voice-to-text (nova-3) |
+| `GEMINI_API_KEY` | Yes | [Google AI Studio](https://aistudio.google.com/apikey) — used for AI review generation |
+| `GOOGLE_MAPS_API_KEY` | Yes | [Google Cloud Console](https://console.cloud.google.com/apis/credentials) — Places API (New) |
+| `FIREBASE_PROJECT_ID` | No | Defaults to `review-reach-58103` |
+| `PORT` | No | Defaults to `3000` |
+
+### Changing the Backend Domain
+
+When you deploy the server (e.g. Cloud Run, Railway, Render), update the domain in **one place**:
+
+**`web/index.html`** — near the top of the `<script>` block:
+```js
+var API_BASE = window.location.hostname === 'localhost'
+  ? 'http://localhost:3000'
+  : 'https://api.reviewreach.app';   // ← change this to your production domain
+```
+
+### Content Security Policy (CSP)
+
+The web page restricts which domains it can connect to via a `<meta>` CSP tag. Update `connect-src` to match your production domain:
+
+**`web/index.html`** — in the `<head>`:
+```html
+<meta http-equiv="Content-Security-Policy" content="
+  ...
+  connect-src https://api.reviewreach.app http://localhost:3000;
+  ...                ↑ change this to your production domain
+" />
+```
+
+### CORS (allowed origins)
+
+By default the server allows all origins (`cors()`). To restrict it to only your web page domain, update:
+
+**`server/src/index.ts`**:
+```ts
+app.use(cors({ origin: 'https://yourdomain.github.io' }));
+```
+
+### Run the Server
+
+```bash
+cd server
+npm install
+npm run dev      # development (tsx watch, hot reload)
+npm run start    # production
+```
+
 ## Key Architecture Decisions
 
 **Firebase JS SDK (not @react-native-firebase):** Uses the web-compatible Firebase SDK with a Metro config override to fix the dual-package CJS/ESM resolution issue in SDK 57. See `metro.config.js`.
@@ -118,7 +194,9 @@ CI=1 npx eas-cli update --branch main --message "description" --environment prod
 
 **Customer web page:** The customer review flow runs on a static HTML page (`web/index.html`) hosted on GitHub Pages — not inside the app. QR codes and share links point to this page. This avoids requiring customers to install anything.
 
-**Flat Firestore analytics:** Branch analytics (`totalScans`, `linkVisits`, `reviewsCopied`) are stored as flat fields on the branch document and incremented atomically via `FieldValue.increment()` (app) or Firestore REST `fieldTransforms` (web page).
+**Backend API proxy:** The web page previously called Gemini, Google Places, and Firestore directly with API keys exposed in the HTML source. All external API calls are now proxied through the Express.js backend (`server/`), so no credentials are shipped to the browser.
+
+**Flat Firestore analytics:** Branch analytics (`totalScans`, `linkVisits`, `reviewsCopied`) are stored as flat fields on the branch document and incremented atomically via `FieldValue.increment()` (app) or Firestore REST `fieldTransforms` (backend server).
 
 ## Supported Languages
 

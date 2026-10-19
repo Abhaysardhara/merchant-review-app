@@ -10,7 +10,8 @@
   <meta name="robots" content="noindex, nofollow" />
 
   <!--
-    Security: restrict outbound connections to only the two APIs this page needs.
+    Security: all API calls now go through our backend server.
+    No third-party API keys are exposed in this page.
     frame-ancestors 'none' blocks clickjacking.
     script-src 'unsafe-inline' is required because all JS is inline in this static file.
   -->
@@ -18,7 +19,7 @@
     default-src 'none';
     script-src 'unsafe-inline';
     style-src 'unsafe-inline';
-    connect-src https://generativelanguage.googleapis.com https://places.googleapis.com https://firestore.googleapis.com;
+    connect-src https://api.reviewreach.app http://localhost:3000;
     img-src 'self' data:;
     frame-ancestors 'none';
   " />
@@ -638,12 +639,11 @@
 <script>
 // ─────────────────────────────────────────────
 //  Config
-//  IMPORTANT: restrict both keys to HTTP referrers in Google Cloud Console
-//  so they only work on your GitHub Pages domain. View source exposes them.
+//  All API calls go through our backend — no keys exposed here.
 // ─────────────────────────────────────────────
-var GEMINI_API_KEY  = 'YOUR_GEMINI_API_KEY';
-var GEMINI_MODEL    = 'gemini-3.5-flash-lite';
-var MAPS_API_KEY    = 'YOUR_MAPS_API_KEY';
+var API_BASE = window.location.hostname === 'localhost'
+  ? 'http://localhost:3000'
+  : 'https://api.reviewreach.app';
 
 // ─────────────────────────────────────────────
 //  World languages — sorted alphabetically by English name
@@ -1007,25 +1007,6 @@ var LANGUAGES = [
     return 'service'; // final fallback
   }
 
-  // ── Google Places API — fetch rich place attributes ──
-  var PLACE_FIELDS = [
-    // Pro
-    'displayName','primaryType','primaryTypeDisplayName','types','businessStatus',
-    'formattedAddress','shortFormattedAddress',
-    // Enterprise
-    'priceLevel','priceRange','rating','userRatingCount',
-    // Enterprise + Atmosphere
-    'editorialSummary','generativeSummary','reviewSummary',
-    'reviews',
-    'delivery','dineIn','takeout','curbsidePickup','reservable',
-    'outdoorSeating','liveMusic','goodForWatchingSports',
-    'servesBeer','servesWine','servesCocktails','servesCoffee',
-    'servesBreakfast','servesBrunch','servesLunch','servesDinner',
-    'servesDessert','servesVegetarianFood',
-    'allowsDogs','menuForChildren','goodForChildren','goodForGroups',
-    'restroom','parkingOptions','paymentOptions','accessibilityOptions',
-  ].join(',');
-
   // ── Places API cache (localStorage, 7-day expiry) ────────────────
   // Key:   rr_place_v1_{placeId}   (namespaced to avoid collisions)
   // Value: { data: <API response>, expiresAt: <unix ms> }
@@ -1060,23 +1041,22 @@ var LANGUAGES = [
   }
 
   async function fetchPlaceDetails(placeId) {
-    if (!placeId || !MAPS_API_KEY || MAPS_API_KEY.startsWith('YOUR_')) return null;
+    if (!placeId) return null;
 
     // 1. Try cache first
     var cached = cacheGet(placeId);
     if (cached) return cached;
 
-    // 2. Fetch from API
+    // 2. Fetch from backend (API key stays server-side)
     try {
-      var url = 'https://places.googleapis.com/v1/places/' + encodeURIComponent(placeId)
-                + '?fields=' + PLACE_FIELDS + '&key=' + MAPS_API_KEY;
-      var res = await fetch(url);
+      var res = await fetch(API_BASE + '/api/v1/places/' + encodeURIComponent(placeId));
       if (!res.ok) return null;
-      var data = await res.json();
-      if (data && !data.error) {
-        cacheSet(placeId, data); // store only valid responses
+      var json = await res.json();
+      if (json.success && json.data) {
+        cacheSet(placeId, json.data);
+        return json.data;
       }
-      return data.error ? null : data;
+      return null;
     } catch (e) { return null; }
   }
 
@@ -1329,42 +1309,24 @@ var LANGUAGES = [
   ].join(' ');
 
   async function fetchGeminiReview(lang, placeDetails) {
-    if (!GEMINI_API_KEY || GEMINI_API_KEY.startsWith('YOUR_')) {
-      throw new Error('GEMINI_API_KEY not injected — placeholder still present in HTML');
-    }
-    console.log('[Gemini] model:', GEMINI_MODEL, '| key prefix:', GEMINI_API_KEY.slice(0, 8) + '…');
-    var url = 'https://generativelanguage.googleapis.com/v1beta/models/'
-              + GEMINI_MODEL + ':generateContent?key=' + GEMINI_API_KEY;
-    var res = await fetch(url, {
+    var res = await fetch(API_BASE + '/api/v1/review/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-        contents: [{ role: 'user', parts: [{ text: buildPrompt(lang, placeDetails) }] }],
-        generationConfig: { temperature: 1.1, maxOutputTokens: 320, topP: 0.95 },
-        safetySettings: [
-          { category: 'HARM_CATEGORY_HARASSMENT',        threshold: 'BLOCK_NONE' },
-          { category: 'HARM_CATEGORY_HATE_SPEECH',       threshold: 'BLOCK_NONE' },
-          { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-        ],
+        systemInstruction: SYSTEM_INSTRUCTION,
+        prompt: buildPrompt(lang, placeDetails),
       }),
     });
     if (!res.ok) {
       var errBody = '';
-      try { errBody = JSON.stringify(await res.json()); } catch(e) {}
-      console.error('[Gemini] HTTP', res.status, errBody);
+      try { errBody = (await res.json()).error || ''; } catch(e) {}
       throw new Error('HTTP ' + res.status + ' — ' + errBody);
     }
-    var data = await res.json();
-    console.log('[Gemini] raw response:', JSON.stringify(data).slice(0, 500));
-    var text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) {
-      var reason = data?.candidates?.[0]?.finishReason || data?.promptFeedback?.blockReason || 'unknown';
-      console.error('[Gemini] empty text, reason:', reason, JSON.stringify(data));
-      throw new Error('Empty response — reason: ' + reason);
+    var json = await res.json();
+    if (!json.success || !json.data || !json.data.text) {
+      throw new Error(json.error || 'Empty response from review API');
     }
-    return text.trim();
+    return json.data.text;
   }
 
 
@@ -1387,72 +1349,40 @@ var LANGUAGES = [
   // ── Firestore REST fetch — branch config from users/{uid}/branches/{bid} ──
   // Config is owned by the merchant — other users cannot overwrite it.
   // Analytics (totalScans etc.) remain in branches/{placeId}, written by this page.
-  var FIRESTORE_PROJECT  = 'review-reach-58103';
   var cachedBranchConfig = undefined; // undefined = not fetched; null = not found
 
   async function fetchBranchConfig(uid, placeId) {
     if (!uid || !placeId) return null;
     try {
-      // Branch doc ID == placeId, so no bid needed in the URL
-      var url = 'https://firestore.googleapis.com/v1/projects/' + FIRESTORE_PROJECT
-              + '/databases/(default)/documents/users/' + encodeURIComponent(uid)
-              + '/branches/' + encodeURIComponent(placeId);
-      var res = await fetch(url);
+      var res = await fetch(API_BASE + '/api/v1/merchants/' + encodeURIComponent(uid)
+                + '/branches/' + encodeURIComponent(placeId));
       if (!res.ok) return null;
-      var data = await res.json();
-      var f = data.fields;
-      if (!f) return null;
+      var json = await res.json();
+      if (!json.success || !json.data) return null;
       return {
-        tone:         f.tone         && f.tone.stringValue         ? f.tone.stringValue         : '',
-        keywords:     f.keywords     && f.keywords.stringValue     ? f.keywords.stringValue     : '',
-        businessName: f.businessName && f.businessName.stringValue ? f.businessName.stringValue : '',
+        tone:         json.data.tone         || '',
+        keywords:     json.data.keywords     || '',
+        businessName: json.data.businessName || '',
       };
     } catch (e) { return null; }
   }
 
-  // ── Firestore REST write — shared transform helper ───────────────────
-  async function firestoreTransform(docPath, fields) {
-    try {
-      var url = 'https://firestore.googleapis.com/v1/projects/' + FIRESTORE_PROJECT
-              + '/databases/(default)/documents:commit';
-      await fetch(url, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ writes: [{ transform: { document: docPath, fieldTransforms: fields } }] }),
-      });
-    } catch (e) {
-      console.warn('[ReviewReach] Firestore write failed:', e.message);
-    }
-  }
-
-  // Analytics are written to users/{uid}/branches/{placeId} — the same doc
-  // that holds config — so each merchant's stats are fully isolated.
-  function userBranchDocPath(uid, placeId) {
-    return 'projects/' + FIRESTORE_PROJECT + '/databases/(default)/documents/users/'
-      + encodeURIComponent(uid) + '/branches/' + encodeURIComponent(placeId);
-  }
-
-  function registerQrScan(uid, placeId) {
+  // ── Analytics — proxied through backend ──────────────────────────────
+  function postAnalytics(uid, placeId, event) {
     if (!uid || !placeId) return;
-    firestoreTransform(userBranchDocPath(uid, placeId), [
-      { fieldPath: 'totalScans', increment: { integerValue: '1' } },
-      { fieldPath: 'lastScanAt', setToServerValue: 'REQUEST_TIME' },
-    ]);
+    fetch(API_BASE + '/api/v1/merchants/' + encodeURIComponent(uid)
+      + '/branches/' + encodeURIComponent(placeId) + '/analytics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: event }),
+    }).catch(function (e) {
+      console.warn('[ReviewReach] Analytics write failed:', e.message);
+    });
   }
 
-  function registerLinkVisit(uid, placeId) {
-    if (!uid || !placeId) return;
-    firestoreTransform(userBranchDocPath(uid, placeId), [
-      { fieldPath: 'linkVisits', increment: { integerValue: '1' } },
-    ]);
-  }
-
-  function registerReviewCopied(uid, placeId) {
-    if (!uid || !placeId) return;
-    firestoreTransform(userBranchDocPath(uid, placeId), [
-      { fieldPath: 'reviewsCopied', increment: { integerValue: '1' } },
-    ]);
-  }
+  function registerQrScan(uid, placeId)      { postAnalytics(uid, placeId, 'qr_scan'); }
+  function registerLinkVisit(uid, placeId)    { postAnalytics(uid, placeId, 'link_visit'); }
+  function registerReviewCopied(uid, placeId) { postAnalytics(uid, placeId, 'review_copied'); }
 
   // ── Generate & display ───────────────────────
   var currentLang  = 'en';
@@ -1657,22 +1587,18 @@ var LANGUAGES = [
     btn.disabled = true;
     btn.textContent = 'Sending…';
 
-    var docFields = {
-      rating:    { integerValue: selectedRating },
-      comment:   { stringValue: comment },
-      createdAt: { timestampValue: new Date().toISOString() },
+    var feedbackBody = {
+      rating:  selectedRating,
+      comment: comment,
     };
-    if (phone) docFields.phone = { stringValue: phone };
-    if (email) docFields.email = { stringValue: email };
+    if (phone) feedbackBody.phone = phone;
+    if (email) feedbackBody.email = email;
 
-    var url = 'https://firestore.googleapis.com/v1/projects/' + FIRESTORE_PROJECT
-            + '/databases/(default)/documents/users/' + encodeURIComponent(UID)
-            + '/branches/' + encodeURIComponent(PLACE_ID) + '/feedback';
-
-    fetch(url, {
+    fetch(API_BASE + '/api/v1/merchants/' + encodeURIComponent(UID)
+      + '/branches/' + encodeURIComponent(PLACE_ID) + '/feedback', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fields: docFields }),
+      body: JSON.stringify(feedbackBody),
     })
     .then(function () {
       document.getElementById('feedbackSection').style.display = 'none';
