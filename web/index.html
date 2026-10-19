@@ -19,7 +19,7 @@
     default-src 'none';
     script-src 'unsafe-inline';
     style-src 'unsafe-inline';
-    connect-src https://api.reviewreach.app wss://api.reviewreach.app http://localhost:3000 ws://localhost:3000;
+    connect-src https://merchant-review-app.onrender.com wss://merchant-review-app.onrender.com http://localhost:3000 ws://localhost:3000;
     img-src 'self' data:;
     frame-ancestors 'none';
   " />
@@ -802,7 +802,7 @@
 // ─────────────────────────────────────────────
 var API_BASE = (window.location.hostname === 'localhost' || window.location.protocol === 'file:')
   ? 'http://localhost:3000'
-  : 'https://api.reviewreach.app';
+  : 'https://merchant-review-app.onrender.com';
 
 // ─────────────────────────────────────────────
 //  World languages — sorted alphabetically by English name
