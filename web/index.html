@@ -676,11 +676,18 @@
 
       <!-- ── Speak mode (voice recording) ── -->
       <div class="mode-panel" id="panelSpeak">
+        <div class="lang-wrap">
+          <span class="lang-icon">🌐</span>
+          <div class="lang-dropdown" id="voiceLangDropdown">
+            <input class="lang-input" id="voiceLangInput" type="text"
+                   placeholder="Search language…" autocomplete="off" spellcheck="false" />
+            <div class="lang-list" id="voiceLangList"></div>
+          </div>
+        </div>
         <div class="speak-area">
           <button class="mic-btn" id="micBtn" onclick="toggleRecording()">🎙️</button>
           <div class="mic-label" id="micLabel">Tap to <strong>start recording</strong></div>
           <div class="mic-timer" id="micTimer">0:00</div>
-          <div class="mic-lang-hint">Speak in any language — we'll detect it automatically</div>
         </div>
         <div class="live-transcript" id="liveTranscript">
           <div class="live-transcript-label">What we heard</div>
@@ -996,6 +1003,108 @@ var LANGUAGES = [
     input.value = 'English';
     renderList('');
   }());
+
+  // ── Voice language dropdown ─────────────────
+  (function () {
+    // Only languages supported by Deepgram nova-3 streaming
+    var DG_SUPPORTED = {
+      'en':1,'af':1,'ar':1,'hy':1,'be':1,'bn':1,'bs':1,'bg':1,'ca':1,'zh':1,'zh-TW':1,
+      'hr':1,'cs':1,'da':1,'nl':1,'et':1,'tl':1,'fi':1,'fr':1,'ka':1,'de':1,'el':1,
+      'gu':1,'he':1,'hi':1,'hu':1,'id':1,'it':1,'ja':1,'kn':1,'kk':1,'ko':1,'lv':1,
+      'lt':1,'mk':1,'ms':1,'mr':1,'mn':1,'ne':1,'no':1,'ps':1,'fa':1,'pl':1,'pt':1,
+      'pa':1,'ro':1,'ru':1,'sr':1,'sk':1,'sl':1,'es':1,'sw':1,'sv':1,'ta':1,'te':1,
+      'th':1,'tr':1,'uk':1,'ur':1,'uz':1,'vi':1,'cy':1
+    };
+    var VOICE_LANGUAGES = [{ code: 'multi', name: 'Auto-detect', native: 'Multi-language' }].concat(
+      LANGUAGES.filter(function (l) { return DG_SUPPORTED[l.code]; })
+    );
+
+    var input      = document.getElementById('voiceLangInput');
+    var list       = document.getElementById('voiceLangList');
+    var container  = document.getElementById('voiceLangDropdown');
+    var activeCode = 'multi';
+
+    function label(l) {
+      if (l.code === 'multi') return l.name;
+      return l.name === l.native ? l.name : l.name + ' \u2014 ' + l.native;
+    }
+
+    function renderList(q) {
+      list.innerHTML = '';
+      var term = (q || '').trim().toLowerCase();
+      var matches = VOICE_LANGUAGES.filter(function (l) {
+        if (!term) return true;
+        return l.name.toLowerCase().indexOf(term) !== -1
+            || l.native.toLowerCase().indexOf(term) !== -1;
+      });
+      if (!matches.length) {
+        var empty = document.createElement('div');
+        empty.className = 'lang-no-result';
+        empty.textContent = 'No languages found';
+        list.appendChild(empty);
+        return;
+      }
+      matches.forEach(function (l) {
+        var div = document.createElement('div');
+        div.className = 'lang-option' + (l.code === activeCode ? ' selected' : '');
+        div.textContent = label(l);
+        div.addEventListener('mousedown', function (e) {
+          e.preventDefault();
+          pick(l.code);
+        });
+        list.appendChild(div);
+      });
+    }
+
+    function openList() {
+      input.value = '';
+      renderList('');
+      list.classList.add('open');
+      var cur = list.querySelector('.selected');
+      if (cur) cur.scrollIntoView({ block: 'nearest' });
+    }
+
+    function closeList() {
+      list.classList.remove('open');
+      var entry = VOICE_LANGUAGES.filter(function (l) { return l.code === activeCode; })[0];
+      input.value = entry ? label(entry) : 'Auto-detect';
+    }
+
+    function pick(code) {
+      activeCode = code;
+      voiceLangCode = code;
+      closeList();
+      input.blur();
+    }
+
+    input.addEventListener('focus', openList);
+    input.addEventListener('input', function () {
+      renderList(input.value);
+      list.classList.add('open');
+    });
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { closeList(); input.blur(); return; }
+      if (e.key === 'Enter') {
+        var first = list.querySelector('.lang-option');
+        if (first) {
+          var term = input.value.trim().toLowerCase();
+          var match = VOICE_LANGUAGES.filter(function (l) {
+            return !term
+              || l.name.toLowerCase().indexOf(term) !== -1
+              || l.native.toLowerCase().indexOf(term) !== -1;
+          })[0];
+          if (match) pick(match.code);
+        }
+      }
+    });
+    document.addEventListener('click', function (e) {
+      if (!container.contains(e.target)) closeList();
+    });
+
+    input.value = 'Auto-detect';
+    renderList('');
+  }());
+
   var q = new URLSearchParams(location.search);
 
   function decodeParam(v) {
@@ -1545,6 +1654,7 @@ var LANGUAGES = [
 
   // ── Generate & display ───────────────────────
   var currentLang      = 'en';
+  var voiceLangCode    = 'multi';   // Deepgram STT language (set by voice lang dropdown)
   var cachedPlace      = undefined; // undefined = not yet fetched; null = fetched but failed
   var cachedTypeReview  = '';       // last AI-generated (or user-edited) type review
   var cachedVoiceReview = '';       // last voice-polished review
@@ -1847,7 +1957,7 @@ var LANGUAGES = [
     document.getElementById('reviewText').value = '';
 
     // Open WebSocket to backend
-    voiceWs = new WebSocket(getWsBase() + '/api/v1/voice-stream');
+    voiceWs = new WebSocket(getWsBase() + '/api/v1/voice-stream?lang=' + encodeURIComponent(voiceLangCode));
 
     voiceWs.onmessage = function (e) {
       try {
@@ -1885,6 +1995,7 @@ var LANGUAGES = [
     micBtn.textContent = '⏹️';
     label.innerHTML = 'Tap to <strong>stop recording</strong>';
     live.classList.add('visible', 'active');
+    document.getElementById('voiceLangInput').disabled = true;
     startTimer();
   }
 
@@ -1926,6 +2037,7 @@ var LANGUAGES = [
     label.innerHTML = 'Tap to <strong>start recording</strong>';
     live.classList.remove('active');
     stopTimer();
+    document.getElementById('voiceLangInput').disabled = false;
 
     // Stop MediaRecorder + release mic
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {

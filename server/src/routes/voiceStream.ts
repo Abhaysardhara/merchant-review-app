@@ -17,7 +17,7 @@ const DEEPGRAM_WS_URL = "wss://api.deepgram.com/v1/listen";
 
 export function handleVoiceStreamUpgrade(
   ws: WebSocket,
-  _req: IncomingMessage
+  req: IncomingMessage
 ): void {
   if (!DEEPGRAM_API_KEY || DEEPGRAM_API_KEY === "your_deepgram_api_key") {
     ws.send(JSON.stringify({ type: "error", message: "Deepgram not configured" }));
@@ -25,10 +25,14 @@ export function handleVoiceStreamUpgrade(
     return;
   }
 
+  // Read spoken language from query param (default: multi)
+  const reqUrl = new URL(req.url || "", `http://${req.headers.host}`);
+  const lang = reqUrl.searchParams.get("lang") || "multi";
+
   // Build Deepgram WS URL with query params
   const params = new URLSearchParams({
     model: "nova-3",
-    language: "multi",
+    language: lang,
     smart_format: "true",
     interim_results: "true",
     utterance_end_ms: "1500",
