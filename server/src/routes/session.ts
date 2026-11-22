@@ -9,7 +9,7 @@ export const sessionRouter = Router();
  * Starts a customer session for one real branch.
  *
  * Body: { uid: string, placeId: string }
- * Returns: { token, expiresAt, businessName }
+ * Returns: { token, expiresAt, businessName, buttons }
  */
 sessionRouter.post("/", async (req: Request, res: Response): Promise<void> => {
   try {
@@ -27,9 +27,13 @@ sessionRouter.post("/", async (req: Request, res: Response): Promise<void> => {
 
     const businessName = branch.businessName || branch.name;
     const { token, payload } = createSessionToken(uid, placeId, businessName);
+    const buttons = branch.buttons
+      .filter((b) => b.enabled)
+      .sort((a, b) => a.order - b.order)
+      .map(({ id, kind, emoji, labels }) => ({ id, kind, emoji, labels }));
     res.json({
       success: true,
-      data: { token, expiresAt: payload.exp, businessName },
+      data: { token, expiresAt: payload.exp, businessName, buttons },
     });
   } catch (error) {
     console.error("[session] Error:", error);

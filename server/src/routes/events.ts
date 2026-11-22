@@ -18,6 +18,9 @@ const ALLOWED = new Set([
   "private_feedback_opened", "private_feedback_submitted",
 ]);
 
+/** "btn_<id>": a button the customer picked in a copied review (merchant's liked/unhappy counts). */
+const BUTTON_EVENT = /^btn_[a-f0-9]{6}$/;
+
 const MAX_EVENTS_PER_REQUEST = 30;
 const MAX_EVENTS_PER_SESSION = 200;
 const sessionCounts = new Map<string, { exp: number; n: number }>();
@@ -55,7 +58,7 @@ eventsRouter.post("/", async (req: Request, res: Response): Promise<void> => {
   const room = Math.max(0, MAX_EVENTS_PER_SESSION - used.n);
   const events = body.e
     .slice(0, Math.min(MAX_EVENTS_PER_REQUEST, room))
-    .filter((e): e is string => typeof e === "string" && ALLOWED.has(e));
+    .filter((e): e is string => typeof e === "string" && (ALLOWED.has(e) || BUTTON_EVENT.test(e)));
   used.n += events.length;
   sessionCounts.set(session.sid, used);
 

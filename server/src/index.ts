@@ -5,10 +5,12 @@ import helmet from "helmet";
 import { WebSocketServer } from "ws";
 import { isAllowedOrigin } from "./config";
 import { eventsRouter } from "./routes/events";
+import { buttonsRouter } from "./routes/buttons";
 import {
   aiLimiter,
   eventsLimiter,
   generalLimiter,
+  merchantAiLimiter,
   merchantSearchDailyLimiter,
   merchantSearchLimiter,
   placesLimiter,
@@ -65,6 +67,14 @@ app.use("/api/v1/places", requireSession, placesLimiter, placesRouter);
 
 // AI review drafts (prompts are built on the server)
 app.use("/api/v1/review", requireSession, aiLimiter, reviewRouter);
+
+// Review buttons for a shop (signed-in merchant only)
+app.use(
+  "/api/v1/merchants/:uid/branches/:placeId/buttons",
+  requireMerchant,
+  merchantAiLimiter,
+  buttonsRouter
+);
 
 // Review-page funnel events (sendBeacon sends text/plain)
 app.use(
