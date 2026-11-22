@@ -20,7 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MerchantStackParamList, Branch } from '../types';
 import { useMerchant, type AddBranchParams } from '../store/MerchantContext';
-import { conversionRate, formatLastScan } from '../services/analytics';
+import { formatLastScan } from '../services/analytics';
 import { useI18n } from '../i18n';
 import { useExtraText } from '../i18n/extra';
 
@@ -139,7 +139,8 @@ function BranchCard({ branch, onPress, onDelete }: { branch: Branch; onPress: ()
       { text: 'Remove', style: 'destructive', onPress: onDelete },
     ]);
 
-  const cvr = conversionRate(branch.analytics);
+  const { t: tx } = useExtraText();
+  const scanned = branch.analytics.totalScans + branch.analytics.linkVisits;
 
   return (
     <TouchableOpacity style={cs.card} onPress={onPress} activeOpacity={0.88}>
@@ -157,12 +158,11 @@ function BranchCard({ branch, onPress, onDelete }: { branch: Branch; onPress: ()
         </TouchableOpacity>
       </View>
 
-      {/* Stats row */}
-      <View style={cs.statsRow}>
-        <StatPill icon="qr-code-outline"    value={branch.analytics.totalScans}    label={t('branch_scans')}  color="#4F46E5" bg="#EEF2FF" />
-        <StatPill icon="link-outline"       value={branch.analytics.linkVisits}    label={t('branch_visits')} color="#7C3AED" bg="#F5F3FF" />
-        <StatPill icon="copy-outline"       value={branch.analytics.reviewsCopied} label={t('branch_copied')} color="#0891B2" bg="#E0F2FE" />
-        <StatPill icon="trending-up-outline" value={cvr}                           label={t('branch_cvr')}    color="#059669" bg="#D1FAE5" isString />
+      {/* In plain words: "42 scanned · 18 reviews" */}
+      <View style={cs.plainStats}>
+        <Text style={cs.plainStatsText}>
+          👀 {tx('card_line', { a: scanned, b: branch.analytics.reviewsCopied })}
+        </Text>
       </View>
 
       {/* Footer */}
@@ -172,18 +172,6 @@ function BranchCard({ branch, onPress, onDelete }: { branch: Branch; onPress: ()
         <Ionicons name="chevron-forward" size={15} color="#CBD5E1" style={{ marginLeft: 'auto' }} />
       </View>
     </TouchableOpacity>
-  );
-}
-
-function StatPill({ icon, value, label, color, bg, isString }: {
-  icon: string; value: number | string; label: string; color: string; bg: string; isString?: boolean;
-}) {
-  return (
-    <View style={[cs.pill, { backgroundColor: bg }]}>
-      <Ionicons name={icon as never} size={13} color={color} />
-      <Text style={[cs.pillValue, { color }]}>{isString ? value : String(value)}</Text>
-      <Text style={[cs.pillLabel, { color: color + 'BB' }]}>{label}</Text>
-    </View>
   );
 }
 
@@ -422,12 +410,8 @@ const cs = StyleSheet.create({
   name:      { fontSize: 15, fontWeight: '700', color: '#0F172A' },
   address:   { fontSize: 12, color: '#64748B', marginTop: 2 },
   deleteBtn: { padding: 6 },
-  statsRow:  { flexDirection: 'row', gap: 6 },
-  pill: {
-    flex: 1, alignItems: 'center', borderRadius: 10, paddingVertical: 8, gap: 2,
-  },
-  pillValue: { fontSize: 15, fontWeight: '800' },
-  pillLabel: { fontSize: 9, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.3 },
+  plainStats: { backgroundColor: '#F8FAFC', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12 },
+  plainStatsText: { fontSize: 16, fontWeight: '600', color: '#1E293B' },
   footer:    { flexDirection: 'row', alignItems: 'center', gap: 5, paddingTop: 4, borderTopWidth: 1, borderTopColor: '#F8FAFC' },
   footerText:{ fontSize: 11, color: '#94A3B8' },
 });

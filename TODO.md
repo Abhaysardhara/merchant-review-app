@@ -157,35 +157,37 @@ Daily counters per branch in `users/{uid}/branches/{placeId}/stats/{YYYY-MM-DD}`
 ## Phase 4 — Merchant features (1–2 weeks)
 
 ### 4.1 Data model
-- [ ] Add `buttons: ReviewButton[]`, `servicesSpoken`, `buttonsGeneratedAt` to `Branch` in `types/index.ts`
-- [ ] Add `draftsMade` and `privateFeedback` to `BranchAnalytics`
-- [ ] Remove `keywords`, `tone`, `category`; migrate existing branches
-- [ ] `QRPayload` v2 without `tone`/`keywords`; keep reading v1 QR codes
+- [x] `buttons: ReviewButton[]` (labels en/hi/gu), `servicesSpoken`, `buttonsGeneratedAt` on the branch; buttons saved only via `saveBranchButtons` or the server
+- [x] ~~`draftsMade`, `privateFeedback` on `BranchAnalytics`~~ — covered by the daily stats (`stats/{day}` counts)
+- [x] Removed `keywords`, `tone`, `category` from the app (old Firestore fields are simply ignored)
+- [x] `QRPayload` v2 without `tone`/`keywords`; QR links (`?pid&uid`) unchanged, so old codes keep working
 - [ ] One-time cleanup: delete the stale `analytics` map field from existing Firestore documents
 
 ### 4.2 Automatic customer buttons
-- [ ] New `POST /api/v1/merchants/:uid/branches/:placeId/buttons/generate`
-- [ ] Inputs: Places API type, summary, attributes and public reviews, plus the merchant's spoken "What do you sell?"
-- [ ] Gemini with a JSON schema → `bought / good / improve` buttons with emoji, translated once into all 25 languages
-- [ ] Rules: 1–3 words, no superlatives, no ranking claims
-- [ ] Runs automatically when a branch is added; buttons go live immediately
+- [x] `POST /api/v1/merchants/:uid/branches/:placeId/buttons/generate` (merchant login, 10/min per merchant, shop's daily AI cap)
+- [x] Inputs: Places API type, summary, attributes and up to 5 public reviews, plus "What do you sell?"
+- [x] Gemini with a JSON schema → `bought / good / improve` buttons with emoji, labels in English, Hindi and Gujarati
+- [x] Rules: 1–3 words, no superlatives, no ranking claims, only items the inputs show
+- [x] Runs automatically in the background when a shop is added; older shops get buttons the first time "What customers see" opens
+- [x] `.../buttons/add`: what the merchant says ("we sell biryani and thali") becomes new buttons
+- [x] Review page: buttons on the details screen, all groups at every rating; draft from picks only (`mode: "buttons"`); picked buttons counted as `btn_<id>`
 
 ### 4.3 Setup flow
-- [ ] After picking the shop on Google Maps: one voice question "What do you sell?" in the merchant's language
+- [x] After picking the shop: one optional "What do you sell?" field with a "tap 🎤 on your keyboard" hint (uses the phone keyboard's voice typing)
 - [ ] Auto-detect the app language from the phone; skip the language screen
 - [ ] Remove the dev-skip sign-in button from production builds
 
-### 4.4 "What customers see" screen (replaces keywords + tone in `BranchDetailScreen.tsx`)
-- [ ] Phone-style preview of the customer page
-- [ ] 🎤 Add: merchant speaks, AI turns it into buttons
-- [ ] Tap a button → big 🗑️ Remove, with a 5-second Undo bar
-- [ ] Tap a button → 🎤 Rename
+### 4.4 "What customers see" screen (`screens/CustomerButtonsScreen.tsx`)
+- [x] Phone-style preview of the customer page
+- [x] Add more: merchant speaks (keyboard mic), AI turns it into buttons
+- [x] Tap a button → big 🗑️ Remove, with a 5-second Undo bar
+- [x] Tap a button → ✏️ Rename (the merchant's words are shown in every language)
 - [ ] 🔊 20-second voice explanation in the merchant's language
-- [ ] "Could be better" buttons managed by the system, not shown for editing
+- [x] "Could be better" buttons managed by the system, not shown for editing
 
-### 4.5 Dashboard in plain words (`MerchantDashboardScreen.tsx`, `services/analytics.ts`)
-- [ ] "42 people scanned · 18 wrote a review" instead of a conversion rate
-- [ ] "😋 Customers liked: Tasty food (42)" and "😟 Customers unhappy: Long wait (8)" from button counts
+### 4.5 Dashboard in plain words
+- [x] Shop cards: "👀 42 scanned · 18 reviews" instead of a conversion rate
+- [x] Shop screen "Last 7 days": people who opened the page, people who went to Google, "😋 Customers liked …" and "😟 Customers unhappy …" from button counts, and a star-rating bar chart (`components/WeekSummary.tsx`) — needs the updated `firestore.rules` published
 - [ ] Feedback inbox: buttons as emoji chips, one-tap Call / WhatsApp reply
 
 ### 4.6 Sharing and printing

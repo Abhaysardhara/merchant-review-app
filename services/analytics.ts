@@ -51,12 +51,6 @@ export function emptyAnalytics(): BranchAnalytics {
   };
 }
 
-export function conversionRate(analytics: BranchAnalytics): string {
-  const total = analytics.totalScans + analytics.linkVisits;
-  if (total === 0) return '—';
-  const rate = (analytics.reviewsCopied / total) * 100;
-  return `${rate.toFixed(1)}%`;
-}
 
 export function formatLastScan(isoDate?: string): string {
   if (!isoDate) return 'Never';

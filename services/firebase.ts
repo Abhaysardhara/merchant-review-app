@@ -22,6 +22,7 @@ import {
   serverTimestamp,
   query,
   orderBy,
+  where,
 } from 'firebase/firestore';
 import type { Branch, BranchAnalytics, ReviewButton } from '../types';
 
@@ -148,6 +149,30 @@ function parseButtons(raw: unknown): ReviewButton[] {
       order: typeof b.order === 'number' ? b.order : 0,
       source: b.source === 'merchant' ? 'merchant' : 'ai',
     }));
+}
+
+/** Date as YYYY-MM-DD in India time (the server stores daily stats by India date). */
+function indiaDay(d: Date): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(d);
+}
+
+/**
+ * Adds up the review page's daily counters for the last `days` days
+ * (users/{uid}/branches/{placeId}/stats/{YYYY-MM-DD}, written by the server).
+ */
+export async function loadRecentStats(uid: string, placeId: string, days = 7): Promise<Record<string, number>> {
+  const from = indiaDay(new Date(Date.now() - (days - 1) * 24 * 60 * 60 * 1000));
+  const snap = await getDocs(
+    query(collection(db, 'users', uid, 'branches', placeId, 'stats'), where('day', '>=', from)),
+  );
+  const totals: Record<string, number> = {};
+  snap.docs.forEach((d) => {
+    const counts = d.data().counts ?? {};
+    Object.entries(counts).forEach(([k, v]) => {
+      if (typeof v === 'number') totals[k] = (totals[k] ?? 0) + v;
+    });
+  });
+  return totals;
 }
 
 /** Soft-delete a branch — marks deleted:true so analytics survive.

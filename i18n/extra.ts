@@ -31,6 +31,15 @@ const en = {
   cs_newName: 'New name',
   cs_save: 'Save',
   cs_cancel: 'Cancel',
+  ws_title: 'Last 7 days',
+  ws_people: '{{n}} people opened your review page',
+  ws_google: '{{n}} went to Google to post a review',
+  ws_liked: 'Customers liked',
+  ws_unhappy: 'Customers unhappy',
+  ws_stars: 'Stars customers gave',
+  ws_none: 'No visits yet this week. Put your QR poster where every customer can see it.',
+  ws_noPicks: 'Nothing picked yet.',
+  card_line: '{{a}} scanned · {{b}} reviews',
 };
 
 export type ExtraKey = keyof typeof en;
@@ -60,6 +69,15 @@ const hi: Record<ExtraKey, string> = {
   cs_newName: 'नया नाम',
   cs_save: 'सहेजें',
   cs_cancel: 'रद्द करें',
+  ws_title: 'पिछले 7 दिन',
+  ws_people: '{{n}} लोगों ने आपका रिव्यू पेज खोला',
+  ws_google: '{{n}} लोग रिव्यू पोस्ट करने Google पर गए',
+  ws_liked: 'ग्राहकों को पसंद आया',
+  ws_unhappy: 'ग्राहक नाखुश थे',
+  ws_stars: 'ग्राहकों ने दिए स्टार',
+  ws_none: 'इस हफ़्ते अभी कोई नहीं आया। अपना QR पोस्टर ऐसी जगह लगाएँ जहाँ हर ग्राहक देखे।',
+  ws_noPicks: 'अभी कुछ नहीं चुना गया।',
+  card_line: '{{a}} स्कैन · {{b}} रिव्यू',
 };
 
 const gu: Record<ExtraKey, string> = {
@@ -87,6 +105,15 @@ const gu: Record<ExtraKey, string> = {
   cs_newName: 'નવું નામ',
   cs_save: 'સાચવો',
   cs_cancel: 'રદ કરો',
+  ws_title: 'છેલ્લા 7 દિવસ',
+  ws_people: '{{n}} લોકોએ તમારું રિવ્યુ પેજ ખોલ્યું',
+  ws_google: '{{n}} લોકો રિવ્યુ પોસ્ટ કરવા Google પર ગયા',
+  ws_liked: 'ગ્રાહકોને ગમ્યું',
+  ws_unhappy: 'ગ્રાહકો નાખુશ હતા',
+  ws_stars: 'ગ્રાહકોએ આપેલા સ્ટાર',
+  ws_none: 'આ અઠવાડિયે હજુ કોઈ આવ્યું નથી. તમારું QR પોસ્ટર એવી જગ્યાએ મૂકો જ્યાં દરેક ગ્રાહક જુએ.',
+  ws_noPicks: 'હજુ કંઈ પસંદ થયું નથી.',
+  card_line: '{{a}} સ્કેન · {{b}} રિવ્યુ',
 };
 
 const ALL: Record<string, Record<ExtraKey, string>> = { en, hi, gu };
@@ -95,7 +122,14 @@ const ALL: Record<string, Record<ExtraKey, string>> = { en, hi, gu };
 export function useExtraText() {
   const { locale } = useI18n();
   const strings = ALL[locale] ?? en;
-  const t = useCallback((key: ExtraKey) => strings[key] ?? en[key], [strings]);
+  const t = useCallback(
+    (key: ExtraKey, vars?: Record<string, string | number>) => {
+      let str = strings[key] ?? en[key];
+      if (vars) Object.entries(vars).forEach(([k, v]) => { str = str.replace(`{{${k}}}`, String(v)); });
+      return str;
+    },
+    [strings],
+  );
   /** Language to show button labels in: the app's language if we have it, else English. */
   const buttonLang: 'en' | 'hi' | 'gu' = locale === 'hi' || locale === 'gu' ? locale : 'en';
   return { t, buttonLang };

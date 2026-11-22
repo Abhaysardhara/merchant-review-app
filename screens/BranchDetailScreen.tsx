@@ -17,9 +17,10 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MerchantStackParamList } from '../types';
 import { useMerchant } from '../store/MerchantContext';
 import { QRCodeCard } from '../components/QRCodeCard';
-import { conversionRate, formatLastScan } from '../services/analytics';
+import { formatLastScan } from '../services/analytics';
 import { useI18n } from '../i18n';
 import { useExtraText } from '../i18n/extra';
+import { WeekSummary } from '../components/WeekSummary';
 
 type Props = NativeStackScreenProps<MerchantStackParamList, 'BranchDetail'>;
 
@@ -116,7 +117,6 @@ export function BranchDetailScreen({ route, navigation }: Props) {
           <StatTile icon="scan-outline"        value={a.totalScans}            label={t('branch_scans')}   color="#818CF8" />
           <StatTile icon="link-outline"        value={a.linkVisits}            label={t('branch_visits')}  color="#A78BFA" />
           <StatTile icon="copy-outline"        value={a.reviewsCopied}         label={t('branch_copied')}  color="#34D399" />
-          <StatTile icon="trending-up-outline" value={conversionRate(a)}       label={t('branch_cvr')}     color="#FCD34D" isString />
         </View>
 
         {a.lastScanAt && (
@@ -168,6 +168,9 @@ export function BranchDetailScreen({ route, navigation }: Props) {
             </TouchableOpacity>
 
           </View>
+
+          {/* Last 7 days in plain words */}
+          <WeekSummary branch={branch} />
 
           {/* What customers see — the review buttons */}
           <TouchableOpacity
