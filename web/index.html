@@ -667,9 +667,9 @@
         <div class="ai-error" id="aiError">
           <span class="ai-error-icon">⚠️</span>
           <div class="ai-error-body">
-            <div class="ai-error-title">Could not generate review</div>
+            <div class="ai-error-title">Something went wrong</div>
             <div class="ai-error-msg" id="aiErrorMsg"></div>
-            <button class="ai-error-retry" onclick="regenerate()">🔄 Try again</button>
+            <button class="ai-error-retry" onclick="location.reload()">🔄 Try again</button>
           </div>
         </div>
       </div>
@@ -699,16 +699,10 @@
         </div>
       </div>
 
-      <!-- ── Shared: review textarea + regenerate ── -->
+      <!-- ── Shared: review textarea ── -->
       <div id="reviewSection">
-        <div class="review-label">Your Review — edit if you like</div>
+        <div class="review-label">Your review</div>
         <textarea class="review-box" id="reviewText" rows="6" spellcheck="true"></textarea>
-      </div>
-
-      <div class="regen-row" id="regenRow">
-        <button class="regen-btn" id="regenBtn" onclick="regenerate()">
-          <span class="spin" id="spinIcon">🔄</span> Different review
-        </button>
       </div>
     </div>
 
@@ -1153,10 +1147,8 @@ var LANGUAGES = [
     } catch (e) { /* replaceState not supported — ignore */ }
   }
 
-  // BIZ_NAME, TONES, KEYWORDS, AREA are populated after Firestore + Places API fetch
+  // BIZ_NAME and AREA are filled in after the session + Places API fetch
   var BIZ_NAME = 'This Business';
-  var TONES    = ['Friendly'];
-  var KEYWORDS = [];
   var AREA     = '';
 
   // ── Fill header ──────────────────────────────
@@ -1166,114 +1158,10 @@ var LANGUAGES = [
     document.getElementById('bizArea').innerHTML = '<span>📍</span>' + escHtml(AREA);
   }
 
-  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
   function escHtml(s) {
     return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  // ── Gemini API call ──────────────────────────
-
-  // Tone → writing style the model can act on
-  var TONE_STYLES = {
-    'Friendly':     'warm and conversational, like telling a friend about a great find — contractions throughout',
-    'Professional': 'clear, measured, polished — approachable but never gushing',
-    'Luxury':       'discerning and refined — you have high standards and this place met them; vocabulary reflects that',
-    'Casual':       'very relaxed and informal — short punchy sentences, reads like a WhatsApp message',
-    'Enthusiastic': 'genuinely excited but still believable — energetic without being unhinged',
-    'Concise':      'brief and punchy — 2 tight sentences, no filler, every word earns its place',
-    'Heartfelt':    'personal and warm — include how the experience actually made you feel emotionally',
-    'Formal':       'composed, no contractions, measured vocabulary — like a letter of commendation',
-    'Detailed':     'thorough and observant — mention 3 distinct things you noticed, mix of sensory + factual',
-    'Grateful':     'appreciative tone — mention the difference this visit made to your day or situation',
-  };
-
-  // Category → what specific detail a real visitor of that type would naturally include
-  var CAT_HINTS = {
-    'Restaurant':  'sensory detail on one dish (taste, texture, aroma) + either wait time or portion size',
-    'Cafe':        'coffee quality or a specific drink + one atmosphere detail (seating, music, lighting)',
-    'Bar':         'a specific cocktail or drink + the atmosphere or crowd vibe at a particular time',
-    'Bakery':      'a specific baked item you tried + whether it was fresh or still warm',
-    'Fast Food':   'order speed + a specific item name + whether it was hot / as expected',
-    'Sweet Shop':  'a specific sweet by name + its freshness or texture',
-    'Hospital':    'a specific department or doctor role + cleanliness + how long the process took',
-    'Clinic':      'how attentively the doctor listened + wait time + how you felt leaving',
-    'Pharmacy':    'whether your specific medicine was in stock + how helpful the pharmacist was',
-    'Dentist':     'the doctor\'s gentleness on a specific procedure + equipment quality + pain level',
-    'Veterinary':  'how they handled your specific pet + what the vet explained + how your pet responded',
-    'Salon':       'specific service name + the result on your hair/skin + how you felt walking out',
-    'Spa':         'specific treatment name + a sensory atmosphere detail (lighting, music, scent) + how relaxed you felt',
-    'Gym':         'a specific equipment type or class + a trainer interaction + one personal result',
-    'Yoga':        'the instructor\'s cuing style + class pace + how you felt mentally after',
-    'Fitness':     'a specific programme or trainer + one measurable or visible result you noticed',
-    'Hotel':       'room-specific detail (view, bed comfort, bathroom) + one staff interaction by role + breakfast or check-in',
-    'Resort':      'a specific facility (pool, spa, restaurant) + one meal or activity + overall atmosphere',
-    'Hostel':      'dorm or room cleanliness + a specific staff helpfulness moment + proximity to something useful',
-    'Retail':      'whether you found what you needed + staff product knowledge + ease of checkout',
-    'Clothing':    'a specific item you bought + fabric feel or fit + whether staff suggested something that worked',
-    'Jewelry':     'a specific piece + craftsmanship detail + how patient staff were while you chose',
-    'Electronics': 'a specific product + whether staff knew the technical details + any after-sales note',
-    'Furniture':   'a specific piece + material quality or finish + delivery or assembly experience',
-    'Grocery':     'freshness of a specific produce type + stock availability + checkout speed',
-    'Supermarket': 'product variety for a specific category + store cleanliness + billing process',
-    'Hardware':    'whether a specific part was in stock + staff knowledge on a technical question',
-    'Books':       'a specific section or title + whether staff gave a useful recommendation + browsing comfort',
-    'Sports':      'a specific brand or item + whether it was in stock in the right size + staff advice quality',
-    'Pet Shop':    'care standards for a specific animal section + product advice from staff + pricing',
-    'Automotive':  'specific repair or service done + how clearly the mechanic explained the issue + the result',
-    'Real Estate': 'how well they understood your specific requirement + one thing they did to make the process smooth',
-    'Bank':        'wait time + how a specific issue was resolved + one digital or in-branch service note',
-    'School':      'a specific teacher or subject + how your child responded + one observable environment detail',
-    'Travel':      'a specific destination or package + one logistical detail (timing, transport) + a highlight moment',
-    'Photography': 'how the photographer directed you + final image quality detail + how comfortable you felt',
-    'Events':      'one decoration or setup detail + food quality + a specific guest reaction or moment',
-    'Laundry':     'turnaround time + condition clothes came back in + pricing relative to expectation',
-  };
-
-  // ── Category type classifier ─────────────────
-  // Primary: merchant-set category name
-  // Fallback: Google Places primaryType / types[] for unknown categories
-  var CAT_TYPES = {
-    food:        ['Restaurant','Cafe','Bar','Bakery','Fast Food','Sweet Shop'],
-    healthcare:  ['Hospital','Clinic','Pharmacy','Dentist','Veterinary'],
-    wellness:    ['Salon','Spa','Gym','Yoga','Fitness'],
-    hospitality: ['Hotel','Resort','Hostel'],
-    retail:      ['Retail','Clothing','Jewelry','Electronics','Furniture',
-                  'Grocery','Supermarket','Hardware','Books','Sports','Pet Shop'],
-    service:     ['Automotive','Real Estate','Bank','School','Travel',
-                  'Photography','Events','Laundry'],
-  };
-
-  // Google Places type keywords → our 6 category groups
-  var PLACE_TYPE_MAP = {
-    food:        ['restaurant','cafe','bar','bakery','food','meal','coffee','tea','dessert','pizza','burger','sushi','diner','pub','brewery','winery','distillery'],
-    healthcare:  ['hospital','doctor','clinic','pharmacy','dentist','physiotherapist','veterinary','optician','chiropractor','psychologist','medical','health','drugstore'],
-    wellness:    ['beauty_salon','hair_care','spa','gym','fitness','yoga','nail_salon','massage','barber','tanning'],
-    hospitality: ['hotel','lodging','resort','motel','hostel','guest_house','inn','bed_and_breakfast','vacation_rental'],
-    retail:      ['store','shop','supermarket','grocery','clothing','electronics','jewelry','furniture','hardware','book','pet_store','sporting_goods','market'],
-  };
-
-  function getCatType(cat, placeTypes) {
-    // 1. Try merchant-set category first
-    var found = null;
-    Object.keys(CAT_TYPES).forEach(function (type) {
-      if (CAT_TYPES[type].indexOf(cat) !== -1) found = type;
-    });
-    if (found) return found;
-
-    // 2. Fall back to Google Places types[] for unrecognised categories
-    if (placeTypes && placeTypes.length) {
-      var allTypes = placeTypes.join(' ').toLowerCase();
-      var keys = Object.keys(PLACE_TYPE_MAP);
-      for (var i = 0; i < keys.length; i++) {
-        var group = keys[i];
-        var keywords = PLACE_TYPE_MAP[group];
-        if (keywords.some(function (kw) { return allTypes.indexOf(kw) !== -1; })) {
-          return group;
-        }
-      }
-    }
-    return 'service'; // final fallback
-  }
 
   // ── Places API cache (localStorage, 7-day expiry) ────────────────
   // Key:   rr_place_v1_{placeId}   (namespaced to avoid collisions)
@@ -1317,7 +1205,9 @@ var LANGUAGES = [
 
     // 2. Fetch from backend (API key stays server-side)
     try {
-      var res = await fetch(API_BASE + '/api/v1/places/' + encodeURIComponent(placeId));
+      var res = await fetch(API_BASE + '/api/v1/places/' + encodeURIComponent(placeId), {
+        headers: { 'X-Session-Token': SESSION_TOKEN },
+      });
       if (!res.ok) return null;
       var json = await res.json();
       if (json.success && json.data) {
@@ -1328,320 +1218,35 @@ var LANGUAGES = [
     } catch (e) { return null; }
   }
 
-  // Convert Places API response → prompt-ready context string
-  function buildPlaceContext(d) {
-    if (!d) return null;
-    var lines = [];
+  // ── Session — required by every API call ─────
+  // The server only serves real branches, and counts each event once per session.
+  var SESSION_TOKEN = '';
 
-    // ── Type & status ──
-    if (d.primaryTypeDisplayName && d.primaryTypeDisplayName.text) {
-      lines.push('Google business type: ' + d.primaryTypeDisplayName.text);
-    } else if (d.primaryType) {
-      lines.push('Google business type: ' + d.primaryType.replace(/_/g, ' '));
-    }
-    if (d.businessStatus && d.businessStatus !== 'OPERATIONAL') {
-      lines.push('Status: ' + d.businessStatus.replace(/_/g, ' ').toLowerCase());
-    }
-
-    // ── Reputation ──
-    if (d.rating) {
-      var ratingLine = 'Overall rating: ' + d.rating + '/5';
-      if (d.userRatingCount) ratingLine += ' (' + d.userRatingCount + ' reviews)';
-      lines.push(ratingLine);
-    }
-
-    // ── Pricing ──
-    var priceMap = {
-      'PRICE_LEVEL_FREE':          'free / no charge',
-      'PRICE_LEVEL_INEXPENSIVE':   'budget-friendly',
-      'PRICE_LEVEL_MODERATE':      'moderately priced',
-      'PRICE_LEVEL_EXPENSIVE':     'upscale / expensive',
-      'PRICE_LEVEL_VERY_EXPENSIVE':'premium / very expensive',
-    };
-    if (d.priceLevel && priceMap[d.priceLevel]) {
-      var priceLine = 'Price level: ' + priceMap[d.priceLevel];
-      if (d.priceRange) {
-        if (d.priceRange.startPrice && d.priceRange.endPrice) {
-          priceLine += ' (' + (d.priceRange.startPrice.units || '') + '–' + (d.priceRange.endPrice.units || '') + ' ' + (d.priceRange.startPrice.currencyCode || '') + ')';
-        }
-      }
-      lines.push(priceLine);
-    }
-
-    // ── Google summaries — most useful for understanding what the business is known for ──
-    if (d.editorialSummary && d.editorialSummary.text) {
-      lines.push('Google editorial summary: ' + d.editorialSummary.text);
-    }
-    if (d.generativeSummary && d.generativeSummary.overview && d.generativeSummary.overview.text) {
-      lines.push('Google AI overview: ' + d.generativeSummary.overview.text);
-    }
-    if (d.reviewSummary && d.reviewSummary.text) {
-      lines.push('Review summary: ' + d.reviewSummary.text);
-    }
-
-    // ── Services & attributes ──
-    var svcMap = {
-      delivery:             'offers delivery',
-      dineIn:               'dine-in available',
-      takeout:              'takeout available',
-      curbsidePickup:       'curbside pickup',
-      reservable:           'accepts reservations',
-      outdoorSeating:       'has outdoor seating',
-      liveMusic:            'has live music',
-      goodForWatchingSports:'good for watching sports',
-      servesBeer:           'serves beer',
-      servesWine:           'serves wine',
-      servesCocktails:      'serves cocktails',
-      servesCoffee:         'serves coffee',
-      servesBreakfast:      'serves breakfast',
-      servesBrunch:         'serves brunch',
-      servesLunch:          'serves lunch',
-      servesDinner:         'serves dinner',
-      servesDessert:        'serves dessert',
-      servesVegetarianFood: 'vegetarian options available',
-      allowsDogs:           'pet-friendly / allows dogs',
-      menuForChildren:      'has kids menu',
-      goodForChildren:      'family-friendly / good for kids',
-      goodForGroups:        'good for groups',
-      restroom:             'restroom available',
-    };
-    var attrs = Object.keys(svcMap)
-      .filter(function (k) { return d[k] === true; })
-      .map(function (k) { return svcMap[k]; });
-    if (attrs.length) lines.push('Confirmed attributes: ' + attrs.join(', '));
-
-    // ── Parking ──
-    var parking = [];
-    if (d.parkingOptions) {
-      if (d.parkingOptions.valetParking)      parking.push('valet');
-      if (d.parkingOptions.freeParkingLot)    parking.push('free lot');
-      if (d.parkingOptions.freeStreetParking) parking.push('free street parking');
-      if (d.parkingOptions.paidParkingLot)    parking.push('paid lot');
-      if (d.parkingOptions.paidStreetParking) parking.push('paid street parking');
-    }
-    if (parking.length) lines.push('Parking: ' + parking.join(', '));
-
-    // ── Payment ──
-    var pay = [];
-    if (d.paymentOptions) {
-      if (d.paymentOptions.acceptsNfc)          pay.push('UPI/NFC');
-      if (d.paymentOptions.acceptsCreditCards)  pay.push('credit cards');
-      if (d.paymentOptions.acceptsDebitCards)   pay.push('debit cards');
-      if (d.paymentOptions.acceptsCashOnly)     pay.push('cash only');
-    }
-    if (pay.length) lines.push('Payment: ' + pay.join(', '));
-
-    // ── Accessibility ──
-    var access = [];
-    if (d.accessibilityOptions) {
-      if (d.accessibilityOptions.wheelchairAccessibleEntrance) access.push('wheelchair entrance');
-      if (d.accessibilityOptions.wheelchairAccessibleParking)  access.push('wheelchair parking');
-      if (d.accessibilityOptions.wheelchairAccessibleRestroom) access.push('wheelchair restroom');
-      if (d.accessibilityOptions.wheelchairAccessibleSeating)  access.push('wheelchair seating');
-    }
-    if (access.length) lines.push('Accessibility: ' + access.join(', '));
-
-    // ── Existing reviews — top 2 snippets for Gemini to understand real customer language ──
-    if (d.reviews && d.reviews.length) {
-      var snippets = d.reviews.slice(0, 2).map(function (r) {
-        var txt = r.text && r.text.text ? r.text.text : '';
-        return txt.length > 200 ? txt.slice(0, 200) + '…' : txt;
-      }).filter(Boolean);
-      if (snippets.length) {
-        lines.push('Sample real customer reviews (for context only — do NOT copy):');
-        snippets.forEach(function (s, i) { lines.push('  Review ' + (i + 1) + ': "' + s + '"'); });
-      }
-    }
-
-    return lines.length ? lines.join('\n') : null;
-  }
-
-  // AEO factual sentence — what question a real searcher asks per category type
-  var AEO_EXAMPLES = {
-    food:        'wait time, portion size, price-to-value (e.g. "generous portions for the price"), or a practical tip like peak hours or parking',
-    healthcare:  'wait time, consultation duration, whether a specific test or medicine was available, or how clearly the diagnosis was explained',
-    wellness:    'how long the result lasted (e.g. "the treatment lasted about 6 weeks"), appointment availability, or whether walk-ins are accepted',
-    hospitality: 'check-in speed, a specific room or facility detail, breakfast timing, or a pricing note like "reasonably priced for the location"',
-    retail:      'whether a specific item was in stock, price compared to expectation, ease of return or exchange, or delivery timeline',
-    service:     'turnaround time, whether the outcome matched what was promised, pricing transparency, or a before-vs-after observation',
-  };
-
-  // GEO specific claim — what a concrete citable claim looks like per category type
-  var GEO_EXAMPLES = {
-    food:        '"the [dish] was [adjective] because [reason]" — e.g. "the dal makhani was rich because they slow-cook it overnight"',
-    healthcare:  '"the [doctor/staff role] [did X] which meant [outcome]" — e.g. "the physician ran a blood panel on the spot, so I had a diagnosis the same afternoon"',
-    wellness:    '"the [treatment] [result + duration]" — e.g. "the keratin left my hair smooth and manageable for nearly three months"',
-    hospitality: '"the [specific room/facility detail] [observation]" — e.g. "the corner room had a clear city view and zero street noise even on a Saturday night"',
-    retail:      '"the [staff/product] [specific claim]" — e.g. "the technician diagnosed the exact compatibility issue without needing to look it up"',
-    service:     '"[what they did] [measurable outcome]" — e.g. "the mechanic found the fault within twenty minutes and had it fixed before lunch"',
-  };
-
-  // Authenticity "small detail" hint — what a real visitor of this type would observe
-  var VISITOR_DETAIL = {
-    food:        'a specific aroma, texture, or plating detail; how busy the kitchen sounded; a table observation',
-    healthcare:  'the waiting room setup, what the doctor specifically said, the cleanliness of equipment, a form or process step',
-    wellness:    'a product used on you, the scent of the treatment room, a specific technique the therapist or stylist used',
-    hospitality: 'a detail about the room (view, bedding, bathroom), what the staff member said at check-in, a hallway or lobby observation',
-    retail:      'where a product was shelved, a packaging or material detail, what the staff specifically knew or demonstrated',
-    service:     'a specific tool or step used, what the professional said when explaining the issue, how the paperwork or handover worked',
-  };
-
-  function buildPrompt(lang, placeDetails) {
-    var langEntry = LANGUAGES.filter(function(l) { return l.code === lang; })[0];
-    var langLabel = langEntry ? langEntry.name : lang;
-    var kwText      = KEYWORDS.length ? KEYWORDS.join(', ') : '';
-    var placeCtx    = buildPlaceContext(placeDetails);
-    var placeTypes  = placeDetails && placeDetails.types ? placeDetails.types : [];
-    var primaryType = placeDetails && placeDetails.primaryType
-                      ? placeDetails.primaryType.replace(/_/g, ' ') : '';
-    // Strip postal/PIN codes — city name only in review body
-    var city = AREA.split(',').map(function(p){return p.trim();}).filter(function(p){return p && !/^[0-9]+$/.test(p);}).join(', ') || AREA.trim() || 'local area';
-
-    // Business type comes from Places API only — no merchant-set category
-    var typeLabel   = primaryType
-      ? (placeDetails && placeDetails.primaryTypeDisplayName && placeDetails.primaryTypeDisplayName.text
-          ? placeDetails.primaryTypeDisplayName.text
-          : primaryType)
-      : 'business';
-    var catType     = getCatType(typeLabel, placeTypes);
-
-    var catHint    = CAT_HINTS[typeLabel] || (primaryType
-                     ? 'one specific detail only a real visitor of a "' + primaryType + '" would notice'
-                     : 'one specific operational detail only a real visitor would know');
-    var aeoExample = AEO_EXAMPLES[catType] || AEO_EXAMPLES.service;
-    var geoExample = GEO_EXAMPLES[catType] || GEO_EXAMPLES.service;
-    var visitorHint= VISITOR_DETAIL[catType] || VISITOR_DETAIL.service;
-
-    var toneLines  = TONES.map(function (t) {
-      return '  - ' + (TONE_STYLES[t.trim()] || t.toLowerCase());
-    }).join(String.fromCharCode(10));
-
-    var wordGuide  = TONES.includes('Concise') ? '40-60 words'
-                   : TONES.includes('Detailed') ? '100-130 words'
-                   : '65-100 words';
-
-    var lines = [
-      '=== BUSINESS ===',
-      'Name: ' + BIZ_NAME,
-      'Type: ' + typeLabel,
-      'City: ' + city,
-      kwText ? 'Keywords: ' + kwText : '',
-      '',
-    ];
-
-    if (placeCtx) {
-      lines.push('=== WHAT GOOGLE SAYS ===');
-      lines.push(placeCtx);
-      lines.push('');
-    }
-
-    lines.push('=== TASK ===');
-    lines.push('Write one authentic Google Maps review (' + wordGuide + ', ' + langLabel + ' only).');
-    lines.push('');
-    lines.push('The review must read like something a real customer wrote — flowing naturally,');
-    lines.push('not structured like a report. Build the whole review around one clear experience thread.');
-    lines.push('');
-    lines.push('Tone: ' + toneLines);
-    lines.push('');
-    lines.push('Weave in naturally (do NOT list or bullet these — blend them into the narrative):');
-    lines.push('  • ' + catHint);
-    lines.push('  • One honest observation only a real visitor makes: ' + visitorHint);
-    lines.push('  • One practical signal (' + aeoExample + ')');
-    lines.push('  • A cause-and-effect sentence using "because", "so", or "which means"');
-    lines.push('  • Mention "' + BIZ_NAME + '" + the business type + "' + city + '" at least once (entity signal for Google ranking)');
-    if (kwText) lines.push('  • Use these search terms exactly as written: ' + kwText);
-    lines.push('  • One concrete specific claim: ' + geoExample);
-    lines.push('  • One honest comparative ("better than I expected", "one of the better options in ' + city + ' for this", "worth it for the price")');
-    lines.push('');
-    lines.push('Rules:');
-    lines.push('  - Do NOT open with "I"');
-    lines.push('  - NEVER include postal codes, PIN codes, or zip codes — use city name only (e.g. "Surat" or "Surat, Gujarat", never "394101")');
-    lines.push('  - Past tense, first person, contractions throughout');
-    lines.push('  - Weave in 1-2 real attributes from Google Places data if relevant — do not list them');
-    lines.push('  - BANNED words: "exceeded my expectations" | "highly recommend" | "must-visit" | "without hesitation" | "truly exceptional" | "delightful" | "five stars" | "top-notch" | "gem" | "world-class" | "amazing experience"');
-    lines.push('  - No emojis, no hashtags, no star symbols');
-    lines.push('');
-    lines.push('Output: Review text only — no labels, no bullets, no preamble.');
-
-    return lines.filter(function(l) { return l !== null && l !== undefined; }).join(String.fromCharCode(10));
-  }
-
-  var SYSTEM_INSTRUCTION = [
-    'You are a real local customer writing a Google Maps review from personal memory.',
-    'You write naturally — the way people actually talk — mixing shorter and longer sentences.',
-    'Your reviews are genuinely useful to other people searching online because they include specific details:',
-    'concrete observations from your actual visit (what you saw, experienced, or were told), practical notes like wait times, outcomes, or price signals, and the kind of specific detail that only someone who actually went there would know.',
-    'You always mention the business name, what type of business it is, and the area — because that is how real reviews read and that is what helps other searchers find the right place.',
-    'You adapt naturally to the type of business — a clinic visit reads differently from a restaurant visit or a salon appointment — and your details reflect that.',
-    'You never sound like a press release, a marketing copywriter, or an AI assistant.',
-  ].join(' ');
-
-  async function fetchGeminiReview(lang, placeDetails) {
-    var res = await fetch(API_BASE + '/api/v1/review/generate', {
+  async function startSession() {
+    var res = await fetch(API_BASE + '/api/v1/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: SYSTEM_INSTRUCTION,
-        prompt: buildPrompt(lang, placeDetails),
-      }),
+      body: JSON.stringify({ uid: UID, placeId: PLACE_ID }),
     });
-    if (!res.ok) {
-      var errBody = '';
-      try { errBody = (await res.json()).error || ''; } catch(e) {}
-      throw new Error('HTTP ' + res.status + ' — ' + errBody);
+    var json = await res.json().catch(function () { return {}; });
+    if (!res.ok || !json.success || !json.data) {
+      throw new Error(json.error || ('HTTP ' + res.status));
     }
-    var json = await res.json();
-    if (!json.success || !json.data || !json.data.text) {
-      throw new Error(json.error || 'Empty response from review API');
-    }
-    return json.data.text;
+    SESSION_TOKEN = json.data.token;
+    return json.data;
   }
 
-
-  // ── UI helpers ───────────────────────────────
-  function setLoading(on) {
-    var ta   = document.getElementById('reviewText');
-    var rBtn = document.getElementById('regenBtn');
-    if (on) {
-      ta.value       = '';
-      ta.placeholder = '✨ Generating review…';
-      ta.disabled    = true;
-      rBtn.disabled  = true;
-    } else {
-      ta.placeholder = '';
-      ta.disabled    = false;
-      rBtn.disabled  = false;
-    }
-  }
-
-  // ── Firestore REST fetch — branch config from users/{uid}/branches/{bid} ──
-  // Config is owned by the merchant — other users cannot overwrite it.
-  // Analytics (totalScans etc.) remain in branches/{placeId}, written by this page.
-  var cachedBranchConfig = undefined; // undefined = not fetched; null = not found
-
-  async function fetchBranchConfig(uid, placeId) {
-    if (!uid || !placeId) return null;
-    try {
-      var res = await fetch(API_BASE + '/api/v1/merchants/' + encodeURIComponent(uid)
-                + '/branches/' + encodeURIComponent(placeId));
-      if (!res.ok) return null;
-      var json = await res.json();
-      if (!json.success || !json.data) return null;
-      return {
-        tone:         json.data.tone         || '',
-        keywords:     json.data.keywords     || '',
-        businessName: json.data.businessName || '',
-      };
-    } catch (e) { return null; }
+  function apiHeaders() {
+    return { 'Content-Type': 'application/json', 'X-Session-Token': SESSION_TOKEN };
   }
 
   // ── Analytics — proxied through backend ──────────────────────────────
   function postAnalytics(uid, placeId, event) {
-    if (!uid || !placeId) return;
+    if (!uid || !placeId || !SESSION_TOKEN) return;
     fetch(API_BASE + '/api/v1/merchants/' + encodeURIComponent(uid)
       + '/branches/' + encodeURIComponent(placeId) + '/analytics', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: apiHeaders(),
       body: JSON.stringify({ event: event }),
     }).catch(function (e) {
       console.warn('[ReviewReach] Analytics write failed:', e.message);
@@ -1652,97 +1257,79 @@ var LANGUAGES = [
   function registerLinkVisit(uid, placeId)    { postAnalytics(uid, placeId, 'link_visit'); }
   function registerReviewCopied(uid, placeId) { postAnalytics(uid, placeId, 'review_copied'); }
 
-  // ── Generate & display ───────────────────────
+  // ── Load branch & review box ─────────────────
+  // Until the new star flow ships (TODO Phase 3), "Type" mode is the
+  // customer's own words — the AI no longer writes a review for them.
   var currentLang      = 'en';
   var voiceLangCode    = 'multi';   // Deepgram STT language (set by voice lang dropdown)
-  var cachedPlace      = undefined; // undefined = not yet fetched; null = fetched but failed
-  var cachedTypeReview  = '';       // last AI-generated (or user-edited) type review
+  var cachedTypeReview  = '';       // what the customer typed
   var cachedVoiceReview = '';       // last voice-polished review
 
-  async function generateAndShow(lang) {
-    setLoading(true);
-
-    // Fetch branch config + place details in parallel on first call
-    if (cachedPlace === undefined) {
-      var results = await Promise.all([
-        fetchBranchConfig(UID, PLACE_ID),
-        fetchPlaceDetails(PLACE_ID),
-      ]);
-      cachedBranchConfig = results[0]; // null if not found
-      cachedPlace        = results[1]; // null if fails
-
-      // Apply fetched config — overwrite defaults
-      if (cachedBranchConfig) {
-        if (cachedBranchConfig.tone) {
-          TONES = cachedBranchConfig.tone.split(',').map(trim).filter(Boolean);
-        }
-        if (cachedBranchConfig.keywords) {
-          KEYWORDS = cachedBranchConfig.keywords.split(',').map(trim).filter(Boolean).slice(0, 4);
-        }
-        if (cachedBranchConfig.businessName) {
-          BIZ_NAME = sanitize(cachedBranchConfig.businessName, 100);
-          document.getElementById('bizName').textContent = BIZ_NAME;
-          document.title = 'Review \u2014 ' + BIZ_NAME;
-        }
-      }
-
-      // Area from Places API shortFormattedAddress or formattedAddress
-      if (cachedPlace) {
-        var addr = cachedPlace.shortFormattedAddress || cachedPlace.formattedAddress || '';
-        if (addr) {
-          var parts = addr.split(',').map(function(p){return p.trim();})
-            .filter(function(p){ return p && !/^[0-9]+$/.test(p) && !/^india$/i.test(p); });
-          AREA = parts.slice(-2).join(', ');
-        }
-        // Prefer Places API displayName over Firestore businessName
-        if (cachedPlace.displayName && cachedPlace.displayName.text) {
-          BIZ_NAME = sanitize(cachedPlace.displayName.text, 100);
-          document.getElementById('bizName').textContent = BIZ_NAME;
-          document.title = 'Review \u2014 ' + BIZ_NAME;
-        }
-        if (AREA) {
-          document.getElementById('bizArea').innerHTML = '<span>\uD83D\uDCCD</span>' + escHtml(AREA);
-        }
-      }
-    }
-
-    var text;
-    try {
-      text = await fetchGeminiReview(lang, cachedPlace);
-    } catch (e) {
-      console.error('[ReviewReach] AI generation failed:', e.message);
-      setLoading(false);
-      var errBanner = document.getElementById('aiError');
-      var errMsg    = document.getElementById('aiErrorMsg');
-      var cta       = document.getElementById('ctaBtn');
-      errMsg.textContent = e.message;
-      errBanner.classList.add('visible');
-      cta.disabled = true;
-      cta.style.opacity = '0.4';
-      return;
-    }
-    // Clear any previous error on success
-    var errBanner = document.getElementById('aiError');
-    if (errBanner) errBanner.classList.remove('visible');
+  function updateCta() {
     var cta = document.getElementById('ctaBtn');
-    if (cta) { cta.disabled = false; cta.style.opacity = ''; }
-    setLoading(false);
-    document.getElementById('reviewText').value = text;
-    cachedTypeReview = text;
+    var hasText = !!document.getElementById('reviewText').value.trim();
+    cta.disabled = !hasText;
+    cta.style.opacity = hasText ? '' : '0.4';
   }
 
-  // ── Language switcher ────────────────────────
+  function showLoadError(message) {
+    document.getElementById('aiErrorMsg').textContent = message;
+    document.getElementById('aiError').classList.add('visible');
+  }
+
+  async function loadBranch() {
+    document.getElementById('reviewText').placeholder = 'Write a few words about your visit';
+    updateCta();
+
+    if (!UID || !PLACE_ID) {
+      showLoadError('This review link is incomplete. Please scan the QR code again.');
+      return;
+    }
+
+    var session;
+    try {
+      session = await startSession();
+    } catch (e) {
+      console.error('[ReviewReach] Session failed:', e.message);
+      showLoadError('Could not load this shop. Please check your connection and try again.');
+      return;
+    }
+
+    if (session.businessName) {
+      BIZ_NAME = sanitize(session.businessName, 100);
+      document.getElementById('bizName').textContent = BIZ_NAME;
+      document.title = 'Review — ' + BIZ_NAME;
+    }
+
+    // Register origin (fire-and-forget)
+    if (IS_QR_SCAN)    registerQrScan(UID, PLACE_ID);
+    if (IS_LINK_VISIT) registerLinkVisit(UID, PLACE_ID);
+
+    // Area and display name from the Places API
+    var place = await fetchPlaceDetails(PLACE_ID);
+    if (place) {
+      var addr = place.shortFormattedAddress || place.formattedAddress || '';
+      if (addr) {
+        var parts = addr.split(',').map(function(p){return p.trim();})
+          .filter(function(p){ return p && !/^[0-9]+$/.test(p) && !/^india$/i.test(p); });
+        AREA = parts.slice(-2).join(', ');
+      }
+      if (place.displayName && place.displayName.text) {
+        BIZ_NAME = sanitize(place.displayName.text, 100);
+        document.getElementById('bizName').textContent = BIZ_NAME;
+        document.title = 'Review — ' + BIZ_NAME;
+      }
+      if (AREA) {
+        document.getElementById('bizArea').innerHTML = '<span>📍</span>' + escHtml(AREA);
+      }
+    }
+  }
+
+  document.getElementById('reviewText').addEventListener('input', updateCta);
+
+  // ── Language switcher (used for voice clean-up) ──
   window.setLang = function (lang) {
     currentLang = lang;
-    generateAndShow(lang);
-  };
-
-  // ── Regenerate ───────────────────────────────
-  window.regenerate = function () {
-    var icon = document.getElementById('spinIcon');
-    icon.classList.add('spinning');
-    setTimeout(function () { icon.classList.remove('spinning'); }, 600);
-    generateAndShow(currentLang);
   };
 
   // ── Copy + open Google Maps ──────────────────
@@ -1835,7 +1422,7 @@ var LANGUAGES = [
     fetch(API_BASE + '/api/v1/merchants/' + encodeURIComponent(UID)
       + '/branches/' + encodeURIComponent(PLACE_ID) + '/feedback', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: apiHeaders(),
       body: JSON.stringify(feedbackBody),
     })
     .then(function () {
@@ -1872,9 +1459,6 @@ var LANGUAGES = [
     document.getElementById('panelType').classList.toggle('active', mode === 'type');
     document.getElementById('panelSpeak').classList.toggle('active', mode === 'speak');
 
-    // Show regenerate button only in type mode
-    document.getElementById('regenRow').style.display = mode === 'type' ? '' : 'none';
-
     // Restore cached review for the target mode
     var reviewSection = document.getElementById('reviewSection');
     if (mode === 'type') {
@@ -1892,6 +1476,7 @@ var LANGUAGES = [
         reviewSection.style.display = 'none';
       }
     }
+    updateCta();
   };
 
   // ── Voice recording (WebSocket streaming) ────
@@ -1957,7 +1542,8 @@ var LANGUAGES = [
     document.getElementById('reviewText').value = '';
 
     // Open WebSocket to backend
-    voiceWs = new WebSocket(getWsBase() + '/api/v1/voice-stream?lang=' + encodeURIComponent(voiceLangCode));
+    voiceWs = new WebSocket(getWsBase() + '/api/v1/voice-stream?lang=' + encodeURIComponent(voiceLangCode)
+      + '&session=' + encodeURIComponent(SESSION_TOKEN));
 
     voiceWs.onmessage = function (e) {
       try {
@@ -2076,36 +1662,13 @@ var LANGUAGES = [
     var polish = document.getElementById('polishOverlay');
     polish.classList.add('visible');
 
-    var prompt = 'Transform this voice transcript into a polished 5-star Google review:\n\n'
-      + 'Transcript: "' + fullTranscript + '"\n\n'
-      + 'Detected spoken language: ' + (detectedLang || 'en');
-
-    if (BIZ_NAME && BIZ_NAME !== 'This Business') {
-      prompt += '\nBusiness name: ' + BIZ_NAME;
-    }
-    if (KEYWORDS.length) {
-      prompt += '\nMerchant keywords: ' + KEYWORDS.join(', ');
-    }
-
-    var sysPrompt = [
-      'You are a review polishing assistant. Take a raw voice transcript from a real customer and transform it into a polished, natural-sounding 5-star Google review.',
-      'Rules:',
-      '- If the transcript is non-English, translate the core meaning into natural English.',
-      '- Remove filler words (um, uh, like, you know), stutters, false starts, and repetitions.',
-      '- Produce a crisp, enthusiastic 2-3 sentence review that reads like a genuine 5-star Google review.',
-      '- Write in first person, past tense, with natural contractions.',
-      '- The tone should feel authentic and personal.',
-      BIZ_NAME !== 'This Business' ? '- Reference "' + BIZ_NAME + '" naturally in the review.' : '',
-      KEYWORDS.length ? '- Naturally weave in 1-2 of these keywords: ' + KEYWORDS.join(', ') : '',
-      '- No emojis, no hashtags, no star symbols.',
-      '- BANNED phrases: "exceeded my expectations", "highly recommend", "must-visit", "truly exceptional", "five stars", "top-notch", "gem", "world-class".',
-      'Output: Review text only — no labels, no preamble.',
-    ].filter(Boolean).join('\n');
+    // Clean up in the language they spoke; the server builds the prompt
+    var spokenLang = detectedLang || (voiceLangCode !== 'multi' ? voiceLangCode : currentLang) || 'en';
 
     fetch(API_BASE + '/api/v1/review/generate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ systemInstruction: sysPrompt, prompt: prompt }),
+      headers: apiHeaders(),
+      body: JSON.stringify({ mode: 'voice', transcript: fullTranscript.slice(0, 1000), lang: spokenLang }),
     })
     .then(function (res) { return res.json(); })
     .then(function (json) {
@@ -2114,8 +1677,7 @@ var LANGUAGES = [
         cachedVoiceReview = json.data.text;
         document.getElementById('reviewText').value = json.data.text;
         document.getElementById('reviewSection').style.display = '';
-        var cta = document.getElementById('ctaBtn');
-        if (cta) { cta.disabled = false; cta.style.opacity = ''; }
+        updateCta();
       } else {
         throw new Error(json.error || 'Empty response');
       }
@@ -2126,16 +1688,13 @@ var LANGUAGES = [
       cachedVoiceReview = fullTranscript;
       document.getElementById('reviewText').value = fullTranscript;
       document.getElementById('reviewSection').style.display = '';
+      updateCta();
     });
   }
 
   // ── Init ─────────────────────────────────────
-  // Register origin (fire-and-forget — no await)
-  if (IS_QR_SCAN    && UID && PLACE_ID) registerQrScan(UID, PLACE_ID);
-  if (IS_LINK_VISIT && UID && PLACE_ID) registerLinkVisit(UID, PLACE_ID);
-
-  // Generate AI review immediately on page load
-  generateAndShow('en');
+  // Start a session, then record the visit and load shop details
+  loadBranch();
 
 }());
 </script>
