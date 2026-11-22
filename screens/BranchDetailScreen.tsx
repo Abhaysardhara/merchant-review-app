@@ -17,56 +17,36 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MerchantStackParamList } from '../types';
 import { useMerchant } from '../store/MerchantContext';
 import { QRCodeCard } from '../components/QRCodeCard';
-import { conversionRate, formatLastScan } from '../services/analytics';
+import { formatLastScan } from '../services/analytics';
 import { useI18n } from '../i18n';
+import { useExtraText } from '../i18n/extra';
+import { WeekSummary } from '../components/WeekSummary';
 
 type Props = NativeStackScreenProps<MerchantStackParamList, 'BranchDetail'>;
 
-const TONES = [
-  'Friendly', 'Professional', 'Luxury', 'Casual',
-  'Enthusiastic', 'Concise', 'Heartfelt', 'Formal', 'Detailed', 'Grateful',
-];
-
 export function BranchDetailScreen({ route, navigation }: Props) {
   const { branchId } = route.params;
-  const { getBranch, updateBranch, deleteBranch, buildQRUrl } = useMerchant();
+  const { getBranch, updateBranch, deleteBranch, buildQRUrl, makingButtons } = useMerchant();
   const insets = useSafeAreaInsets();
   const { t } = useI18n();
+  const { t: tx, buttonLang } = useExtraText();
 
   const branch = getBranch(branchId);
 
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(branch?.name ?? '');
-  const [keywords, setKeywords] = useState(branch?.keywords ?? '');
-  const [tones, setTones] = useState<string[]>(
-    branch?.tone ? branch.tone.split(', ').filter(Boolean) : ['Friendly'],
-  );
   const [isSaving, setIsSaving] = useState(false);
-
-  const toggleTone = useCallback((t: string) => {
-    setTones((prev) =>
-      prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t],
-    );
-  }, []);
 
   const handleSave = useCallback(async () => {
     if (!name.trim()) {
       Alert.alert('Validation', 'Branch name cannot be empty.');
       return;
     }
-    if (tones.length === 0) {
-      Alert.alert('Select tone', 'Please select at least one AI tone.');
-      return;
-    }
     setIsSaving(true);
-    await updateBranch(branchId, {
-      name: name.trim(),
-      keywords: keywords.trim(),
-      tone: tones.join(', '),
-    });
+    await updateBranch(branchId, { name: name.trim() });
     setIsSaving(false);
     setIsEditing(false);
-  }, [branchId, name, keywords, tones, updateBranch]);
+  }, [branchId, name, updateBranch]);
 
   const handleDelete = () => {
     Alert.alert(
@@ -137,7 +117,6 @@ export function BranchDetailScreen({ route, navigation }: Props) {
           <StatTile icon="scan-outline"        value={a.totalScans}            label={t('branch_scans')}   color="#818CF8" />
           <StatTile icon="link-outline"        value={a.linkVisits}            label={t('branch_visits')}  color="#A78BFA" />
           <StatTile icon="copy-outline"        value={a.reviewsCopied}         label={t('branch_copied')}  color="#34D399" />
-          <StatTile icon="trending-up-outline" value={conversionRate(a)}       label={t('branch_cvr')}     color="#FCD34D" isString />
         </View>
 
         {a.lastScanAt && (
@@ -190,6 +169,39 @@ export function BranchDetailScreen({ route, navigation }: Props) {
 
           </View>
 
+          {/* Last 7 days in plain words */}
+          <WeekSummary branch={branch} />
+
+          {/* What customers see — the review buttons */}
+          <TouchableOpacity
+            style={styles.buttonsCard}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('CustomerButtons', { branchId: branch.id })}
+            accessibilityRole="button"
+          >
+            <View style={styles.buttonsCardHead}>
+              <View style={[styles.quickBtnIcon, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="phone-portrait-outline" size={20} color="#B45309" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.buttonsCardTitle}>{tx('cs_title')}</Text>
+                <Text style={styles.buttonsCardSub}>{tx('cs_entrySub')}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
+            </View>
+            <Text style={styles.buttonsCardPreview} numberOfLines={2}>
+              {makingButtons.includes(branch.id)
+                ? tx('cs_making')
+                : branch.buttons.filter((b) => b.enabled && b.kind !== 'improve').length
+                  ? branch.buttons
+                      .filter((b) => b.enabled && b.kind !== 'improve')
+                      .slice(0, 6)
+                      .map((b) => `${b.emoji} ${b.labels[buttonLang] || b.labels.en}`)
+                      .join('   ')
+                  : tx('cs_empty')}
+            </Text>
+          </TouchableOpacity>
+
           {/* Branch Details */}
           <View style={styles.card}>
             <View style={styles.sectionHeader}>
@@ -233,43 +245,6 @@ export function BranchDetailScreen({ route, navigation }: Props) {
               </Text>
             </FieldRow>
 
-            <FieldRow label={t('branch_aiTone')} last={!isEditing}>
-              {isEditing ? (
-                <View style={styles.chipWrap}>
-                  {TONES.map((t) => {
-                    const active = tones.includes(t);
-                    return (
-                      <TouchableOpacity
-                        key={t}
-                        style={[styles.toneChip, active && styles.toneChipActive]}
-                        onPress={() => toggleTone(t)}
-                      >
-                        {active && <Ionicons name="checkmark" size={11} color="#FFF" />}
-                        <Text style={[styles.toneChipText, active && styles.toneChipTextActive]}>{t}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              ) : (
-                <Text style={styles.fieldValue}>{branch.tone}</Text>
-              )}
-            </FieldRow>
-
-            <FieldRow label={t('branch_keywords')} last={!isEditing}>
-              {isEditing ? (
-                <TextInput
-                  style={[styles.fieldInput, styles.fieldInputMulti]}
-                  value={keywords}
-                  onChangeText={setKeywords}
-                  multiline
-                  placeholder="e.g. coffee, cozy, quick service"
-                  placeholderTextColor="#CBD5E1"
-                />
-              ) : (
-                <Text style={styles.fieldValue}>{branch.keywords || '—'}</Text>
-              )}
-            </FieldRow>
-
             {isEditing && (
               <View style={styles.editActions}>
                 <TouchableOpacity
@@ -277,8 +252,6 @@ export function BranchDetailScreen({ route, navigation }: Props) {
                   onPress={() => {
                     setIsEditing(false);
                     setName(branch.name);
-                    setKeywords(branch.keywords ?? '');
-                    setTones(branch.tone ? branch.tone.split(', ').filter(Boolean) : ['Friendly']);
                   }}
                 >
                   <Text style={styles.cancelBtnText}>{t('common_cancel')}</Text>
@@ -520,19 +493,16 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     backgroundColor: '#FAFBFF',
   },
-  fieldInputMulti: { minHeight: 70, textAlignVertical: 'top' },
 
-  // Tone chips
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 4 },
-  toneChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 12, paddingVertical: 6,
-    borderRadius: 20, borderWidth: 1,
-    borderColor: '#E2E8F0', backgroundColor: '#F8FAFC',
+  // "What customers see" entry card
+  buttonsCard: {
+    backgroundColor: '#FFFBEB', borderRadius: 18, borderWidth: 1.5, borderColor: '#FCD34D',
+    padding: 16, gap: 12,
   },
-  toneChipActive: { backgroundColor: '#4F46E5', borderColor: '#4F46E5' },
-  toneChipText: { fontSize: 12, fontWeight: '600', color: '#475569' },
-  toneChipTextActive: { color: '#fff' },
+  buttonsCardHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  buttonsCardTitle: { fontSize: 17, fontWeight: '700', color: '#1E293B' },
+  buttonsCardSub: { fontSize: 13, color: '#64748B', marginTop: 2 },
+  buttonsCardPreview: { fontSize: 15, color: '#334155', lineHeight: 22 },
 
   // Edit actions
   editActions: {

@@ -41,6 +41,15 @@ export const merchantSearchLimiter = rateLimit({
   message: tooMany,
   keyGenerator: (_req, res) => String(res.locals.merchantUid),
 });
+/** Merchant AI actions (button generation), per signed-in merchant. */
+export const merchantAiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: tooMany,
+  keyGenerator: (_req, res) => String(res.locals.merchantUid),
+});
 export const merchantSearchDailyLimiter = rateLimit({
   windowMs: 24 * 60 * 60 * 1000,
   limit: 300,

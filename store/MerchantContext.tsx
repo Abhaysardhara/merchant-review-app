@@ -15,15 +15,17 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import type { Branch, QRPayload } from '../types';
+import type { Branch, QRPayload, ReviewButton } from '../types';
 import { emptyAnalytics, clearAllData } from '../services/analytics';
 import { resolvePlaceFromUrl } from '../services/mapsResolver';
+import { generateButtons } from '../services/buttonsApi';
 import {
   onAuthStateChanged,
   signOut,
   signInWithGoogleCredential,
   signInAnonymously,
   saveUserBranch,
+  saveBranchButtons,
   deleteUserBranch,
   loadUserBranches,
   deleteUserAccount,
@@ -52,6 +54,15 @@ interface MerchantContextValue {
   getBranch: (id: string) => Branch | undefined;
   refreshBranches: () => Promise<void>;
 
+  /** Save edited buttons (remove, rename, undo) */
+  setBranchButtons: (id: string, buttons: ReviewButton[]) => Promise<void>;
+  /** Show buttons the server just made, without saving again */
+  applyServerButtons: (id: string, buttons: ReviewButton[]) => void;
+  /** Branch ids whose buttons are being made right now */
+  makingButtons: string[];
+  /** (Re)make a branch's buttons on the server */
+  makeButtons: (id: string, servicesSpoken?: string) => Promise<void>;
+
   buildQRPayload: (branch: Branch) => QRPayload;
   buildQRUrl: (branch: Branch) => string;
 }
@@ -61,8 +72,8 @@ export interface AddBranchParams {
   businessName: string;
   address: string;
   googleMapsUrl: string;
-  keywords: string;
-  tone: string;
+  /** What the merchant said they sell (used to make the review buttons) */
+  servicesSpoken?: string;
   placeIdOverride?: string;
 }
 
@@ -86,6 +97,7 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [branches, setBranches]       = useState<Branch[]>([]);
   const [isLoading, setIsLoading]     = useState(true);
+  const [makingButtons, setMakingButtons] = useState<string[]>([]);
 
   // ── Load branches for the signed-in user (config + analytics in one read) ──
   const loadBranches = useCallback(async (uid: string) => {
@@ -179,8 +191,8 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
         address:      params.address,
         placeId,
         googleMapsUrl:params.googleMapsUrl,
-        keywords:     params.keywords,
-        tone:         params.tone,
+        buttons:      [],
+        servicesSpoken: params.servicesSpoken?.trim() || undefined,
         analytics:    restoredAnalytics,
         createdAt:    (existing?.data.createdAt as string) ?? new Date().toISOString(),
       };
@@ -190,9 +202,44 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
       // Persist to Firestore — clears the deleted flag if restoring.
       await saveUserBranch(currentUser.uid, branch);
 
+      // Make the review buttons in the background — the merchant does nothing
+      // (if it fails, the "What customers see" screen offers a "Make buttons" button)
+      makeButtonsFor(currentUser.uid, placeId, params.servicesSpoken).catch(() => {});
+
       return branch;
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [currentUser],
+  );
+
+  // ── Review buttons ──
+  const applyServerButtons = useCallback((id: string, buttons: ReviewButton[]) => {
+    setBranches(prev => prev.map((b) => (b.id === id ? { ...b, buttons } : b)));
+  }, []);
+
+  function makeButtonsFor(uid: string, id: string, servicesSpoken?: string): Promise<void> {
+    setMakingButtons(prev => (prev.includes(id) ? prev : [...prev, id]));
+    return generateButtons(uid, id, servicesSpoken)
+      .then((buttons) => applyServerButtons(id, buttons))
+      .finally(() => setMakingButtons(prev => prev.filter((x) => x !== id)));
+  }
+
+  const makeButtons = useCallback(
+    async (id: string, servicesSpoken?: string) => {
+      if (!currentUser) return;
+      await makeButtonsFor(currentUser.uid, id, servicesSpoken);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [currentUser],
+  );
+
+  const setBranchButtons = useCallback(
+    async (id: string, buttons: ReviewButton[]) => {
+      if (!currentUser) return;
+      applyServerButtons(id, buttons);
+      await saveBranchButtons(currentUser.uid, id, buttons);
+    },
+    [currentUser, applyServerButtons],
   );
 
   const updateBranch = useCallback(
@@ -233,9 +280,7 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
     uid:          currentUser?.uid ?? '',
     branchName:   branch.name,
     businessName: branch.businessName,
-    tone:         branch.tone,
-    keywords:     branch.keywords,
-    v:            1,
+    v:            2,
   }), [currentUser]);
 
   const buildQRUrl = useCallback((branch: Branch): string => {
@@ -257,10 +302,18 @@ export function MerchantProvider({ children }: { children: React.ReactNode }) {
       deleteBranch,
       getBranch,
       refreshBranches,
+      setBranchButtons,
+      applyServerButtons,
+      makingButtons,
+      makeButtons,
       buildQRPayload,
       buildQRUrl,
     }),
     [
+      setBranchButtons,
+      applyServerButtons,
+      makingButtons,
+      makeButtons,
       currentUser,
       branches,
       isLoading,

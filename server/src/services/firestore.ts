@@ -20,10 +20,46 @@ export function isValidDocId(id: unknown): id is string {
   return typeof id === "string" && /^[A-Za-z0-9_\-:]{1,200}$/.test(id);
 }
 
+/** Languages the review page shows buttons in. */
+export const BUTTON_LANGS = ["en", "hi", "gu"] as const;
+export type ButtonLang = (typeof BUTTON_LANGS)[number];
+
+/** A tap-able button on the customer review page ("Biryani", "Long wait"). */
+export interface ReviewButton {
+  id: string;
+  kind: "bought" | "good" | "improve";
+  emoji: string;
+  labels: Record<ButtonLang, string>;
+  enabled: boolean;
+  order: number;
+  source: "ai" | "merchant";
+}
+
 export interface MerchantBranch {
   name: string;
   businessName: string;
   placeId: string;
+  buttons: ReviewButton[];
+}
+
+function parseButtons(raw: unknown): ReviewButton[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((b): b is Record<string, any> => !!b && typeof b === "object")
+    .filter((b) => typeof b.id === "string" && ["bought", "good", "improve"].includes(b.kind))
+    .map((b) => ({
+      id: b.id,
+      kind: b.kind,
+      emoji: typeof b.emoji === "string" ? b.emoji.slice(0, 8) : "",
+      labels: {
+        en: String(b.labels?.en ?? "").slice(0, 40),
+        hi: String(b.labels?.hi ?? "").slice(0, 40),
+        gu: String(b.labels?.gu ?? "").slice(0, 40),
+      },
+      enabled: b.enabled !== false,
+      order: typeof b.order === "number" ? b.order : 0,
+      source: b.source === "merchant" ? "merchant" : "ai",
+    }));
 }
 
 /** Reads users/{uid}/branches/{placeId}. Returns null if it doesn't exist. */
@@ -35,11 +71,28 @@ export async function getMerchantBranch(
   const snap = await firestore().doc(`users/${uid}/branches/${placeId}`).get();
   if (!snap.exists) return null;
   const data = snap.data() || {};
+  if (data.deleted === true) return null;
   return {
     name: typeof data.name === "string" ? data.name : "",
     businessName: typeof data.businessName === "string" ? data.businessName : "",
     placeId: typeof data.placeId === "string" ? data.placeId : placeId,
+    buttons: parseButtons(data.buttons),
   };
+}
+
+/** Saves the branch's buttons (and, optionally, what the merchant said they sell). */
+export async function saveBranchButtons(
+  uid: string,
+  placeId: string,
+  buttons: ReviewButton[],
+  servicesSpoken?: string
+): Promise<void> {
+  const update: Record<string, unknown> = {
+    buttons,
+    buttonsGeneratedAt: FieldValue.serverTimestamp(),
+  };
+  if (servicesSpoken !== undefined) update.servicesSpoken = servicesSpoken;
+  await firestore().doc(`users/${uid}/branches/${placeId}`).update(update);
 }
 
 export type AnalyticsEvent = "qr_scan" | "link_visit" | "review_copied";

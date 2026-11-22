@@ -1,7 +1,24 @@
 import { Router, type Request, type Response } from "express";
 import type { SessionPayload } from "../middleware/session";
 import { budgetExceeded, consumeBudget } from "../middleware/limits";
-import { cleanVoiceTranscript, generateStarDraft, generateStarDraftSet } from "../services/gemini";
+import {
+  cleanVoiceTranscript,
+  generateDraftFromButtons,
+  generateStarDraft,
+  generateStarDraftSet,
+} from "../services/gemini";
+import { getMerchantBranch, type ReviewButton } from "../services/firestore";
+
+// Branch buttons, cached briefly so each draft doesn't re-read Firestore
+const buttonCache = new Map<string, { at: number; buttons: ReviewButton[] }>();
+async function branchButtons(uid: string, pid: string): Promise<ReviewButton[]> {
+  const hit = buttonCache.get(pid);
+  if (hit && Date.now() - hit.at < 5 * 60 * 1000) return hit.buttons;
+  const branch = await getMerchantBranch(uid, pid);
+  const buttons = branch?.buttons.filter((b) => b.enabled) ?? [];
+  buttonCache.set(pid, { at: Date.now(), buttons });
+  return buttons;
+}
 
 export const reviewRouter = Router();
 
@@ -70,16 +87,54 @@ function isStars(stars: unknown): stars is number {
  * Requires a session token. The server builds every prompt.
  *
  * Body (star draft):  { mode: "draft", stars: 1-5, lang }
+ * Body (buttons):     { mode: "buttons", stars: 1-5, buttonIds: string[], lang }
  * Body (voice):       { mode: "voice", transcript, lang, stars?: 1-5 }
  */
 reviewRouter.post(
   "/generate",
   async (req: Request, res: Response): Promise<void> => {
     const session = res.locals.session as SessionPayload;
-    const { mode, stars, transcript, lang } = req.body || {};
+    const { mode, stars, transcript, lang, buttonIds } = req.body || {};
 
     if (!isLang(lang)) {
       res.status(400).json({ success: false, error: "Invalid lang" });
+      return;
+    }
+
+    if (mode === "buttons") {
+      if (!isStars(stars)) {
+        res.status(400).json({ success: false, error: "stars must be 1-5" });
+        return;
+      }
+      if (!Array.isArray(buttonIds) || !buttonIds.length || buttonIds.length > 20) {
+        res.status(400).json({ success: false, error: "buttonIds must list 1-20 buttons" });
+        return;
+      }
+      const buttons = await branchButtons(session.uid, session.pid);
+      const picked = buttons.filter((b) => buttonIds.includes(b.id));
+      if (!picked.length) {
+        res.status(400).json({ success: false, error: "Unknown buttons" });
+        return;
+      }
+      if (!consumeBudget("ai", session.pid)) {
+        res.status(429).json(budgetExceeded);
+        return;
+      }
+      const label = (b: ReviewButton) => b.labels.en || b.labels.hi || b.labels.gu;
+      try {
+        const text = await generateDraftFromButtons({
+          stars,
+          lang,
+          businessName: session.bn,
+          bought: picked.filter((b) => b.kind === "bought").map(label),
+          good: picked.filter((b) => b.kind === "good").map(label),
+          improve: picked.filter((b) => b.kind === "improve").map(label),
+        });
+        res.json({ success: true, data: { text } });
+      } catch (error) {
+        console.error("[review] Buttons draft error:", error);
+        res.status(502).json({ success: false, error: "Could not create a draft. Please try again." });
+      }
       return;
     }
 
@@ -102,7 +157,7 @@ reviewRouter.post(
         return;
       }
     } else {
-      res.status(400).json({ success: false, error: 'mode must be "draft" or "voice"' });
+      res.status(400).json({ success: false, error: 'mode must be "draft", "buttons" or "voice"' });
       return;
     }
 

@@ -160,6 +160,18 @@
     .stars.small .star { width: 48px; height: 48px; }
     .stars.small .star svg { width: 32px; height: 32px; }
     h2.title { margin-top: 24px; font-size: 28px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1; }
+    .group { margin-top: 16px; }
+    .group h3 { font-size: 14px; font-weight: 600; color: var(--muted); }
+    .chips { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip {
+      min-height: 48px; padding: 0 16px 0 12px; border-radius: 24px; border: 1.5px solid var(--line-strong);
+      background: var(--card); display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 600;
+      transition: transform .14s ease;
+    }
+    .chip:active { transform: scale(.96); }
+    .chip[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+    .chip.bad[aria-pressed="true"] { background: #FBE3D9; color: #8A2E12; border-color: var(--clay); }
+    .writing { opacity: .55; }
     .mic-btn {
       margin-top: 16px; min-height: 56px; border-radius: 16px; border: none; background: var(--ink); color: var(--paper);
       display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 16px; font-weight: 600;
@@ -329,7 +341,7 @@
         <span class="ico" aria-hidden="true">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A5E00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg>
         </span>
-        <span class="txt"><span class="t1" data-t="detailsCard"></span><span class="t2" data-t="detailsSub"></span></span>
+        <span class="txt"><span class="t1" id="detailsCardT1"></span><span class="t2" id="detailsCardT2"></span></span>
         <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1B1A17" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"></path></svg>
       </button>
       <button class="link-private" type="button" data-private data-t="private"></button>
@@ -345,8 +357,10 @@
         </button>
         <div class="stars small" role="radiogroup" id="starsSmall"></div>
       </div>
-      <h2 class="title" id="detailsTitle" tabindex="-1" data-t="detailsTitle"></h2>
-      <p class="sub" style="font-size:14px" data-t="detailsLead"></p>
+      <h2 class="title" id="detailsTitle" tabindex="-1"></h2>
+      <p class="sub" style="font-size:14px" id="detailsLead"></p>
+
+      <div id="chipGroups"></div>
 
       <button class="mic-btn press" id="micBtn" type="button">
         <span class="mic-dot" aria-hidden="true">
@@ -502,6 +516,10 @@
       copiedNext: 'Copied. Next step in a moment', notCopiedNext: 'Next step in a moment',
       stay: 'Stay here', continue: 'Continue',
       detailsCard: 'Write it yourself', detailsSub: 'Type or speak your own words',
+      detailsCardBtns: 'Add details first', detailsSubBtns: 'Tap what you had, or speak',
+      detailsTitleBtns: 'Pick what fits', detailsLeadBtns: 'Your review is built only from your picks.',
+      gBought: 'What you had', gGood: 'What was good', gImprove: 'What could be better',
+      writing: 'Writing…',
       private: 'Tell the owner something privately',
       honest: 'Please share your honest experience.',
       back: 'Back',
@@ -551,6 +569,10 @@
       copiedNext: 'कॉपी हो गया। अगला कदम आ रहा है', notCopiedNext: 'अगला कदम आ रहा है',
       stay: 'यहीं रुकें', continue: 'आगे बढ़ें',
       detailsCard: 'खुद लिखें', detailsSub: 'अपने शब्द टाइप करें या बोलें',
+      detailsCardBtns: 'पहले कुछ और बताएँ', detailsSubBtns: 'आपने क्या लिया, दबाइए या बोलिए',
+      detailsTitleBtns: 'जो सही लगे, चुनिए', detailsLeadBtns: 'आपका रिव्यू सिर्फ़ आपकी पसंद से बनेगा।',
+      gBought: 'आपने क्या लिया', gGood: 'क्या अच्छा था', gImprove: 'क्या बेहतर हो सकता है',
+      writing: 'लिख रहे हैं…',
       private: 'मालिक को निजी तौर पर बताएँ',
       honest: 'कृपया अपना सच्चा अनुभव बताएँ।',
       back: 'वापस',
@@ -628,7 +650,10 @@
     shopName: '',
     area: '',
     place: null,
-    leftForGoogle: false
+    leftForGoogle: false,
+    buttons: [],           // the shop's buttons: { id, kind, emoji, labels: { en, hi, gu } }
+    picked: [],            // ids the customer tapped
+    fromButtons: false     // true when the draft was written from picked buttons
   };
   var SESSION_TOKEN = '';
   var advanceTimer = null;
@@ -814,6 +839,8 @@
     $('draftLabel').textContent = L.draftLabel;
     $('thanksSub').textContent = L.thanksSub(shopName());
     renderStars(0);
+    renderDetailsText();
+    renderChips();
     renderCopyButton();
     if (state.screen === 'copied') renderCopied();
   }
@@ -854,8 +881,12 @@
     renderStars(n);
 
     if (state.screen === 'details') {
-      // On the details screen a star only changes the rating
-      if (!state.ownWords) $('draftText').value = draftFor(n);
+      // On the details screen a star only changes the rating (and the draft, if it's ours)
+      renderChips();
+      if (!state.ownWords) {
+        if (state.picked.length) requestButtonDraft();
+        else $('draftText').value = draftFor(n);
+      }
       renderCopyButton();
       return;
     }
@@ -915,6 +946,7 @@
   });
   $('draftText').addEventListener('input', function () {
     state.ownWords = true;
+    state.fromButtons = false;
     renderCopyButton();
   });
 
@@ -925,10 +957,101 @@
     btn.textContent = !state.rating ? t().pickFirst : !hasText ? t().writeFirst : t().copyOpen;
   }
 
+  // ── Buttons ("What you had / was good / could be better") ──
+  function renderDetailsText() {
+    var L = t();
+    var has = state.buttons.length > 0;
+    $('detailsTitle').textContent = has ? L.detailsTitleBtns : L.detailsTitle;
+    $('detailsLead').textContent = has ? L.detailsLeadBtns : L.detailsLead;
+    $('detailsCardT1').textContent = has ? L.detailsCardBtns : L.detailsCard;
+    $('detailsCardT2').textContent = has ? L.detailsSubBtns : L.detailsSub;
+  }
+
+  function buttonLabel(b) {
+    return (b.labels && (b.labels[state.lang] || b.labels.en)) || '';
+  }
+
+  function renderChips() {
+    var box = $('chipGroups');
+    box.innerHTML = '';
+    if (!state.buttons.length) return;
+    var L = t();
+    var titles = { bought: L.gBought, good: L.gGood, improve: L.gImprove };
+    // Every group is always shown; a low rating only moves "could be better" first
+    var order = state.rating && state.rating <= 2 ? ['improve', 'bought', 'good'] : ['bought', 'good', 'improve'];
+    order.forEach(function (kind) {
+      var list = state.buttons.filter(function (b) { return b.kind === kind; });
+      if (!list.length) return;
+      var group = document.createElement('div');
+      group.className = 'group';
+      var h = document.createElement('h3');
+      h.textContent = titles[kind];
+      group.appendChild(h);
+      var chips = document.createElement('div');
+      chips.className = 'chips';
+      list.forEach(function (b) {
+        var c = document.createElement('button');
+        c.type = 'button';
+        c.className = 'chip' + (kind === 'improve' ? ' bad' : '');
+        c.setAttribute('aria-pressed', state.picked.indexOf(b.id) >= 0 ? 'true' : 'false');
+        c.textContent = (b.emoji ? b.emoji + ' ' : '') + buttonLabel(b);
+        c.addEventListener('click', function () { onChipTap(b.id); });
+        chips.appendChild(c);
+      });
+      group.appendChild(chips);
+      box.appendChild(group);
+    });
+  }
+
+  function onChipTap(id) {
+    buzz(6);
+    var i = state.picked.indexOf(id);
+    if (i >= 0) state.picked.splice(i, 1); else state.picked.push(id);
+    renderChips();
+    // Typed or spoken words are the customer's own — buttons don't overwrite them
+    if (state.ownWords) return;
+    if (!state.picked.length) {
+      state.fromButtons = false;
+      if (state.rating) $('draftText').value = draftFor(state.rating);
+      renderCopyButton();
+      return;
+    }
+    requestButtonDraft();
+  }
+
+  var buttonDraftTimer = null;
+  var buttonDraftSeq = 0;
+  function requestButtonDraft() {
+    if (!state.rating || !state.picked.length || state.ownWords) return;
+    clearTimeout(buttonDraftTimer);
+    buttonDraftTimer = setTimeout(function () {
+      var seq = ++buttonDraftSeq;
+      var ta = $('draftText');
+      ta.classList.add('writing');
+      $('copyOpenBtn').disabled = true;
+      $('copyOpenBtn').textContent = t().writing;
+      fetch(API_BASE + '/api/v1/review/generate', {
+        method: 'POST', headers: apiHeaders(),
+        body: JSON.stringify({ mode: 'buttons', stars: state.rating, buttonIds: state.picked.slice(0, 20), lang: state.lang })
+      }).then(function (res) { return res.json(); }).then(function (json) {
+        if (seq !== buttonDraftSeq || state.ownWords) return;
+        if (json.success && json.data && json.data.text) {
+          ta.value = json.data.text;
+          state.fromButtons = true;
+        }
+      }).catch(function () { /* keep the current text */ }).then(function () {
+        if (seq !== buttonDraftSeq) return;
+        ta.classList.remove('writing');
+        renderCopyButton();
+      });
+    }, 500);
+  }
+
   $('copyOpenBtn').addEventListener('click', function () {
     var text = $('draftText').value.trim();
     if (!state.rating || !text) return;
     state.text = text;
+    if (state.fromButtons) state.picked.forEach(function (id) { if (/^[a-f0-9]{6}$/.test(id)) track('btn_' + id); });
     copyText(text, function (ok) {
       state.copyOk = ok;
       goCopied();
@@ -1214,6 +1337,7 @@
     $('liveText').textContent = '';
     $('draftText').value = text;
     state.ownWords = true;
+    state.fromButtons = false;
     renderCopyButton();
   }
 
@@ -1258,6 +1382,7 @@
       return;
     }
     if (session.businessName) state.shopName = cleanText(session.businessName, 100);
+    state.buttons = Array.isArray(session.buttons) ? session.buttons.slice(0, 40) : [];
     renderShop();
     applyText();
 
