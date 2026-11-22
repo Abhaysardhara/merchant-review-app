@@ -91,47 +91,47 @@ Design reference: "ReviewReach One-Tap Review Flow" canvas (v2). Plan: "ReviewRe
 Build the v2 design into `web/index.html`.
 
 ### 3.1 Layout and look
-- [ ] Full-screen layout: `height: 100dvh`, scrolling content area, fixed bottom action bar (main button always visible)
-- [ ] Compact mode under 700 px height (face 72 px, headline 30 px)
-- [ ] Fonts: Bricolage Grotesque + Inter + Noto Sans Devanagari/Gujarati, self-hosted subsets, `font-display: swap`
-- [ ] Colours: paper `#FBF7F0`, ink `#1B1A17`, marigold `#F2A900`, green `#1F6E50`, clay `#B8431F`, star outline `#8C7B5C`, chip border `#A89878`
-- [ ] Minimum text 13 px, touch targets ≥ 48 px
+- [x] Full-screen layout: `height: 100dvh`, scrolling content area, fixed bottom action bar (main button always visible)
+- [x] Compact mode under 700 px height (face 72 px, headline 30 px)
+- [ ] Fonts: Bricolage Grotesque + Inter + Noto Sans Devanagari/Gujarati, self-hosted subsets, `font-display: swap` — page uses the phone's system fonts for now (CSP blocks Google Fonts)
+- [x] Colours: paper `#FBF7F0`, ink `#1B1A17`, marigold `#F2A900`, green `#1F6E50`, clay `#B8431F`, star outline `#8C7B5C`, chip border `#A89878`
+- [x] Minimum text 13 px, touch targets ≥ 48 px
 
 ### 3.2 Rate screen
-- [ ] Shop monogram, name and area from the branch endpoint
-- [ ] Language button "English · हिंदी" (auto-detect from the browser on first load)
-- [ ] Reacting face (food, salon) or calm mark (clinic, pharmacy), chosen from the Google place type
-- [ ] Stars as `role="radiogroup"`; tapped star pops in 320 ms
-- [ ] On star tap: copy the pre-made draft **inside the tap handler**, check the result, `vibrate(8)` on Android
-- [ ] 1.2 s progress line with "Stay here"; tapping another star changes the rating; "Continue" if they stay
-- [ ] Bottom bar: progress/Continue, "Add details first", private-feedback link
+- [x] Shop monogram, name and area (session + Places API)
+- [x] Language button "English · हिंदी" (auto-detect from the browser on first load)
+- [x] Reacting face — [ ] calm mark for clinic/pharmacy from the Google place type
+- [x] Stars as `role="radiogroup"`; tapped star pops in 320 ms
+- [x] On star tap: copy the draft **inside the tap handler**, check the result, `vibrate(8)` on Android
+- [x] 1.2 s progress line with "Stay here"; tapping another star changes the rating; "Continue" if they stay
+- [x] Bottom bar: progress/Continue, "Write it yourself", private-feedback link
 
 ### 3.3 Draft endpoint
-- [ ] New `GET /api/v1/branches/:placeId/drafts?lang=` returns 5 star-only drafts (one per rating)
-- [ ] Cache per branch + language for a few hours; vary wording across customers
-- [ ] Page fetches drafts on load so the star tap copies instantly
+- [x] `GET /api/v1/review/drafts?lang=` (session required) returns 5 star-only drafts from one Gemini call
+- [x] Cached per branch + language for 6 hours, up to 4 variants so wording varies; most loads cost no AI call
+- [x] Page fetches drafts on load; if a customer taps before they arrive, a plain local sentence is copied instead
 
 ### 3.4 Details screen
-- [ ] All three button groups at every rating (ordered by rating, never hidden)
-- [ ] Draft updates live with the new phrase highlighted; `aria-live="polite"`
-- [ ] Voice button using the existing Deepgram streaming; visible recording state
-- [ ] "Copy & open Google" disabled until a star is chosen
+- [ ] All three button groups at every rating — needs the merchant buttons from Phase 4; for now "Write it yourself" (type or speak)
+- [x] Voice button using the existing Deepgram streaming; visible recording state; server tidies words without changing meaning
+- [x] "Copy & open Google" disabled until a star is chosen and there is text
 
 ### 3.5 Copied screen
-- [ ] Receipt with print animation, stamp and zigzag edge
-- [ ] "Posting to" card: place name, area, Google rating and review count from the Places API
-- [ ] Numbered Google steps using the customer's own star count ("Tap 4 stars again")
-- [ ] "Open Google" is a real tap: `location.href` to `https://search.google.com/local/writereview?placeid=…`
+- [x] Receipt with print animation, stamp and zigzag edge
+- [x] "Posting to" card: place name, area, Google rating and review count from the Places API
+- [x] Numbered Google steps using the customer's own star count ("Tap 4 stars again")
+- [x] "Open Google" is a real tap: `location.href` to `https://search.google.com/local/writereview?placeid=…`
 - [ ] Android: try the Google Maps app intent first
-- [ ] If the page is still visible 1.5 s after the tap: show "Didn't open? Tap again"
-- [ ] Copy failed: "Copy it yourself" screen with the text ready to select
+- [x] If the page is still visible 1.5 s after the tap: show "Didn't open? Tap again"
+- [x] Copy failed: "Copy it yourself" state with the text ready to select
 
 ### 3.6 Edge cases
-- [ ] Detect in-app browsers (Instagram, Facebook, WhatsApp, PhonePe, Paytm, Google Lens): "Open in Chrome" (Android intent) or "Open in Safari" instructions (iOS)
-- [ ] Thank-you screen only after the customer returns (`visibilitychange` after `pagehide`)
-- [ ] Private-feedback form reachable from every screen, at any rating
-- [ ] `prefers-reduced-motion` turns off all animation
-- [ ] Screen reader: focus moves to each screen's heading; status messages announced
+- [x] Detect in-app browsers (Facebook, Instagram, Line, PhonePe, Paytm, Android WebView): "Open in browser" (Chrome intent on Android)
+- [x] Thank-you screen only after the customer returns (`visibilitychange`, `pageshow`, or reload via `sessionStorage`)
+- [x] Private-feedback sheet reachable from every screen, at any rating
+- [x] `prefers-reduced-motion` turns off all animation
+- [x] Screen reader: focus moves to each screen's heading; status messages announced
+- [x] Browser test (Playwright, 390×844): load, 4★ copy, clipboard contents, receipt, Hindi, feedback sheet — no console errors
 
 ### 3.7 Analytics events
 - [ ] `scan_landed {source, browser, is_webview, lang}`

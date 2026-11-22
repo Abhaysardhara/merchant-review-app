@@ -2,18 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#4F46E5" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#FBF7F0" />
   <title>Leave a Review</title>
 
   <!-- Prevent search engine indexing of review pages -->
   <meta name="robots" content="noindex, nofollow" />
 
   <!--
-    Security: all API calls now go through our backend server.
-    No third-party API keys are exposed in this page.
-    frame-ancestors 'none' blocks clickjacking.
+    Security: all API calls go through our backend server; no API keys here.
     script-src 'unsafe-inline' is required because all JS is inline in this static file.
+    (frame-ancestors only works as an HTTP header, which GitHub Pages can't set.)
   -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'none';
@@ -21,1681 +20,1189 @@
     style-src 'unsafe-inline';
     connect-src https://merchant-review-app.onrender.com wss://merchant-review-app.onrender.com http://localhost:3000 ws://localhost:3000;
     img-src 'self' data:;
-    frame-ancestors 'none';
   " />
 
   <style>
-    /* ── Reset & Base ── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+    /* ── Tokens ── */
     :root {
-      --indigo:   #4F46E5;
-      --indigo-d: #3730A3;
-      --indigo-l: #EEF2FF;
-      --purple:   #7C3AED;
-      --green:    #059669;
-      --amber:    #D97706;
-      --gray-50:  #F8FAFC;
-      --gray-100: #F1F5F9;
-      --gray-200: #E2E8F0;
-      --gray-400: #94A3B8;
-      --gray-500: #64748B;
-      --gray-700: #334155;
-      --gray-900: #0F172A;
+      --paper: #FBF7F0;
+      --ink: #1B1A17;
+      --muted: #5E584E;
+      --faint: #6E675B;
+      --marigold: #F2A900;
+      --marigold-deep: #8A5E00;
+      --marigold-soft: #FBF1D6;
+      --green: #1F6E50;
+      --green-dark: #16533C;
+      --clay: #B8431F;
+      --line: #E6DCC8;
+      --line-strong: #A89878;
+      --star-empty: #8C7B5C;
+      --card: #FFFFFF;
+      --font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Devanagari", "Noto Sans Gujarati", sans-serif;
     }
 
-    html { font-size: 16px; }
-
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    [hidden] { display: none !important; }
+    html, body { height: 100%; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-                   'Helvetica Neue', Arial, sans-serif;
-      background: var(--gray-50);
-      color: var(--gray-900);
-      min-height: 100dvh;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font);
+      font-size: 16px;
+      line-height: 1.5;
       -webkit-font-smoothing: antialiased;
-    }
-
-    /* ── Header ── */
-    .header {
-      background: linear-gradient(160deg, #1E293B 0%, #0F172A 100%);
-      padding: 40px 24px 36px;
-      text-align: center;
-      color: #fff;
-      position: relative;
       overflow: hidden;
     }
-    .header::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, var(--indigo), var(--purple));
-      pointer-events: none;
-    }
-    .header::after {
-      content: '';
-      position: absolute;
-      bottom: -70px; right: -50px;
-      width: 220px; height: 220px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(79,70,229,0.10) 0%, transparent 70%);
-      pointer-events: none;
-    }
+    :lang(hi) h1, :lang(hi) h2 { letter-spacing: 0 !important; line-height: 1.35 !important; }
+    button, a, textarea, input { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    a { color: var(--green); font-weight: 600; text-decoration: none; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-    .stars-row {
-      font-size: 20px;
-      letter-spacing: 5px;
-      margin-bottom: 16px;
-      color: #F59E0B;
+    /* ── App frame: scrolling content + fixed bottom bar ── */
+    .app { position: relative; height: 100dvh; max-width: 480px; margin: 0 auto; overflow: hidden; }
+    .deco-a { position: absolute; width: 280px; height: 280px; border-radius: 50%; background: #F9E7B4; top: -150px; right: -120px; pointer-events: none; }
+    .deco-b { position: absolute; width: 140px; height: 140px; border-radius: 50%; border: 2px solid #F2D9A0; top: 72px; right: -40px; pointer-events: none; }
+    .screen { position: absolute; inset: 0; display: none; flex-direction: column; }
+    .screen.active { display: flex; }
+    .scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 24px 24px 16px; display: flex; flex-direction: column; position: relative; }
+    .bar {
+      flex-shrink: 0; position: relative; z-index: 3; display: flex; flex-direction: column; gap: 12px;
+      padding: 12px 24px calc(12px + env(safe-area-inset-bottom));
+      background: var(--paper); border-top: 1px solid #EFE6D4; box-shadow: 0 -14px 24px -20px rgba(27,26,23,.45);
     }
-    .biz-name {
-      font-size: 26px;
-      font-weight: 800;
-      line-height: 1.2;
-      letter-spacing: -0.5px;
-      margin-bottom: 8px;
-    }
-    .biz-area {
-      font-size: 13px;
-      color: rgba(255,255,255,0.52);
-      font-weight: 500;
-    }
-    .biz-area span { margin-right: 4px; }
+    .bar .link-private { text-align: center; font-size: 14px; padding: 8px 0; background: none; border: none; color: var(--green); font-weight: 600; }
 
-    /* ── Main container ── */
-    .container {
-      max-width: 500px;
-      margin: 0 auto;
-      padding: 20px 16px 56px;
+    /* ── Shared pieces ── */
+    .press { transition: transform .14s ease; }
+    .press:active { transform: translateY(2px) scale(.97); }
+    .btn-primary {
+      min-height: 56px; border: none; border-radius: 16px; background: var(--green); color: #FFF;
+      font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px;
+      box-shadow: 0 12px 24px -14px rgba(31,110,80,.9); padding: 0 16px;
     }
+    .btn-primary:disabled { background: var(--line); color: var(--muted); box-shadow: none; cursor: not-allowed; }
+    .btn-ghost {
+      min-height: 48px; padding: 0 16px; border-radius: 12px; border: 1.5px solid var(--line-strong);
+      background: var(--card); font-size: 14px; font-weight: 600;
+    }
+    .card { background: var(--card); border: 1.5px solid var(--line); border-radius: 20px; }
+    .muted { color: var(--muted); }
+    .label { font-size: 14px; font-weight: 600; color: var(--muted); }
 
-    /* ── Card ── */
-    .card {
-      background: #fff;
-      border-radius: 16px;
-      padding: 20px;
-      margin-bottom: 12px;
-      border: 1px solid var(--gray-200);
-      box-shadow: 0 1px 4px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+    /* ── Header ── */
+    .head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .shop { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .mono {
+      width: 48px; height: 48px; flex-shrink: 0; border-radius: 12px; background: var(--ink); color: var(--marigold);
+      display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px;
     }
+    .shop-name { font-size: 16px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .shop-area { font-size: 13px; color: var(--muted); }
+    .lang-btn { flex-shrink: 0; height: 48px; padding: 0 16px; border-radius: 24px; border: 1.5px solid var(--line-strong); background: var(--card); font-size: 14px; font-weight: 600; }
 
-    /* ── Language selector ── */
-    .lang-wrap {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 16px;
-    }
-    .lang-icon {
-      font-size: 16px;
-      flex-shrink: 0;
-      line-height: 1;
-    }
-    .lang-dropdown {
-      position: relative;
-      flex: 1;
-    }
-    .lang-input {
-      width: 100%;
-      padding: 9px 34px 9px 12px;
-      border: 1.5px solid var(--gray-200);
-      border-radius: 10px;
-      background-color: var(--gray-50);
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239CA3AF' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 12px center;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--gray-700);
-      font-family: inherit;
-      cursor: pointer;
-      outline: none;
-      transition: border-color .2s, background-color .2s;
-      box-sizing: border-box;
-    }
-    .lang-input:focus {
-      border-color: var(--indigo);
-      background-color: #fff;
-      cursor: text;
-    }
-    .lang-list {
-      display: none;
-      position: absolute;
-      top: calc(100% + 4px);
-      left: 0;
-      right: 0;
-      background: #fff;
-      border: 1.5px solid var(--gray-200);
-      border-radius: 10px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-      max-height: 224px;
-      overflow-y: auto;
-      z-index: 50;
-      overscroll-behavior: contain;
-    }
-    .lang-list.open { display: block; }
-    .lang-option {
-      padding: 10px 14px;
-      font-size: 13px;
-      color: var(--gray-700);
-      cursor: pointer;
-    }
-    .lang-option:hover { background: var(--gray-100); }
-    .lang-option.selected {
-      background: var(--indigo-l);
-      color: var(--indigo);
-      font-weight: 700;
-    }
-    .lang-no-result {
-      padding: 10px 14px;
-      font-size: 13px;
-      color: var(--gray-400);
-      font-style: italic;
-    }
+    h1.big { margin-top: 24px; font-size: 40px; line-height: 1.05; font-weight: 800; letter-spacing: -0.8px; }
+    .sub { margin-top: 8px; font-size: 16px; color: var(--muted); }
 
-    /* ── Review textarea ── */
-    .review-label {
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: var(--gray-400);
-      margin-bottom: 8px;
+    /* ── Rate screen ── */
+    .face-wrap { margin-top: 24px; display: flex; justify-content: center; perspective: 600px; }
+    .face {
+      width: 112px; height: 112px; border-radius: 50%; background: #F3ECDF;
+      box-shadow: inset 0 -8px 0 rgba(27,26,23,.05), 0 16px 26px -18px rgba(27,26,23,.45);
+      animation: float 4s ease-in-out 2;
     }
-    .review-box {
-      width: 100%;
-      min-height: 160px;
-      border: 1.5px solid var(--gray-200);
-      border-radius: 12px;
-      padding: 14px;
-      font-size: 15px;
-      line-height: 1.65;
-      color: var(--gray-900);
-      resize: none;
-      font-family: inherit;
-      outline: none;
-      background: #fafafa;
-      transition: border-color .2s, background .2s;
-    }
-    .review-box:focus {
-      border-color: var(--indigo);
-      background: #fff;
-    }
-    .review-box:disabled {
-      background: #F8FAFC;
-      color: var(--gray-400);
-      cursor: default;
-    }
-    .regen-btn:disabled {
-      opacity: 0.4;
-      cursor: default;
-    }
+    .face .mouth { transform-origin: 60px 78px; transition: transform .45s cubic-bezier(.34,1.56,.64,1); }
+    .mood { margin-top: 12px; text-align: center; font-size: 20px; font-weight: 700; min-height: 30px; }
+    .stars { margin-top: 8px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .star { height: 64px; border: none; background: transparent; display: flex; align-items: center; justify-content: center; transition: transform .12s ease; }
+    .star:active { transform: translateY(2px) scale(.9); }
+    .star svg { width: 52px; height: 52px; overflow: visible; }
+    .star path { fill: #FFFDF8; stroke: var(--star-empty); stroke-width: 1.75; stroke-linejoin: round; }
+    .star.on path { fill: var(--marigold); stroke: var(--marigold-deep); }
+    .star.pop svg { animation: pop .32s cubic-bezier(.3,1.4,.5,1) both; }
+    .scale { display: flex; justify-content: space-between; padding: 0 16px; font-size: 13px; color: var(--muted); }
+    .footnote { margin-top: 24px; text-align: center; font-size: 13px; color: var(--muted); }
+    .footnote + .footnote { margin-top: 8px; color: var(--faint); }
 
-    .regen-row {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 10px;
-    }
-    .regen-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 7px 14px;
-      border: 1px solid var(--gray-200);
-      border-radius: 20px;
-      background: #fff;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--gray-500);
-      cursor: pointer;
-      transition: all .15s;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .regen-btn:active { background: var(--gray-100); }
-    .spin { display: inline-block; }
-    .spin.spinning { animation: spin .5s linear; }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    .pending { padding: 16px; display: flex; flex-direction: column; gap: 12px; animation: fadeUp .25s ease both; }
+    .progress { height: 4px; border-radius: 2px; background: #EFE6D4; overflow: hidden; }
+    .progress > div { height: 4px; background: var(--green); transform-origin: 0 50%; animation: prog 1.2s linear both; }
+    .pending-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 14px; font-weight: 600; }
 
-    /* ── CTA button ── */
-    .cta-btn {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      padding: 16px 20px;
-      background: var(--indigo);
-      border: none;
-      border-radius: 13px;
-      color: #fff;
-      font-size: 16px;
-      font-weight: 700;
-      letter-spacing: 0.1px;
-      cursor: pointer;
-      box-shadow: 0 4px 14px rgba(79,70,229,0.28);
-      transition: opacity .15s, transform .1s;
-      -webkit-tap-highlight-color: transparent;
-      margin-bottom: 14px;
+    .details-btn {
+      min-height: 64px; border-radius: 20px; border: 1.5px solid var(--line-strong); background: var(--card);
+      display: flex; align-items: center; gap: 12px; padding: 8px 16px; text-align: left;
     }
-    .cta-btn:active { opacity: 0.88; transform: scale(0.99); }
-    .cta-btn .cta-icon { font-size: 19px; }
-    .cta-btn.done {
-      background: var(--green);
-      box-shadow: 0 4px 14px rgba(5,150,105,0.28);
-    }
+    .details-btn .ico { width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px; background: var(--marigold-soft); display: flex; align-items: center; justify-content: center; }
+    .details-btn .txt { display: flex; flex-direction: column; flex-grow: 1; }
+    .details-btn .t1 { font-size: 16px; font-weight: 700; }
+    .details-btn .t2 { font-size: 13px; color: var(--muted); }
 
-    /* ── Paste guide (shows after button tap) ── */
-    .paste-guide {
-      display: none;
-      background: #F0FDF4;
-      border: 1px solid #D1FAE5;
-      border-radius: 13px;
-      padding: 16px;
-      margin-bottom: 14px;
-    }
-    .paste-guide.visible { display: block; }
-    .paste-guide-title {
-      font-size: 13px;
-      font-weight: 700;
-      color: #166534;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .paste-steps { display: flex; flex-direction: column; gap: 8px; }
-    .paste-step  {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 13px;
-      color: #15803D;
-    }
-    .paste-step-icon { font-size: 18px; flex-shrink: 0; }
-
-    /* ── Steps ── */
-    .steps-title {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-      color: var(--gray-400);
-      margin-bottom: 12px;
-    }
-    .steps { display: flex; flex-direction: column; gap: 10px; }
-    .step  { display: flex; align-items: flex-start; gap: 10px; }
-    .step-num {
-      width: 24px; height: 24px;
-      flex-shrink: 0;
-      border-radius: 50%;
-      background: var(--indigo-l);
-      color: var(--indigo);
-      font-size: 12px;
-      font-weight: 800;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .step-text {
-      font-size: 13px;
-      color: var(--gray-700);
-      line-height: 1.5;
-      padding-top: 3px;
-    }
-    .step-text strong { color: var(--gray-900); }
-
-    /* ── Powered by ── */
-    .footer {
-      text-align: center;
-      font-size: 11px;
-      color: var(--gray-400);
-      margin-top: 12px;
-      font-weight: 500;
-      letter-spacing: 0.2px;
-    }
-
-    /* ── Toast ── */
-    .toast {
-      position: fixed;
-      bottom: 28px;
-      left: 50%;
-      transform: translateX(-50%) translateY(100px);
-      background: #0F172A;
-      color: #fff;
-      padding: 10px 22px;
-      border-radius: 28px;
-      font-size: 13px;
-      font-weight: 600;
-      white-space: nowrap;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.22);
-      transition: transform .35s cubic-bezier(.34, 1.56, .64, 1);
-      z-index: 100;
-      pointer-events: none;
-    }
-    .toast.show { transform: translateX(-50%) translateY(0); }
-
-    /* ── Error state ── */
-    .error-state {
-      text-align: center;
-      padding: 48px 24px;
-    }
-    .error-state .emoji { font-size: 48px; margin-bottom: 16px; }
-    .error-state h2 { font-size: 18px; color: var(--gray-700); margin-bottom: 8px; }
-    .error-state p  { font-size: 14px; color: var(--gray-400); }
-
-    /* ── AI error banner ── */
-    .ai-error {
-      display: none;
-      background: #FEF2F2;
-      border: 1px solid #FECACA;
-      border-radius: 12px;
-      padding: 12px 14px;
-      margin-bottom: 12px;
-      gap: 10px;
-      align-items: flex-start;
-    }
-    .ai-error.visible { display: flex; }
-    .ai-error-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
-    .ai-error-body { flex: 1; }
-    .ai-error-title { font-size: 13px; font-weight: 700; color: #991B1B; margin-bottom: 3px; }
-    .ai-error-msg   { font-size: 12px; color: #B91C1C; line-height: 1.5; word-break: break-word; }
-    .ai-error-retry {
-      margin-top: 8px;
-      display: inline-flex; align-items: center; gap: 5px;
-      padding: 5px 12px; border-radius: 8px;
-      border: 1.5px solid #EF4444; background: #fff;
-      font-size: 12px; font-weight: 600; color: #DC2626; cursor: pointer;
-    }
-
-    /* ── Private feedback link ── */
-    .fb-link {
-      text-align: center;
-      margin-top: 4px;
-      margin-bottom: 8px;
-    }
-    .fb-link a {
-      font-size: 12px;
-      color: var(--gray-400);
-      text-decoration: none;
-      cursor: pointer;
-    }
-    .fb-link a:hover { color: var(--purple); }
-    .fb-link a span { margin-right: 3px; }
-
-    /* ── Feedback form ── */
-    .fb-badge {
-      display: flex; align-items: flex-start; gap: 10px;
-      background: #F5F3FF; border: 1px solid #DDD6FE;
-      border-radius: 12px; padding: 12px 14px; margin-bottom: 16px;
-    }
-    .fb-badge-icon { font-size: 18px; flex-shrink: 0; }
-    .fb-badge-text { font-size: 13px; color: #5B21B6; line-height: 1.5; }
-    .fb-label {
-      font-size: 12px; font-weight: 700; color: var(--gray-700);
-      margin-bottom: 6px; margin-top: 14px;
-    }
-    .fb-label:first-of-type { margin-top: 0; }
-    .fb-textarea {
-      width: 100%; min-height: 110px; border: 1.5px solid var(--gray-200);
-      border-radius: 12px; padding: 12px; font-size: 14px; line-height: 1.6;
-      color: var(--gray-900); resize: none; font-family: inherit;
-      outline: none; background: var(--gray-50); box-sizing: border-box;
-    }
-    .fb-textarea:focus { border-color: var(--purple); background: #fff; }
-    .fb-input {
-      width: 100%; border: 1.5px solid var(--gray-200); border-radius: 10px;
-      padding: 10px 12px; font-size: 14px; color: var(--gray-900);
-      font-family: inherit; outline: none; background: var(--gray-50);
-      box-sizing: border-box;
-    }
-    .fb-input:focus { border-color: var(--purple); background: #fff; }
-    .fb-contact-title {
-      font-size: 13px; font-weight: 700; color: var(--gray-700);
-      margin-top: 18px; margin-bottom: 2px;
-    }
-    .fb-contact-sub {
-      font-size: 12px; color: var(--gray-400); margin-bottom: 8px;
-    }
-    .fb-submit {
-      width: 100%; display: flex; align-items: center; justify-content: center;
-      gap: 8px; padding: 15px 20px; margin-top: 18px;
-      background: var(--purple); border: none; border-radius: 13px;
-      color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
-      box-shadow: 0 4px 14px rgba(124,58,237,0.28);
-      transition: opacity .15s;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .fb-submit:active { opacity: 0.88; }
-    .fb-submit:disabled { opacity: 0.5; cursor: default; }
-
-    /* ── Feedback success ── */
-    .fb-success { text-align: center; padding: 40px 20px; }
-    .fb-success-icon { font-size: 56px; margin-bottom: 12px; }
-    .fb-success-title {
-      font-size: 22px; font-weight: 800; color: var(--gray-900);
-      margin-bottom: 8px;
-    }
-    .fb-success-msg {
-      font-size: 14px; color: var(--gray-500); line-height: 1.6;
-    }
-    /* ── Mode toggle (Type / Speak) ── */
-    .mode-toggle {
-      display: flex;
-      background: var(--gray-100);
-      border-radius: 10px;
-      padding: 3px;
-      margin-bottom: 16px;
-    }
-    .mode-tab {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 9px 10px;
-      border-radius: 8px;
-      border: none;
-      background: transparent;
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--gray-400);
-      cursor: pointer;
-      transition: all .2s;
-      font-family: inherit;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .mode-tab.active {
-      background: #fff;
-      color: var(--gray-900);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    }
-    .mode-tab .tab-icon { font-size: 15px; }
-
-    /* Mode panels */
-    .mode-panel { display: none; }
-    .mode-panel.active { display: block; }
-
-    /* ── Speak mode ── */
-    .speak-area {
-      text-align: center;
-      padding: 8px 0 4px;
-    }
+    /* ── Details screen ── */
+    .top-row { display: flex; align-items: center; justify-content: space-between; }
+    .icon-btn { width: 48px; height: 48px; border-radius: 12px; border: 1.5px solid var(--line-strong); background: var(--card); display: flex; align-items: center; justify-content: center; }
+    .stars.small { margin: 0; display: flex; }
+    .stars.small .star { width: 48px; height: 48px; }
+    .stars.small .star svg { width: 32px; height: 32px; }
+    h2.title { margin-top: 24px; font-size: 28px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1; }
     .mic-btn {
-      width: 72px; height: 72px;
-      border-radius: 50%;
-      border: 3px solid var(--gray-200);
-      background: #fff;
-      font-size: 32px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      transition: all .2s;
-      -webkit-tap-highlight-color: transparent;
-      position: relative;
+      margin-top: 16px; min-height: 56px; border-radius: 16px; border: none; background: var(--ink); color: var(--paper);
+      display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 16px; font-weight: 600;
     }
-    .mic-btn:active { transform: scale(0.94); }
-    .mic-btn.recording {
-      border-color: #EF4444;
-      background: #FEF2F2;
-      animation: pulse-ring 1.5s ease-in-out infinite;
+    .mic-dot { position: relative; width: 32px; height: 32px; border-radius: 50%; background: var(--marigold); display: flex; align-items: center; justify-content: center; }
+    .mic-dot::after { content: ''; position: absolute; inset: -2px; border-radius: 50%; border: 2px solid var(--marigold); animation: micRing 1.6s ease-out 3; }
+    .mic-btn.recording { background: var(--clay); }
+    .mic-btn.recording .mic-dot::after { animation: micRing 1.2s ease-out infinite; }
+    .live { margin-top: 8px; font-size: 14px; color: var(--muted); min-height: 21px; }
+    .draft-card { margin-top: 16px; padding: 16px; }
+    .draft-card textarea {
+      margin-top: 8px; width: 100%; min-height: 120px; border: none; resize: vertical; background: transparent;
+      font-size: 17px; line-height: 1.5; outline: none;
     }
-    @keyframes pulse-ring {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.35); }
-      50% { box-shadow: 0 0 0 14px rgba(239,68,68,0); }
+    .draft-card .hint { margin-top: 8px; font-size: 13px; color: var(--muted); }
+
+    /* ── Copied screen ── */
+    .status { display: flex; align-items: center; gap: 16px; }
+    .status-ico { width: 48px; height: 48px; flex-shrink: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+    .status-ico.ok { background: var(--green); animation: scaleIn .4s cubic-bezier(.34,1.56,.64,1) both; }
+    .status-ico.ok path { stroke-dasharray: 26; animation: check .45s .2s ease both; }
+    .status-ico.fail { background: #FDF1D2; border: 2px solid #E2B44A; }
+    .status h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1; }
+    .inapp { margin-bottom: 16px; padding: 12px 16px; border-radius: 16px; background: #FDF1D2; border: 1.5px solid #E2B44A; display: flex; align-items: center; gap: 12px; }
+    .inapp p { font-size: 14px; flex-grow: 1; }
+    .inapp a { min-height: 48px; padding: 0 14px; border-radius: 12px; background: var(--ink); color: var(--paper); display: flex; align-items: center; flex-shrink: 0; font-size: 14px; }
+
+    .printer { margin-top: 24px; }
+    .slot { height: 10px; margin: 0 -4px; border-radius: 6px; background: var(--ink); position: relative; z-index: 2; }
+    .feed { overflow: hidden; margin-top: -4px; padding: 0 8px; }
+    .receipt { position: relative; background: var(--card); box-shadow: 0 24px 40px -28px rgba(27,26,23,.55); animation: print .75s steps(4, end) .15s both; }
+    .receipt-body { padding: 20px 20px 12px; }
+    .meta { display: flex; justify-content: space-between; gap: 8px; font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 12px; color: var(--muted); }
+    .r-stars { margin-top: 12px; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+    .r-stars svg { width: 18px; height: 18px; }
+    .quote { margin-top: 12px; font-size: 20px; line-height: 1.4; font-weight: 500; user-select: all; -webkit-user-select: all; }
+    .quote.fail { padding: 8px; border: 2px dashed #E2B44A; border-radius: 8px; background: #FFFBEF; }
+    .hold-hint { margin-top: 12px; font-size: 14px; font-weight: 600; color: var(--marigold-deep); }
+    .stamp {
+      margin-left: auto; padding: 4px 10px; border: 2.5px solid #D9A21B; border-radius: 8px; white-space: nowrap;
+      color: #B07F00; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; letter-spacing: 1px;
+      transform: rotate(-6deg); animation: stamp .45s cubic-bezier(.3,1.4,.5,1) .95s both; pointer-events: none;
     }
-    .mic-label {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--gray-500);
-      margin-top: 10px;
+    .tear { position: relative; height: 16px; }
+    .tear::after { content: ''; position: absolute; left: 0; right: 0; top: 7px; border-top: 2px dashed #E0D5BF; }
+    .receipt-foot { padding: 4px 20px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--muted); }
+    .zigzag {
+      height: 12px;
+      background: linear-gradient(-45deg, var(--paper) 6px, transparent 0), linear-gradient(45deg, var(--paper) 6px, transparent 0);
+      background-size: 12px 12px; background-repeat: repeat-x; background-position: left bottom;
     }
-    .mic-label strong { color: var(--gray-900); }
-    .mic-timer {
-      display: none;
-      font-size: 22px;
-      font-weight: 700;
-      color: #EF4444;
-      margin-top: 6px;
-      letter-spacing: 1px;
-      font-variant-numeric: tabular-nums;
+    .posting { margin-top: 16px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; animation: fadeUp .35s 1s ease both; }
+    .posting .p1 { font-size: 13px; color: var(--muted); }
+    .posting .p2 { font-size: 15px; font-weight: 700; }
+    .steps { margin-top: 8px; list-style: none; display: flex; flex-direction: column; gap: 8px; animation: fadeUp .35s 1.1s ease both; }
+    .steps li { display: flex; align-items: center; gap: 12px; font-size: 15px; line-height: 1.4; }
+    .steps .n { width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; background: var(--ink); color: var(--paper); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; }
+    .not-opened { text-align: center; font-size: 14px; font-weight: 600; color: var(--marigold-deep); }
+
+    /* ── Thanks screen ── */
+    .thanks { align-items: center; text-align: center; }
+    .burst { position: relative; margin-top: 120px; width: 112px; height: 112px; }
+    .petal { position: absolute; left: 48px; top: 51px; width: 16px; height: 10px; border-radius: 10px 10px 10px 0; animation: petal 1.3s cubic-bezier(.2,.8,.3,1) both; }
+    .heart { position: absolute; inset: 0; border-radius: 50%; background: var(--marigold); display: flex; align-items: center; justify-content: center; animation: scaleIn .5s cubic-bezier(.34,1.56,.64,1) both; box-shadow: 0 18px 30px -20px rgba(138,94,0,.9); }
+    .thanks h1 { margin-top: 32px; font-size: 40px; font-weight: 800; animation: fadeUp .45s .2s ease both; }
+    .thanks p { margin-top: 8px; max-width: 300px; color: var(--muted); animation: fadeUp .45s .3s ease both; }
+    .again-card { padding: 16px; display: flex; flex-direction: column; gap: 12px; text-align: left; }
+    .again-card h2 { font-size: 16px; font-weight: 700; }
+
+    /* ── Private feedback sheet ── */
+    .sheet-bg { position: fixed; inset: 0; background: rgba(27,26,23,.45); display: none; z-index: 10; }
+    .sheet-bg.open { display: block; }
+    .sheet {
+      position: absolute; left: 0; right: 0; bottom: 0; max-width: 480px; margin: 0 auto; max-height: 92dvh; overflow-y: auto;
+      background: var(--paper); border-radius: 24px 24px 0 0; padding: 24px 24px calc(24px + env(safe-area-inset-bottom));
+      display: flex; flex-direction: column; gap: 12px; animation: sheetUp .25s ease both;
     }
-    .mic-timer.visible { display: block; }
-    .mic-lang-hint {
-      font-size: 11px;
-      color: var(--gray-400);
-      margin-top: 8px;
+    .sheet h2 { font-size: 22px; font-weight: 800; }
+    .sheet textarea, .sheet input { width: 100%; border: 1.5px solid var(--line-strong); border-radius: 12px; background: var(--card); padding: 12px; font-size: 16px; }
+    .sheet textarea { min-height: 120px; resize: vertical; }
+    .sheet .row { display: flex; gap: 12px; }
+    .sheet .row > * { flex: 1; }
+    .error-banner { margin-top: 16px; padding: 16px; border-radius: 16px; background: #FDF1D2; border: 1.5px solid #E2B44A; font-size: 14px; display: none; }
+    .error-banner.show { display: block; }
+
+    /* ── Short phones ── */
+    @media (max-height: 700px) {
+      h1.big { font-size: 30px; }
+      .face { width: 72px; height: 72px; }
+      .face svg { width: 72px; height: 72px; }
     }
 
-    /* Live transcript */
-    .live-transcript {
-      display: none;
-      background: var(--gray-50);
-      border: 1.5px dashed var(--gray-200);
-      border-radius: 10px;
-      padding: 10px 12px;
-      margin-top: 14px;
-      min-height: 48px;
-      font-size: 13px;
-      line-height: 1.6;
-      color: var(--gray-700);
-      text-align: left;
-      transition: border-color .2s;
-    }
-    .live-transcript.visible { display: block; }
-    .live-transcript.active {
-      border-color: #EF4444;
-      border-style: solid;
-    }
-    .live-transcript-label {
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-      color: var(--gray-400);
-      margin-bottom: 4px;
-    }
-    .live-transcript-text { min-height: 20px; }
-    .live-transcript-text .interim {
-      color: var(--gray-400);
-      font-style: italic;
-    }
-
-    /* Polish spinner */
-    .polish-overlay {
-      display: none;
-      text-align: center;
-      padding: 16px 12px;
-      margin-top: 14px;
-    }
-    .polish-overlay.visible { display: block; }
-    .polish-overlay .polish-spinner {
-      display: inline-block;
-      width: 22px; height: 22px;
-      border: 2.5px solid var(--gray-200);
-      border-top-color: var(--indigo);
-      border-radius: 50%;
-      animation: spin-anim 0.6s linear infinite;
-    }
-    @keyframes spin-anim { to { transform: rotate(360deg); } }
-    .polish-overlay .polish-text {
-      font-size: 13px;
-      color: var(--gray-500);
-      margin-top: 8px;
-    }
+    /* ── Motion ── */
+    @keyframes float { 0%,100% { transform: translateY(0) rotateY(-8deg) rotateX(5deg); } 50% { transform: translateY(-8px) rotateY(8deg) rotateX(-3deg); } }
+    @keyframes pop { 0% { transform: scale(.6) rotate(-18deg); } 60% { transform: scale(1.2) rotate(6deg); } 100% { transform: scale(1) rotate(0); } }
+    @keyframes prog { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+    @keyframes print { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+    @keyframes stamp { 0% { opacity: 0; transform: rotate(-6deg) scale(1.8); } 70% { opacity: 1; transform: rotate(-6deg) scale(.94); } 100% { opacity: 1; transform: rotate(-6deg) scale(1); } }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    @keyframes check { from { stroke-dashoffset: 26; } to { stroke-dashoffset: 0; } }
+    @keyframes scaleIn { 0% { transform: scale(0); } 70% { transform: scale(1.12); } 100% { transform: scale(1); } }
+    @keyframes petal { 0% { opacity: 0; transform: translate(0,0) rotate(0) scale(.3); } 12% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(280deg) scale(1); } }
+    @keyframes micRing { from { transform: scale(1); opacity: .6; } to { transform: scale(1.7); opacity: 0; } }
+    @keyframes sheetUp { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) { *, *::after { animation: none !important; transition: none !important; } }
   </style>
 </head>
-
 <body>
+<div class="app" id="app">
+  <div class="deco-a" aria-hidden="true"></div>
+  <div class="deco-b" aria-hidden="true"></div>
+  <div class="sr-only" aria-live="polite" id="announce"></div>
 
-  <div class="header">
-    <div class="stars-row">★★★★★</div>
-    <div class="biz-name"  id="bizName">Loading…</div>
-    <div class="biz-area"  id="bizArea"></div>
-  </div>
-
-  <div class="container" id="appRoot">
-
-    <!-- ── Review flow (shown immediately) ── -->
-    <div id="reviewFlow">
-
-    <!-- Review card -->
-    <div class="card">
-
-      <!-- ── Mode toggle ── -->
-      <div class="mode-toggle">
-        <button class="mode-tab active" id="tabType" onclick="switchMode('type')">
-          <span class="tab-icon">✍️</span> Type
-        </button>
-        <button class="mode-tab" id="tabSpeak" onclick="switchMode('speak')">
-          <span class="tab-icon">🎙️</span> Speak
-        </button>
-      </div>
-
-      <!-- ── Type mode (existing AI draft flow) ── -->
-      <div class="mode-panel active" id="panelType">
-        <div class="lang-wrap">
-          <span class="lang-icon">🌐</span>
-          <div class="lang-dropdown" id="langDropdown">
-            <input class="lang-input" id="langInput" type="text"
-                   placeholder="Search language…" autocomplete="off" spellcheck="false" />
-            <div class="lang-list" id="langList"></div>
+  <!-- ═══ Rate ═══ -->
+  <section class="screen active" id="screenRate" aria-labelledby="rateTitle">
+    <div class="scroll">
+      <div class="head">
+        <div class="shop">
+          <div class="mono" id="mono" aria-hidden="true">·</div>
+          <div style="min-width:0">
+            <div class="shop-name" id="shopName"></div>
+            <div class="shop-area" id="shopArea"></div>
           </div>
         </div>
-
-        <!-- AI error banner -->
-        <div class="ai-error" id="aiError">
-          <span class="ai-error-icon">⚠️</span>
-          <div class="ai-error-body">
-            <div class="ai-error-title">Something went wrong</div>
-            <div class="ai-error-msg" id="aiErrorMsg"></div>
-            <button class="ai-error-retry" onclick="location.reload()">🔄 Try again</button>
-          </div>
-        </div>
+        <button class="lang-btn press" id="langBtn" type="button" aria-label="Language: English, हिंदी">English · हिंदी</button>
       </div>
 
-      <!-- ── Speak mode (voice recording) ── -->
-      <div class="mode-panel" id="panelSpeak">
-        <div class="lang-wrap">
-          <span class="lang-icon">🌐</span>
-          <div class="lang-dropdown" id="voiceLangDropdown">
-            <input class="lang-input" id="voiceLangInput" type="text"
-                   placeholder="Search language…" autocomplete="off" spellcheck="false" />
-            <div class="lang-list" id="voiceLangList"></div>
-          </div>
-        </div>
-        <div class="speak-area">
-          <button class="mic-btn" id="micBtn" onclick="toggleRecording()">🎙️</button>
-          <div class="mic-label" id="micLabel">Tap to <strong>start recording</strong></div>
-          <div class="mic-timer" id="micTimer">0:00</div>
-        </div>
-        <div class="live-transcript" id="liveTranscript">
-          <div class="live-transcript-label">What we heard</div>
-          <div class="live-transcript-text" id="liveText"></div>
-        </div>
-        <div class="polish-overlay" id="polishOverlay">
-          <div class="polish-spinner"></div>
-          <div class="polish-text">Polishing your review…</div>
-        </div>
-      </div>
+      <h1 class="big" id="rateTitle" tabindex="-1" data-t="h1"></h1>
+      <p class="sub" data-t="sub"></p>
 
-      <!-- ── Shared: review textarea ── -->
-      <div id="reviewSection">
-        <div class="review-label">Your review</div>
-        <textarea class="review-box" id="reviewText" rows="6" spellcheck="true"></textarea>
+      <div class="face-wrap" aria-hidden="true">
+        <div class="face">
+          <svg width="112" height="112" viewBox="0 0 120 120">
+            <circle cx="44" cy="52" r="6" fill="#1B1A17"></circle>
+            <circle cx="76" cy="52" r="6" fill="#1B1A17"></circle>
+            <circle cx="46" cy="50" r="1.8" fill="#FFF"></circle>
+            <circle cx="78" cy="50" r="1.8" fill="#FFF"></circle>
+            <path class="mouth" id="mouth" d="M38 74 Q60 92 82 74" fill="none" stroke="#1B1A17" stroke-width="5" stroke-linecap="round" style="transform: scaleY(0.15)"></path>
+          </svg>
+        </div>
       </div>
+      <div class="mood" id="mood"></div>
+
+      <div class="stars" role="radiogroup" id="starsBig"></div>
+      <div class="scale"><span data-t="low"></span><span data-t="high"></span></div>
+
+      <div class="error-banner" id="loadError" role="alert"></div>
+
+      <p class="footnote" data-t="honest"></p>
+      <p class="footnote">ReviewReach</p>
     </div>
-
-    <!-- Action card -->
-    <div class="card">
-      <button class="cta-btn" id="ctaBtn" onclick="copyAndOpen()">
-        <span class="cta-icon">📋</span>
-        <span id="ctaBtnText">Copy &amp; Open Google Review</span>
+    <div class="bar">
+      <div class="card pending" id="pending" hidden>
+        <div class="progress"><div id="progBar"></div></div>
+        <div class="pending-row">
+          <span id="pendingText"></span>
+          <button class="btn-ghost press" id="stayBtn" type="button" data-t="stay"></button>
+        </div>
+      </div>
+      <button class="btn-primary press" id="continueBtn" type="button" hidden data-t="continue"></button>
+      <button class="details-btn press" id="detailsBtn" type="button">
+        <span class="ico" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A5E00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg>
+        </span>
+        <span class="txt"><span class="t1" data-t="detailsCard"></span><span class="t2" data-t="detailsSub"></span></span>
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1B1A17" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"></path></svg>
       </button>
-
-      <!-- Paste guide — shown after button tap -->
-      <div class="paste-guide" id="pasteGuide">
-        <div class="paste-guide-title">✅ Review copied! Now in Google Maps:</div>
-        <div class="paste-steps">
-          <div class="paste-step">
-            <span class="paste-step-icon">👆</span>
-            <span>Tap the <strong>review text box</strong></span>
-          </div>
-          <div class="paste-step">
-            <span class="paste-step-icon">📌</span>
-            <span>Tap <strong>Paste</strong> that appears above your keyboard</span>
-          </div>
-          <div class="paste-step">
-            <span class="paste-step-icon">🚀</span>
-            <span>Tap <strong>Post</strong> — done!</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="steps-title" id="stepsTitle">What happens next</div>
-      <div class="steps" id="stepsList">
-        <div class="step">
-          <div class="step-num">1</div>
-          <div class="step-text">Review text is <strong>copied automatically</strong></div>
-        </div>
-        <div class="step">
-          <div class="step-num">2</div>
-          <div class="step-text"><strong>Google Maps</strong> review page opens</div>
-        </div>
-        <div class="step">
-          <div class="step-num">3</div>
-          <div class="step-text">Tap the text box, <strong>paste</strong>, then tap <strong>Post</strong> ✅</div>
-        </div>
-      </div>
+      <button class="link-private" type="button" data-private data-t="private"></button>
     </div>
+  </section>
 
-    </div><!-- /reviewFlow -->
-
-    <!-- ── Private feedback link ── -->
-    <div class="fb-link" id="fbLink">
-      <a onclick="showFeedbackForm()"><span>💬</span>Also want to tell the owner something privately?</a>
-    </div>
-
-    <!-- ── Feedback form (hidden, shown via link) ── -->
-    <div id="feedbackSection" style="display:none">
-      <div class="card">
-        <div class="fb-badge">
-          <span class="fb-badge-icon">🔒</span>
-          <span class="fb-badge-text">
-            This message goes only to the owner and is not posted on Google. You can still post your Google review too.
-          </span>
-        </div>
-        <div class="fb-label">What happened? *</div>
-        <textarea class="fb-textarea" id="fbComment" placeholder="Please describe your experience so we can improve…" spellcheck="true"></textarea>
-        <div class="fb-contact-title">Contact (Optional)</div>
-        <div class="fb-contact-sub">Leave your details if you'd like a follow-up</div>
-        <div class="fb-label">Phone</div>
-        <input class="fb-input" id="fbPhone" type="tel" placeholder="+91 98765 43210" />
-        <div class="fb-label">Email</div>
-        <input class="fb-input" id="fbEmail" type="email" placeholder="you@example.com" />
-        <button class="fb-submit" id="fbSubmitBtn" onclick="submitFeedback()">
-          <span>📩</span> Send Private Feedback
+  <!-- ═══ Details (own words / voice) ═══ -->
+  <section class="screen" id="screenDetails" aria-labelledby="detailsTitle">
+    <div class="scroll">
+      <div class="top-row">
+        <button class="icon-btn press" id="backBtn" type="button" data-t-label="back">
+          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1B1A17" stroke-width="2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"></path></svg>
         </button>
+        <div class="stars small" role="radiogroup" id="starsSmall"></div>
+      </div>
+      <h2 class="title" id="detailsTitle" tabindex="-1" data-t="detailsTitle"></h2>
+      <p class="sub" style="font-size:14px" data-t="detailsLead"></p>
+
+      <button class="mic-btn press" id="micBtn" type="button">
+        <span class="mic-dot" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1B1A17" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><path d="M12 18v3"></path></svg>
+        </span>
+        <span id="micLabel"></span>
+      </button>
+      <div class="live" id="liveText" aria-live="polite"></div>
+
+      <div class="card draft-card">
+        <label class="label" for="draftText" id="draftLabel"></label>
+        <textarea id="draftText" spellcheck="true"></textarea>
+        <p class="hint" data-t="draftNote"></p>
       </div>
     </div>
+    <div class="bar">
+      <button class="btn-primary press" id="copyOpenBtn" type="button"></button>
+      <button class="link-private" type="button" data-private data-t="private"></button>
+    </div>
+  </section>
 
-    <!-- ── Feedback success ── -->
-    <div id="feedbackSuccess" style="display:none">
-      <div class="card fb-success">
-        <div class="fb-success-icon">✅</div>
-        <div class="fb-success-title">Thank You!</div>
-        <div class="fb-success-msg">
-          Your feedback has been sent directly to the manager. We take every concern seriously and will work to improve your experience.
+  <!-- ═══ Copied ═══ -->
+  <section class="screen" id="screenCopied" aria-labelledby="copiedTitle">
+    <div class="scroll">
+      <div class="inapp" id="inappBanner" hidden>
+        <p data-t="inApp"></p>
+        <a id="inappLink" href="#" data-t="inAppBtn"></a>
+      </div>
+
+      <div class="status" role="status">
+        <div class="status-ico ok" id="icoOk" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+        </div>
+        <div class="status-ico fail" id="icoFail" aria-hidden="true" hidden>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8A5E00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h8"></path></svg>
+        </div>
+        <div>
+          <h1 id="copiedTitle" tabindex="-1"></h1>
+          <p class="muted" style="font-size:14px" id="copiedSub"></p>
         </div>
       </div>
+
+      <div class="printer">
+        <div class="slot" aria-hidden="true"></div>
+        <div class="feed">
+          <article class="receipt" id="receipt">
+            <div class="receipt-body">
+              <div class="meta"><span id="metaShop"></span><span id="metaTime"></span></div>
+              <div class="r-stars"><span id="rStars" aria-hidden="true"></span><span id="rStarsText"></span><span class="stamp" aria-hidden="true" data-t="stamp"></span></div>
+              <p class="hold-hint" id="holdHint" hidden data-t="holdToCopy"></p>
+              <p class="quote" id="quote"></p>
+            </div>
+            <div class="tear" aria-hidden="true"></div>
+            <div class="receipt-foot">
+              <span id="receiptLabel"></span>
+              <button class="btn-ghost press" id="editBtn" type="button" data-t="edit"></button>
+            </div>
+            <div class="zigzag" aria-hidden="true"></div>
+          </article>
+        </div>
+      </div>
+
+      <div class="card posting" id="postingCard" hidden>
+        <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1F6E50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.3-6-11a6 6 0 0 1 12 0c0 5.7-6 11-6 11z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>
+        <div>
+          <div class="p1" data-t="postingTo"></div>
+          <div class="p2" id="postingName"></div>
+          <div class="p1" id="postingStats"></div>
+        </div>
+      </div>
+
+      <h2 class="label" style="margin-top:16px" data-t="onGoogle"></h2>
+      <ol class="steps">
+        <li><span class="n" aria-hidden="true">1</span><span id="step1"></span></li>
+        <li><span class="n" aria-hidden="true">2</span><span data-t="step2"></span></li>
+        <li><span class="n" aria-hidden="true">3</span><span data-t="step3"></span></li>
+      </ol>
     </div>
+    <div class="bar">
+      <p class="not-opened" id="notOpened" hidden data-t="notOpened"></p>
+      <button class="btn-primary press" id="openGoogleBtn" type="button">
+        <span data-t="open"></span>
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"></path><path d="M8 7h9v9"></path></svg>
+      </button>
+      <button class="link-private" type="button" data-private data-t="private"></button>
+    </div>
+  </section>
 
-    <div class="footer">Powered by ReviewReach</div>
+  <!-- ═══ Thanks ═══ -->
+  <section class="screen" id="screenThanks" aria-labelledby="thanksTitle">
+    <div class="scroll thanks">
+      <div class="burst" id="burst" aria-hidden="true">
+        <div class="heart">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="#1B1A17"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"></path></svg>
+        </div>
+      </div>
+      <h1 id="thanksTitle" tabindex="-1" data-t="thanks"></h1>
+      <p id="thanksSub"></p>
+    </div>
+    <div class="bar">
+      <div class="card again-card">
+        <h2 data-t="notPosted"></h2>
+        <button class="btn-primary press" id="againBtn" type="button" data-t="again"></button>
+      </div>
+      <button class="link-private" type="button" data-private data-t="private"></button>
+    </div>
+  </section>
+</div>
+
+<!-- ═══ Private feedback sheet ═══ -->
+<div class="sheet-bg" id="sheetBg">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <h2 id="sheetTitle" data-t="sheetTitle"></h2>
+    <p class="muted" style="font-size:14px" data-t="sheetLead"></p>
+    <div id="sheetForm" style="display:flex;flex-direction:column;gap:12px">
+      <label class="label" for="fbComment" data-t="fbMessage"></label>
+      <textarea id="fbComment" maxlength="2000"></textarea>
+      <div class="row">
+        <div><label class="label" for="fbPhone" data-t="fbPhone"></label><input id="fbPhone" type="tel" maxlength="20" autocomplete="tel" /></div>
+        <div><label class="label" for="fbEmail" data-t="fbEmail"></label><input id="fbEmail" type="email" maxlength="254" autocomplete="email" /></div>
+      </div>
+      <button class="btn-primary press" id="fbSend" type="button" data-t="fbSend"></button>
+    </div>
+    <p id="fbDone" hidden style="font-weight:600" data-t="fbDone"></p>
+    <button class="btn-ghost press" id="sheetClose" type="button" data-t="close"></button>
   </div>
-
-  <!-- Toast -->
-  <div class="toast" id="toast">✓ Review copied!</div>
+</div>
 
 <script>
-// ─────────────────────────────────────────────
-//  Config
-//  All API calls go through our backend — no keys exposed here.
-// ─────────────────────────────────────────────
-var API_BASE = (window.location.hostname === 'localhost' || window.location.protocol === 'file:')
-  ? 'http://localhost:3000'
-  : 'https://merchant-review-app.onrender.com';
-
-// ─────────────────────────────────────────────
-//  World languages — sorted alphabetically by English name
-// ─────────────────────────────────────────────
-var LANGUAGES = [
-  { code: 'en',    name: 'English',              native: 'English' },
-  { code: 'af',    name: 'Afrikaans',             native: 'Afrikaans' },
-  { code: 'sq',    name: 'Albanian',              native: 'Shqip' },
-  { code: 'am',    name: 'Amharic',               native: 'አማርኛ' },
-  { code: 'ar',    name: 'Arabic',                native: 'العربية' },
-  { code: 'hy',    name: 'Armenian',              native: 'Հայերեն' },
-  { code: 'az',    name: 'Azerbaijani',           native: 'Azərbaycan' },
-  { code: 'eu',    name: 'Basque',                native: 'Euskara' },
-  { code: 'be',    name: 'Belarusian',            native: 'Беларуская' },
-  { code: 'bn',    name: 'Bengali',               native: 'বাংলা' },
-  { code: 'bs',    name: 'Bosnian',               native: 'Bosanski' },
-  { code: 'bg',    name: 'Bulgarian',             native: 'Български' },
-  { code: 'my',    name: 'Burmese',               native: 'မြန်မာဘာသာ' },
-  { code: 'ca',    name: 'Catalan',               native: 'Català' },
-  { code: 'zh',    name: 'Chinese (Simplified)',  native: '中文（简体）' },
-  { code: 'zh-TW', name: 'Chinese (Traditional)', native: '中文（繁體）' },
-  { code: 'hr',    name: 'Croatian',              native: 'Hrvatski' },
-  { code: 'cs',    name: 'Czech',                 native: 'Čeština' },
-  { code: 'da',    name: 'Danish',                native: 'Dansk' },
-  { code: 'nl',    name: 'Dutch',                 native: 'Nederlands' },
-  { code: 'et',    name: 'Estonian',              native: 'Eesti' },
-  { code: 'tl',    name: 'Filipino',              native: 'Filipino' },
-  { code: 'fi',    name: 'Finnish',               native: 'Suomi' },
-  { code: 'fr',    name: 'French',                native: 'Français' },
-  { code: 'gl',    name: 'Galician',              native: 'Galego' },
-  { code: 'ka',    name: 'Georgian',              native: 'ქართული' },
-  { code: 'de',    name: 'German',                native: 'Deutsch' },
-  { code: 'el',    name: 'Greek',                 native: 'Ελληνικά' },
-  { code: 'gu',    name: 'Gujarati',              native: 'ગુજરાતી' },
-  { code: 'ht',    name: 'Haitian Creole',        native: 'Kreyòl Ayisyen' },
-  { code: 'ha',    name: 'Hausa',                 native: 'Hausa' },
-  { code: 'he',    name: 'Hebrew',                native: 'עברית' },
-  { code: 'hi',    name: 'Hindi',                 native: 'हिंदी' },
-  { code: 'hu',    name: 'Hungarian',             native: 'Magyar' },
-  { code: 'is',    name: 'Icelandic',             native: 'Íslenska' },
-  { code: 'ig',    name: 'Igbo',                  native: 'Igbo' },
-  { code: 'id',    name: 'Indonesian',            native: 'Bahasa Indonesia' },
-  { code: 'ga',    name: 'Irish',                 native: 'Gaeilge' },
-  { code: 'it',    name: 'Italian',               native: 'Italiano' },
-  { code: 'ja',    name: 'Japanese',              native: '日本語' },
-  { code: 'kn',    name: 'Kannada',               native: 'ಕನ್ನಡ' },
-  { code: 'kk',    name: 'Kazakh',                native: 'Қазақша' },
-  { code: 'km',    name: 'Khmer',                 native: 'ភាសាខ្មែរ' },
-  { code: 'ko',    name: 'Korean',                native: '한국어' },
-  { code: 'ku',    name: 'Kurdish',               native: 'Kurdî' },
-  { code: 'lo',    name: 'Lao',                   native: 'ລາວ' },
-  { code: 'lv',    name: 'Latvian',               native: 'Latviešu' },
-  { code: 'lt',    name: 'Lithuanian',            native: 'Lietuvių' },
-  { code: 'lb',    name: 'Luxembourgish',         native: 'Lëtzebuergesch' },
-  { code: 'mk',    name: 'Macedonian',            native: 'Македонски' },
-  { code: 'mg',    name: 'Malagasy',              native: 'Malagasy' },
-  { code: 'ms',    name: 'Malay',                 native: 'Bahasa Melayu' },
-  { code: 'ml',    name: 'Malayalam',             native: 'മലയാളം' },
-  { code: 'mt',    name: 'Maltese',               native: 'Malti' },
-  { code: 'mi',    name: 'Maori',                 native: 'Māori' },
-  { code: 'mr',    name: 'Marathi',               native: 'मराठी' },
-  { code: 'mn',    name: 'Mongolian',             native: 'Монгол' },
-  { code: 'ne',    name: 'Nepali',                native: 'नेपाली' },
-  { code: 'no',    name: 'Norwegian',             native: 'Norsk' },
-  { code: 'or',    name: 'Odia',                  native: 'ଓଡ଼ିଆ' },
-  { code: 'ps',    name: 'Pashto',                native: 'پښتو' },
-  { code: 'fa',    name: 'Persian',               native: 'فارسی' },
-  { code: 'pl',    name: 'Polish',                native: 'Polski' },
-  { code: 'pt',    name: 'Portuguese',            native: 'Português' },
-  { code: 'pa',    name: 'Punjabi',               native: 'ਪੰਜਾਬੀ' },
-  { code: 'ro',    name: 'Romanian',              native: 'Română' },
-  { code: 'ru',    name: 'Russian',               native: 'Русский' },
-  { code: 'sr',    name: 'Serbian',               native: 'Српски' },
-  { code: 'si',    name: 'Sinhala',               native: 'සිංහල' },
-  { code: 'sk',    name: 'Slovak',                native: 'Slovenčina' },
-  { code: 'sl',    name: 'Slovenian',             native: 'Slovenščina' },
-  { code: 'so',    name: 'Somali',                native: 'Soomaali' },
-  { code: 'es',    name: 'Spanish',               native: 'Español' },
-  { code: 'sw',    name: 'Swahili',               native: 'Kiswahili' },
-  { code: 'sv',    name: 'Swedish',               native: 'Svenska' },
-  { code: 'tg',    name: 'Tajik',                 native: 'Тоҷикӣ' },
-  { code: 'ta',    name: 'Tamil',                 native: 'தமிழ்' },
-  { code: 'te',    name: 'Telugu',                native: 'తెలుగు' },
-  { code: 'th',    name: 'Thai',                  native: 'ภาษาไทย' },
-  { code: 'tr',    name: 'Turkish',               native: 'Türkçe' },
-  { code: 'tk',    name: 'Turkmen',               native: 'Türkmen' },
-  { code: 'uk',    name: 'Ukrainian',             native: 'Українська' },
-  { code: 'ur',    name: 'Urdu',                  native: 'اردو' },
-  { code: 'uz',    name: 'Uzbek',                 native: "O'zbek" },
-  { code: 'vi',    name: 'Vietnamese',            native: 'Tiếng Việt' },
-  { code: 'cy',    name: 'Welsh',                 native: 'Cymraeg' },
-  { code: 'xh',    name: 'Xhosa',                 native: 'isiXhosa' },
-  { code: 'yi',    name: 'Yiddish',               native: 'ייִדיש' },
-  { code: 'yo',    name: 'Yoruba',                native: 'Yorùbá' },
-  { code: 'zu',    name: 'Zulu',                  native: 'isiZulu' },
-];
-
-// ─────────────────────────────────────────────
-//  Parse & sanitize URL params
-// ─────────────────────────────────────────────
 (function () {
-  // ── Searchable language dropdown ─────────────
-  (function () {
-    var input       = document.getElementById('langInput');
-    var list        = document.getElementById('langList');
-    var container   = document.getElementById('langDropdown');
-    var activeCode  = 'en';
+  'use strict';
 
-    function label(l) {
-      return l.name === l.native ? l.name : l.name + ' \u2014 ' + l.native;
+  // ─────────────────────────────────────────────
+  //  Config
+  // ─────────────────────────────────────────────
+  var API_BASE = (location.hostname === 'localhost' || location.protocol === 'file:')
+    ? 'http://localhost:3000'
+    : 'https://merchant-review-app.onrender.com';
+
+  // ─────────────────────────────────────────────
+  //  Text (English + Hindi)
+  // ─────────────────────────────────────────────
+  var T = {
+    en: {
+      langBtn: 'English · हिंदी',
+      h1: 'How was your visit?',
+      sub: 'Tap a star. We copy a short review for you to post on Google.',
+      moods: ['Tap a star', 'Bad', 'Not good', 'Okay', 'Good', 'Very good'],
+      low: 'Bad', high: 'Very good',
+      rateGroup: function (n) { return 'Rate ' + n; },
+      star: function (n) { return n + ' of 5 stars'; },
+      starsText: function (n) { return n + ' of 5'; },
+      copiedNext: 'Copied. Next step in a moment', notCopiedNext: 'Next step in a moment',
+      stay: 'Stay here', continue: 'Continue',
+      detailsCard: 'Write it yourself', detailsSub: 'Type or speak your own words',
+      private: 'Tell the owner something privately',
+      honest: 'Please share your honest experience.',
+      back: 'Back',
+      detailsTitle: 'Say it your way', detailsLead: 'Type or speak. We only tidy your words, we never change what you mean.',
+      speak: 'Speak instead', stopRec: 'Stop recording', listening: 'Listening…', tidying: 'Tidying your words…',
+      draftLabel: 'Your review', draftNote: 'You can change anything on Google too.',
+      pickFirst: 'Pick a star first', writeFirst: 'Write a few words first', copyOpen: 'Copy & open Google',
+      copied: 'Review copied', copiedSub: 'Now post it on Google',
+      notCopied: 'Copy it yourself', notCopiedSub: 'Your phone blocked copying',
+      holdToCopy: 'Press and hold the text below, then tap Copy.',
+      stamp: 'THANK YOU',
+      receiptLabel: 'Draft from your rating · make it yours', receiptOwn: 'Your words',
+      edit: 'Edit',
+      postingTo: 'Posting to',
+      placeStats: function (r, c) { return r + ' ★ · ' + c + ' reviews on Google'; },
+      onGoogle: 'On Google',
+      step1: function (n) { return 'Tap ' + n + (n === 1 ? ' star' : ' stars') + ' again'; },
+      step2: 'Press and hold the box, then tap Paste',
+      step3: 'Tap Post',
+      open: 'Open Google', notOpened: "Didn't open? Tap again",
+      inApp: 'This app may block Google sign-in. Open in your browser for the best result.',
+      inAppBtn: 'Open in browser',
+      thanks: 'Thank you',
+      thanksSub: function (n) { return 'Your review helps ' + n + ' and the next customer.'; },
+      notPosted: "Didn't post yet?", again: 'Copy again & open Google',
+      sheetTitle: 'Message to the owner', sheetLead: 'This goes only to the owner and is not posted on Google. You can still post your Google review too.',
+      fbMessage: 'Your message', fbPhone: 'Phone (optional)', fbEmail: 'Email (optional)',
+      fbSend: 'Send to owner', fbSending: 'Sending…', fbDone: 'Sent. Thank you for telling us.', fbEmpty: 'Please write a message first.',
+      close: 'Close',
+      loadError: 'Could not load this shop. Please check your connection and reload.',
+      badLink: 'This review link is incomplete. Please scan the QR code again.',
+      fallback: [
+        '', 'Disappointing visit to {n}.', 'Not a great visit to {n}.', 'An okay visit to {n}.',
+        'Good visit to {n}.', 'Really enjoyed my visit to {n}.'
+      ],
+      thisShop: 'this shop'
+    },
+    hi: {
+      langBtn: 'English · हिंदी',
+      h1: 'आपका अनुभव कैसा रहा?',
+      sub: 'एक स्टार दबाइए। हम Google पर पोस्ट करने के लिए छोटा रिव्यू कॉपी कर देंगे।',
+      moods: ['स्टार दबाइए', 'बुरा', 'ठीक नहीं', 'ठीक-ठाक', 'अच्छा', 'बहुत अच्छा'],
+      low: 'बुरा', high: 'बहुत अच्छा',
+      rateGroup: function (n) { return n + ' को रेटिंग दें'; },
+      star: function (n) { return '5 में से ' + n + ' स्टार'; },
+      starsText: function (n) { return '5 में से ' + n; },
+      copiedNext: 'कॉपी हो गया। अगला कदम आ रहा है', notCopiedNext: 'अगला कदम आ रहा है',
+      stay: 'यहीं रुकें', continue: 'आगे बढ़ें',
+      detailsCard: 'खुद लिखें', detailsSub: 'अपने शब्द टाइप करें या बोलें',
+      private: 'मालिक को निजी तौर पर बताएँ',
+      honest: 'कृपया अपना सच्चा अनुभव बताएँ।',
+      back: 'वापस',
+      detailsTitle: 'अपने तरीके से कहें', detailsLead: 'टाइप करें या बोलें। हम सिर्फ़ शब्द साफ़ करते हैं, आपका मतलब कभी नहीं बदलते।',
+      speak: 'बोलकर बताइए', stopRec: 'रिकॉर्डिंग रोकें', listening: 'सुन रहे हैं…', tidying: 'आपके शब्द साफ़ कर रहे हैं…',
+      draftLabel: 'आपका रिव्यू', draftNote: 'Google पर भी आप कुछ भी बदल सकते हैं।',
+      pickFirst: 'पहले स्टार चुनिए', writeFirst: 'पहले कुछ शब्द लिखिए', copyOpen: 'कॉपी करें और Google खोलें',
+      copied: 'रिव्यू कॉपी हो गया', copiedSub: 'अब इसे Google पर पोस्ट करें',
+      notCopied: 'खुद कॉपी करें', notCopiedSub: 'आपके फ़ोन ने कॉपी रोक दिया',
+      holdToCopy: 'नीचे के टेक्स्ट को दबाकर रखें, फिर Copy दबाएँ।',
+      stamp: 'धन्यवाद',
+      receiptLabel: 'आपकी रेटिंग से बना ड्राफ़्ट · बदल सकते हैं', receiptOwn: 'आपके शब्द',
+      edit: 'बदलें',
+      postingTo: 'यहाँ पोस्ट होगा',
+      placeStats: function (r, c) { return r + ' ★ · Google पर ' + c + ' रिव्यू'; },
+      onGoogle: 'Google पर',
+      step1: function (n) { return 'फिर से ' + n + ' स्टार दबाइए'; },
+      step2: 'बॉक्स को दबाकर रखें, फिर Paste दबाएँ',
+      step3: 'Post दबाएँ',
+      open: 'Google खोलें', notOpened: 'नहीं खुला? फिर से दबाइए',
+      inApp: 'यह ऐप Google लॉगिन रोक सकता है। अपने ब्राउज़र में खोलें।',
+      inAppBtn: 'ब्राउज़र में खोलें',
+      thanks: 'धन्यवाद',
+      thanksSub: function (n) { return 'आपका रिव्यू ' + n + ' और अगले ग्राहक की मदद करता है।'; },
+      notPosted: 'अभी पोस्ट नहीं किया?', again: 'फिर से कॉपी करें और Google खोलें',
+      sheetTitle: 'मालिक को संदेश', sheetLead: 'यह सिर्फ़ मालिक को जाता है और Google पर नहीं दिखता। आप Google रिव्यू भी पोस्ट कर सकते हैं।',
+      fbMessage: 'आपका संदेश', fbPhone: 'फ़ोन (ज़रूरी नहीं)', fbEmail: 'ईमेल (ज़रूरी नहीं)',
+      fbSend: 'मालिक को भेजें', fbSending: 'भेज रहे हैं…', fbDone: 'भेज दिया। बताने के लिए धन्यवाद।', fbEmpty: 'पहले संदेश लिखिए।',
+      close: 'बंद करें',
+      loadError: 'दुकान लोड नहीं हो सकी। इंटरनेट देखें और पेज फिर से खोलें।',
+      badLink: 'यह लिंक अधूरा है। कृपया QR कोड फिर से स्कैन करें।',
+      fallback: [
+        '', '{n} में अनुभव निराशाजनक रहा।', '{n} में अनुभव ज़्यादा अच्छा नहीं रहा।', '{n} में अनुभव ठीक-ठाक रहा।',
+        '{n} में अच्छा अनुभव रहा।', '{n} में बहुत अच्छा अनुभव रहा।'
+      ],
+      thisShop: 'यह दुकान'
     }
+  };
 
-    function renderList(q) {
-      list.innerHTML = '';
-      var term = (q || '').trim().toLowerCase();
-      var matches = LANGUAGES.filter(function (l) {
-        if (!term) return true;
-        return l.name.toLowerCase().indexOf(term) !== -1
-            || l.native.toLowerCase().indexOf(term) !== -1;
-      });
-      if (!matches.length) {
-        var empty = document.createElement('div');
-        empty.className = 'lang-no-result';
-        empty.textContent = 'No languages found';
-        list.appendChild(empty);
-        return;
-      }
-      matches.forEach(function (l) {
-        var div = document.createElement('div');
-        div.className = 'lang-option' + (l.code === activeCode ? ' selected' : '');
-        div.textContent = label(l);
-        div.addEventListener('mousedown', function (e) {
-          e.preventDefault(); // keep focus on input until we're done
-          pick(l.code);
-        });
-        list.appendChild(div);
-      });
-    }
-
-    function openList() {
-      input.value = '';
-      renderList('');
-      list.classList.add('open');
-      // scroll current selection into view
-      var cur = list.querySelector('.selected');
-      if (cur) cur.scrollIntoView({ block: 'nearest' });
-    }
-
-    function closeList() {
-      list.classList.remove('open');
-      var entry = LANGUAGES.filter(function (l) { return l.code === activeCode; })[0];
-      input.value = entry ? entry.name : 'English';
-    }
-
-    function pick(code) {
-      activeCode = code;
-      closeList();
-      input.blur();
-      window.setLang(code);
-    }
-
-    input.addEventListener('focus', openList);
-
-    input.addEventListener('input', function () {
-      renderList(input.value);
-      list.classList.add('open');
-    });
-
-    input.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') { closeList(); input.blur(); return; }
-      if (e.key === 'Enter') {
-        var first = list.querySelector('.lang-option');
-        if (first && first.textContent !== 'No languages found') {
-          // find the code for the first visible option
-          var term = input.value.trim().toLowerCase();
-          var match = LANGUAGES.filter(function (l) {
-            return !term
-              || l.name.toLowerCase().indexOf(term) !== -1
-              || l.native.toLowerCase().indexOf(term) !== -1;
-          })[0];
-          if (match) pick(match.code);
-        }
-      }
-    });
-
-    document.addEventListener('click', function (e) {
-      if (!container.contains(e.target)) closeList();
-    });
-
-    // Init
-    input.value = 'English';
-    renderList('');
-  }());
-
-  // ── Voice language dropdown ─────────────────
-  (function () {
-    // Only languages supported by Deepgram nova-3 streaming
-    var DG_SUPPORTED = {
-      'en':1,'af':1,'ar':1,'hy':1,'be':1,'bn':1,'bs':1,'bg':1,'ca':1,'zh':1,'zh-TW':1,
-      'hr':1,'cs':1,'da':1,'nl':1,'et':1,'tl':1,'fi':1,'fr':1,'ka':1,'de':1,'el':1,
-      'gu':1,'he':1,'hi':1,'hu':1,'id':1,'it':1,'ja':1,'kn':1,'kk':1,'ko':1,'lv':1,
-      'lt':1,'mk':1,'ms':1,'mr':1,'mn':1,'ne':1,'no':1,'ps':1,'fa':1,'pl':1,'pt':1,
-      'pa':1,'ro':1,'ru':1,'sr':1,'sk':1,'sl':1,'es':1,'sw':1,'sv':1,'ta':1,'te':1,
-      'th':1,'tr':1,'uk':1,'ur':1,'uz':1,'vi':1,'cy':1
-    };
-    var VOICE_LANGUAGES = [{ code: 'multi', name: 'Auto-detect', native: 'Multi-language' }].concat(
-      LANGUAGES.filter(function (l) { return DG_SUPPORTED[l.code]; })
-    );
-
-    var input      = document.getElementById('voiceLangInput');
-    var list       = document.getElementById('voiceLangList');
-    var container  = document.getElementById('voiceLangDropdown');
-    var activeCode = 'multi';
-
-    function label(l) {
-      if (l.code === 'multi') return l.name;
-      return l.name === l.native ? l.name : l.name + ' \u2014 ' + l.native;
-    }
-
-    function renderList(q) {
-      list.innerHTML = '';
-      var term = (q || '').trim().toLowerCase();
-      var matches = VOICE_LANGUAGES.filter(function (l) {
-        if (!term) return true;
-        return l.name.toLowerCase().indexOf(term) !== -1
-            || l.native.toLowerCase().indexOf(term) !== -1;
-      });
-      if (!matches.length) {
-        var empty = document.createElement('div');
-        empty.className = 'lang-no-result';
-        empty.textContent = 'No languages found';
-        list.appendChild(empty);
-        return;
-      }
-      matches.forEach(function (l) {
-        var div = document.createElement('div');
-        div.className = 'lang-option' + (l.code === activeCode ? ' selected' : '');
-        div.textContent = label(l);
-        div.addEventListener('mousedown', function (e) {
-          e.preventDefault();
-          pick(l.code);
-        });
-        list.appendChild(div);
-      });
-    }
-
-    function openList() {
-      input.value = '';
-      renderList('');
-      list.classList.add('open');
-      var cur = list.querySelector('.selected');
-      if (cur) cur.scrollIntoView({ block: 'nearest' });
-    }
-
-    function closeList() {
-      list.classList.remove('open');
-      var entry = VOICE_LANGUAGES.filter(function (l) { return l.code === activeCode; })[0];
-      input.value = entry ? label(entry) : 'Auto-detect';
-    }
-
-    function pick(code) {
-      activeCode = code;
-      voiceLangCode = code;
-      closeList();
-      input.blur();
-    }
-
-    input.addEventListener('focus', openList);
-    input.addEventListener('input', function () {
-      renderList(input.value);
-      list.classList.add('open');
-    });
-    input.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') { closeList(); input.blur(); return; }
-      if (e.key === 'Enter') {
-        var first = list.querySelector('.lang-option');
-        if (first) {
-          var term = input.value.trim().toLowerCase();
-          var match = VOICE_LANGUAGES.filter(function (l) {
-            return !term
-              || l.name.toLowerCase().indexOf(term) !== -1
-              || l.native.toLowerCase().indexOf(term) !== -1;
-          })[0];
-          if (match) pick(match.code);
-        }
-      }
-    });
-    document.addEventListener('click', function (e) {
-      if (!container.contains(e.target)) closeList();
-    });
-
-    input.value = 'Auto-detect';
-    renderList('');
-  }());
-
+  // ─────────────────────────────────────────────
+  //  Link parameters
+  // ─────────────────────────────────────────────
   var q = new URLSearchParams(location.search);
-
-  function decodeParam(v) {
-    try { return v ? decodeURIComponent(v) : ''; } catch(e) { return v || ''; }
-  }
-  function trim(s) { return s ? s.trim() : ''; }
-
-  // Strip characters that could break prompt structure or inject new sections.
-  // Removes: newlines, carriage returns, null bytes, and === / --- sequences
-  // used as section headers in our prompt format.
-  function sanitize(s, maxLen) {
-    if (!s) return '';
-    return s
-      .replace(/[\r\n\x00]/g, ' ')          // no newlines or nulls
-      .replace(/={3,}/g, '')                 // no === (prompt section headers)
-      .replace(/-{3,}/g, '')                 // no --- (prompt section headers)
-      .replace(/[<>]/g, '')                  // no HTML angle brackets
-      .trim()
-      .slice(0, maxLen || 200);
-  }
-
-  // Validate Google Place ID format: alphanumeric + underscores + hyphens + colons
-  // Real Place IDs look like "ChIJN1t_tDeuEmsRUsoyG83frY4" — max ~200 chars
-  function isValidPlaceId(id) {
-    return id && /^[a-zA-Z0-9_\-:]{10,200}$/.test(id);
-  }
+  function decodeParam(v) { try { return v ? decodeURIComponent(v) : ''; } catch (e) { return v || ''; } }
+  function cleanText(s, maxLen) { return (s || '').replace(/[\r\n\x00<>]/g, ' ').trim().slice(0, maxLen || 200); }
 
   var rawPlaceId = decodeParam(q.get('pid'));
-  var PLACE_ID = isValidPlaceId(rawPlaceId) ? rawPlaceId : '';
+  var PLACE_ID = /^[a-zA-Z0-9_\-:]{10,200}$/.test(rawPlaceId) ? rawPlaceId : '';
+  var rawUid = decodeParam(q.get('uid'));
+  var UID = /^[a-zA-Z0-9_\-]{1,128}$/.test(rawUid) ? rawUid : '';
 
-  // uid — Firebase user ID of the merchant who owns this QR code
-  // bid — branch document ID under users/{uid}/branches/{bid}
-  function isValidFirestoreId(id) {
-    return id && /^[a-zA-Z0-9_\-]{1,128}$/.test(id);
-  }
-  var UID = isValidFirestoreId(decodeParam(q.get('uid'))) ? decodeParam(q.get('uid')) : '';
-
-  // ── Origin params — strip immediately so page refresh doesn't recount ──
-  var IS_QR_SCAN    = q.get('QrOrigin')   === 'true';
+  // Origin params — strip immediately so a refresh doesn't count again
+  var IS_QR_SCAN = q.get('QrOrigin') === 'true';
   var IS_LINK_VISIT = q.get('LinkOrigin') === 'true';
   if (IS_QR_SCAN || IS_LINK_VISIT) {
     try {
       var cleanUrl = location.pathname + (PLACE_ID ? '?pid=' + encodeURIComponent(PLACE_ID) : '');
       if (UID) cleanUrl += '&uid=' + encodeURIComponent(UID);
       history.replaceState(null, '', cleanUrl);
-    } catch (e) { /* replaceState not supported — ignore */ }
+    } catch (e) { /* ignore */ }
   }
 
-  // BIZ_NAME and AREA are filled in after the session + Places API fetch
-  var BIZ_NAME = 'This Business';
-  var AREA     = '';
-
-  // ── Fill header ──────────────────────────────
-  document.getElementById('bizName').textContent = BIZ_NAME;
-  document.title = 'Review — ' + BIZ_NAME;
-  if (AREA) {
-    document.getElementById('bizArea').innerHTML = '<span>📍</span>' + escHtml(AREA);
-  }
-
-  function escHtml(s) {
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }
-
-
-  // ── Places API cache (localStorage, 7-day expiry) ────────────────
-  // Key:   rr_place_v1_{placeId}   (namespaced to avoid collisions)
-  // Value: { data: <API response>, expiresAt: <unix ms> }
-  // 7 days is appropriate — place attributes (hours, services, type)
-  // change rarely; rating/review counts update but aren't time-critical here.
-  var CACHE_TTL_MS  = 7 * 24 * 60 * 60 * 1000; // 7 days
-  var CACHE_PREFIX  = 'rr_place_v1_';
-
-  function cacheGet(placeId) {
-    try {
-      var raw = localStorage.getItem(CACHE_PREFIX + placeId);
-      if (!raw) return null;
-      var entry = JSON.parse(raw);
-      if (!entry || !entry.expiresAt || !entry.data) return null;
-      if (Date.now() > entry.expiresAt) {
-        localStorage.removeItem(CACHE_PREFIX + placeId); // expired — evict
-        return null;
-      }
-      return entry.data;
-    } catch (e) { return null; } // corrupted entry — treat as miss
-  }
-
-  function cacheSet(placeId, data) {
-    try {
-      localStorage.setItem(CACHE_PREFIX + placeId, JSON.stringify({
-        data:      data,
-        expiresAt: Date.now() + CACHE_TTL_MS,
-      }));
-    } catch (e) {
-      // localStorage full (QuotaExceededError) or private mode — silently ignore
-    }
-  }
-
-  async function fetchPlaceDetails(placeId) {
-    if (!placeId) return null;
-
-    // 1. Try cache first
-    var cached = cacheGet(placeId);
-    if (cached) return cached;
-
-    // 2. Fetch from backend (API key stays server-side)
-    try {
-      var res = await fetch(API_BASE + '/api/v1/places/' + encodeURIComponent(placeId), {
-        headers: { 'X-Session-Token': SESSION_TOKEN },
-      });
-      if (!res.ok) return null;
-      var json = await res.json();
-      if (json.success && json.data) {
-        cacheSet(placeId, json.data);
-        return json.data;
-      }
-      return null;
-    } catch (e) { return null; }
-  }
-
-  // ── Session — required by every API call ─────
-  // The server only serves real branches, and counts each event once per session.
+  // ─────────────────────────────────────────────
+  //  State
+  // ─────────────────────────────────────────────
+  var state = {
+    lang: /^hi\b/i.test(navigator.language || '') ? 'hi' : 'en',
+    screen: 'rate',
+    rating: 0,
+    prevRating: 0,
+    drafts: null,          // [1★..5★] from the server, per language
+    text: '',              // what gets copied
+    ownWords: false,       // true when the text came from typing/voice
+    copyOk: true,
+    shopName: '',
+    area: '',
+    place: null,
+    leftForGoogle: false
+  };
   var SESSION_TOKEN = '';
+  var advanceTimer = null;
+
+  function t() { return T[state.lang]; }
+  function $(id) { return document.getElementById(id); }
+  function shopName() { return state.shopName || t().thisShop; }
+  function buzz(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) { /* ignore */ } }
+  function announce(msg) { $('announce').textContent = msg; }
+
+  // ─────────────────────────────────────────────
+  //  API
+  // ─────────────────────────────────────────────
+  function apiHeaders() {
+    return { 'Content-Type': 'application/json', 'X-Session-Token': SESSION_TOKEN };
+  }
 
   async function startSession() {
     var res = await fetch(API_BASE + '/api/v1/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uid: UID, placeId: PLACE_ID }),
+      body: JSON.stringify({ uid: UID, placeId: PLACE_ID })
     });
     var json = await res.json().catch(function () { return {}; });
-    if (!res.ok || !json.success || !json.data) {
-      throw new Error(json.error || ('HTTP ' + res.status));
-    }
+    if (!res.ok || !json.success || !json.data) throw new Error(json.error || ('HTTP ' + res.status));
     SESSION_TOKEN = json.data.token;
     return json.data;
   }
 
-  function apiHeaders() {
-    return { 'Content-Type': 'application/json', 'X-Session-Token': SESSION_TOKEN };
+  function postAnalytics(event) {
+    if (!SESSION_TOKEN) return;
+    fetch(API_BASE + '/api/v1/merchants/' + encodeURIComponent(UID) + '/branches/' + encodeURIComponent(PLACE_ID) + '/analytics', {
+      method: 'POST', headers: apiHeaders(), body: JSON.stringify({ event: event })
+    }).catch(function () { /* best-effort */ });
   }
 
-  // ── Analytics — proxied through backend ──────────────────────────────
-  function postAnalytics(uid, placeId, event) {
-    if (!uid || !placeId || !SESSION_TOKEN) return;
-    fetch(API_BASE + '/api/v1/merchants/' + encodeURIComponent(uid)
-      + '/branches/' + encodeURIComponent(placeId) + '/analytics', {
-      method: 'POST',
-      headers: apiHeaders(),
-      body: JSON.stringify({ event: event }),
-    }).catch(function (e) {
-      console.warn('[ReviewReach] Analytics write failed:', e.message);
-    });
-  }
-
-  function registerQrScan(uid, placeId)      { postAnalytics(uid, placeId, 'qr_scan'); }
-  function registerLinkVisit(uid, placeId)    { postAnalytics(uid, placeId, 'link_visit'); }
-  function registerReviewCopied(uid, placeId) { postAnalytics(uid, placeId, 'review_copied'); }
-
-  // ── Load branch & review box ─────────────────
-  // Until the new star flow ships (TODO Phase 3), "Type" mode is the
-  // customer's own words — the AI no longer writes a review for them.
-  var currentLang      = 'en';
-  var voiceLangCode    = 'multi';   // Deepgram STT language (set by voice lang dropdown)
-  var cachedTypeReview  = '';       // what the customer typed
-  var cachedVoiceReview = '';       // last voice-polished review
-
-  function updateCta() {
-    var cta = document.getElementById('ctaBtn');
-    var hasText = !!document.getElementById('reviewText').value.trim();
-    cta.disabled = !hasText;
-    cta.style.opacity = hasText ? '' : '0.4';
-  }
-
-  function showLoadError(message) {
-    document.getElementById('aiErrorMsg').textContent = message;
-    document.getElementById('aiError').classList.add('visible');
-  }
-
-  async function loadBranch() {
-    document.getElementById('reviewText').placeholder = 'Write a few words about your visit';
-    updateCta();
-
-    if (!UID || !PLACE_ID) {
-      showLoadError('This review link is incomplete. Please scan the QR code again.');
-      return;
-    }
-
-    var session;
+  async function fetchPlace() {
     try {
-      session = await startSession();
-    } catch (e) {
-      console.error('[ReviewReach] Session failed:', e.message);
-      showLoadError('Could not load this shop. Please check your connection and try again.');
-      return;
-    }
-
-    if (session.businessName) {
-      BIZ_NAME = sanitize(session.businessName, 100);
-      document.getElementById('bizName').textContent = BIZ_NAME;
-      document.title = 'Review — ' + BIZ_NAME;
-    }
-
-    // Register origin (fire-and-forget)
-    if (IS_QR_SCAN)    registerQrScan(UID, PLACE_ID);
-    if (IS_LINK_VISIT) registerLinkVisit(UID, PLACE_ID);
-
-    // Area and display name from the Places API
-    var place = await fetchPlaceDetails(PLACE_ID);
-    if (place) {
-      var addr = place.shortFormattedAddress || place.formattedAddress || '';
-      if (addr) {
-        var parts = addr.split(',').map(function(p){return p.trim();})
-          .filter(function(p){ return p && !/^[0-9]+$/.test(p) && !/^india$/i.test(p); });
-        AREA = parts.slice(-2).join(', ');
-      }
-      if (place.displayName && place.displayName.text) {
-        BIZ_NAME = sanitize(place.displayName.text, 100);
-        document.getElementById('bizName').textContent = BIZ_NAME;
-        document.title = 'Review — ' + BIZ_NAME;
-      }
-      if (AREA) {
-        document.getElementById('bizArea').innerHTML = '<span>📍</span>' + escHtml(AREA);
-      }
-    }
+      var res = await fetch(API_BASE + '/api/v1/places/' + encodeURIComponent(PLACE_ID), { headers: { 'X-Session-Token': SESSION_TOKEN } });
+      var json = await res.json();
+      return json.success ? json.data : null;
+    } catch (e) { return null; }
   }
 
-  document.getElementById('reviewText').addEventListener('input', updateCta);
+  var draftsByLang = {};
+  async function loadDrafts(lang) {
+    if (draftsByLang[lang]) return draftsByLang[lang];
+    try {
+      var res = await fetch(API_BASE + '/api/v1/review/drafts?lang=' + encodeURIComponent(lang), { headers: { 'X-Session-Token': SESSION_TOKEN } });
+      var json = await res.json();
+      if (json.success && json.data && json.data.drafts && json.data.drafts.length === 5) {
+        draftsByLang[lang] = json.data.drafts;
+        return json.data.drafts;
+      }
+    } catch (e) { /* fall back below */ }
+    return null;
+  }
 
-  // ── Language switcher (used for voice clean-up) ──
-  window.setLang = function (lang) {
-    currentLang = lang;
-  };
+  /** Draft for a rating: server draft, else a plain local sentence. */
+  function draftFor(rating) {
+    var d = draftsByLang[state.lang];
+    if (d && d[rating - 1]) return d[rating - 1];
+    return t().fallback[rating].replace('{n}', shopName());
+  }
 
-  // ── Copy + open Google Maps ──────────────────
-  window.copyAndOpen = function () {
-    var text = document.getElementById('reviewText').value.trim();
-    if (!text) return;
-
-    var mapsUrl = PLACE_ID
-      ? 'https://search.google.com/local/writereview?placeid=' + encodeURIComponent(PLACE_ID)
-      : 'https://www.google.com/maps/search/' + encodeURIComponent(BIZ_NAME + (AREA ? ' ' + AREA : ''));
-
-    function showPasteGuide() {
-      // Switch button to "done" green state
-      var btn = document.getElementById('ctaBtn');
-      var btnText = document.getElementById('ctaBtnText');
-      btn.classList.add('done');
-      btn.querySelector('.cta-icon').textContent = '✅';
-      btnText.textContent = 'Review Copied!';
-
-      // Hide the "what happens next" steps, show the paste guide
-      document.getElementById('stepsTitle').style.display = 'none';
-      document.getElementById('stepsList').style.display = 'none';
-      document.getElementById('pasteGuide').classList.add('visible');
-    }
-
-    function showToast() {
-      var el = document.getElementById('toast');
-      el.classList.add('show');
-      setTimeout(function () { el.classList.remove('show'); }, 2800);
-    }
-
-    function openMaps() {
-      setTimeout(function () { window.location.href = mapsUrl; }, 600);
-    }
-
-    if (UID && PLACE_ID && !window._reviewCopiedLogged) {
-      window._reviewCopiedLogged = true;
-      registerReviewCopied(UID, PLACE_ID);
-    }
-
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text)
-        .then(function () { showToast(); showPasteGuide(); openMaps(); })
-        .catch(function () { legacyCopy(text); showPasteGuide(); openMaps(); });
-    } else {
-      legacyCopy(text);
-      showPasteGuide();
-      openMaps();
-    }
-  };
-
+  // ─────────────────────────────────────────────
+  //  Clipboard — called inside the tap handler
+  // ─────────────────────────────────────────────
   function legacyCopy(text) {
     var ta = document.createElement('textarea');
     ta.value = text;
-    ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;width:1px;height:1px;';
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
     document.body.appendChild(ta);
-    ta.focus(); ta.select();
-    try { document.execCommand('copy'); } catch (e) {}
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
     document.body.removeChild(ta);
+    return ok;
   }
 
-  // ── Show private feedback form ────────────────
-  window.showFeedbackForm = function () {
-    document.getElementById('fbLink').style.display = 'none';
-    document.getElementById('feedbackSection').style.display = 'block';
-    document.getElementById('fbComment').focus();
-  };
+  /** Starts the copy immediately (within the user gesture) and reports success. */
+  function copyText(text, done) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(legacyCopy(text)); });
+    } else {
+      done(legacyCopy(text));
+    }
+  }
 
-  // ── Feedback submission (via backend) ────────
-  window.submitFeedback = function () {
-    var comment = (document.getElementById('fbComment').value || '').trim();
-    if (!comment) {
-      alert('Please describe your experience so we can address your concern.');
+  // ─────────────────────────────────────────────
+  //  In-app browser detection
+  // ─────────────────────────────────────────────
+  var UA = navigator.userAgent || '';
+  var IS_IN_APP = /FBAN|FBAV|Instagram|Line\/|; wv\)|PhonePe|Paytm/i.test(UA);
+  var IS_ANDROID = /Android/i.test(UA);
+
+  // ─────────────────────────────────────────────
+  //  Rendering
+  // ─────────────────────────────────────────────
+  var STAR_PATH = 'M12 2.6l2.85 5.9 6.5.92-4.72 4.55 1.13 6.43L12 17.36l-5.76 3.04 1.13-6.43L2.65 9.42l6.5-.92z';
+  var MOUTH = [0.15, -1, -0.5, 0.05, 0.6, 1];
+
+  function buildStars(containerId) {
+    var c = $(containerId);
+    c.innerHTML = '';
+    for (var n = 1; n <= 5; n++) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'star';
+      b.setAttribute('role', 'radio');
+      b.dataset.n = String(n);
+      b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + STAR_PATH + '"></path></svg>';
+      b.addEventListener('click', onStarTap);
+      c.appendChild(b);
+    }
+  }
+
+  function renderStars(tapped) {
+    ['starsBig', 'starsSmall'].forEach(function (id) {
+      var c = $(id);
+      c.setAttribute('aria-label', t().rateGroup(shopName()));
+      Array.prototype.forEach.call(c.children, function (b) {
+        var n = Number(b.dataset.n);
+        var on = n <= state.rating;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-checked', n === state.rating ? 'true' : 'false');
+        b.setAttribute('aria-label', t().star(n));
+        // Pop the tapped star at once; neighbours ripple 35ms apart
+        var animate = tapped && on && (n > state.prevRating || n === tapped);
+        b.classList.remove('pop');
+        if (animate) {
+          b.querySelector('svg').style.animationDelay = (Math.abs(tapped - n) * 35) + 'ms';
+          void b.offsetWidth;
+          b.classList.add('pop');
+        }
+      });
+    });
+    $('mouth').style.transform = 'scaleY(' + MOUTH[state.rating] + ')';
+    $('mood').textContent = t().moods[state.rating];
+  }
+
+  function applyText() {
+    var L = t();
+    document.documentElement.lang = state.lang;
+    document.querySelectorAll('[data-t]').forEach(function (el) {
+      var v = L[el.getAttribute('data-t')];
+      if (typeof v === 'string') el.textContent = v;
+    });
+    document.querySelectorAll('[data-t-label]').forEach(function (el) {
+      el.setAttribute('aria-label', L[el.getAttribute('data-t-label')]);
+    });
+    $('langBtn').textContent = L.langBtn;
+    $('micLabel').textContent = recording ? L.stopRec : L.speak;
+    $('draftLabel').textContent = L.draftLabel;
+    $('thanksSub').textContent = L.thanksSub(shopName());
+    renderStars(0);
+    renderCopyButton();
+    if (state.screen === 'copied') renderCopied();
+  }
+
+  function renderShop() {
+    var name = shopName();
+    $('shopName').textContent = name;
+    $('mono').textContent = initials(state.shopName);
+    $('shopArea').textContent = state.area;
+    document.title = 'Review — ' + name;
+  }
+
+  function initials(name) {
+    var parts = (name || '').replace(/[^\p{L}\p{N} ]/gu, ' ').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '★';
+    return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+  }
+
+  function showScreen(name) {
+    state.screen = name;
+    var ids = { rate: 'screenRate', details: 'screenDetails', copied: 'screenCopied', thanks: 'screenThanks' };
+    Object.keys(ids).forEach(function (k) { $(ids[k]).classList.toggle('active', k === name); });
+    var heading = { rate: 'rateTitle', details: 'detailsTitle', copied: 'copiedTitle', thanks: 'thanksTitle' }[name];
+    // Move focus to the new screen's heading for screen readers
+    setTimeout(function () { var h = $(heading); if (h) h.focus({ preventScroll: true }); }, 50);
+  }
+
+  // ─────────────────────────────────────────────
+  //  Rate screen
+  // ─────────────────────────────────────────────
+  function onStarTap(e) {
+    var n = Number(e.currentTarget.dataset.n);
+    buzz(8);
+    state.prevRating = state.rating;
+    state.rating = n;
+    renderStars(n);
+
+    if (state.screen === 'details') {
+      // On the details screen a star only changes the rating
+      if (!state.ownWords) $('draftText').value = draftFor(n);
+      renderCopyButton();
       return;
     }
-    var phone = (document.getElementById('fbPhone').value || '').trim();
-    var email = (document.getElementById('fbEmail').value || '').trim();
-    var btn   = document.getElementById('fbSubmitBtn');
 
-    btn.disabled = true;
-    btn.textContent = 'Sending…';
-
-    var feedbackBody = {
-      rating:  0,
-      comment: comment,
-    };
-    if (phone) feedbackBody.phone = phone;
-    if (email) feedbackBody.email = email;
-
-    fetch(API_BASE + '/api/v1/merchants/' + encodeURIComponent(UID)
-      + '/branches/' + encodeURIComponent(PLACE_ID) + '/feedback', {
-      method: 'POST',
-      headers: apiHeaders(),
-      body: JSON.stringify(feedbackBody),
-    })
-    .then(function () {
-      document.getElementById('feedbackSection').style.display = 'none';
-      document.getElementById('feedbackSuccess').style.display = 'block';
-    })
-    .catch(function () {
-      document.getElementById('feedbackSection').style.display = 'none';
-      document.getElementById('feedbackSuccess').style.display = 'block';
+    // Copy now, inside the tap, then move on after 1.2 s unless they stay
+    state.text = draftFor(n);
+    state.ownWords = false;
+    clearTimeout(advanceTimer);
+    $('continueBtn').hidden = true;
+    $('pending').hidden = false;
+    var bar = $('progBar');
+    bar.style.animation = 'none';
+    void bar.offsetWidth;
+    bar.style.animation = '';
+    copyText(state.text, function (ok) {
+      state.copyOk = ok;
+      $('pendingText').textContent = ok ? t().copiedNext : t().notCopiedNext;
     });
-  };
+    advanceTimer = setTimeout(goCopied, 1200);
+  }
 
-  // ── Mode toggle (Type / Speak) ────────────────
-  var currentMode = 'type'; // 'type' or 'speak'
+  $('stayBtn').addEventListener('click', function () {
+    clearTimeout(advanceTimer);
+    $('pending').hidden = true;
+    $('continueBtn').hidden = false;
+  });
+  $('continueBtn').addEventListener('click', function () {
+    copyText(state.text, function (ok) { state.copyOk = ok; goCopied(); });
+  });
 
-  window.switchMode = function (mode) {
-    if (mode === currentMode) return;
-    var ta = document.getElementById('reviewText');
+  function goCopied() {
+    clearTimeout(advanceTimer);
+    $('pending').hidden = true;
+    $('continueBtn').hidden = !state.rating;
+    buzz(state.copyOk ? [10, 40, 18] : 8);
+    renderCopied();
+    showScreen('copied');
+    announce(state.copyOk ? t().copied + '. ' + t().copiedSub : t().notCopied);
+  }
 
-    // Save current textarea content to the appropriate cache before switching
-    if (currentMode === 'type') {
-      cachedTypeReview = ta.value;
+  // ─────────────────────────────────────────────
+  //  Details screen (own words / voice)
+  // ─────────────────────────────────────────────
+  $('detailsBtn').addEventListener('click', function () {
+    clearTimeout(advanceTimer);
+    $('pending').hidden = true;
+    $('continueBtn').hidden = !state.rating;
+    if (!$('draftText').value.trim() && state.rating) $('draftText').value = draftFor(state.rating);
+    renderCopyButton();
+    showScreen('details');
+  });
+  $('backBtn').addEventListener('click', function () {
+    if (recording) stopRecording();
+    showScreen('rate');
+  });
+  $('draftText').addEventListener('input', function () {
+    state.ownWords = true;
+    renderCopyButton();
+  });
+
+  function renderCopyButton() {
+    var btn = $('copyOpenBtn');
+    var hasText = !!$('draftText').value.trim();
+    btn.disabled = !state.rating || !hasText;
+    btn.textContent = !state.rating ? t().pickFirst : !hasText ? t().writeFirst : t().copyOpen;
+  }
+
+  $('copyOpenBtn').addEventListener('click', function () {
+    var text = $('draftText').value.trim();
+    if (!state.rating || !text) return;
+    state.text = text;
+    copyText(text, function (ok) {
+      state.copyOk = ok;
+      goCopied();
+    });
+  });
+
+  // ─────────────────────────────────────────────
+  //  Copied screen
+  // ─────────────────────────────────────────────
+  function renderCopied() {
+    var L = t();
+    var ok = state.copyOk;
+    $('icoOk').hidden = !ok;
+    $('icoFail').hidden = ok;
+    $('copiedTitle').textContent = ok ? L.copied : L.notCopied;
+    $('copiedSub').textContent = ok ? L.copiedSub : L.notCopiedSub;
+    $('holdHint').hidden = ok;
+    $('quote').classList.toggle('fail', !ok);
+    $('quote').textContent = '“' + state.text + '”';
+    $('metaShop').textContent = shopName().toUpperCase().slice(0, 28);
+    var now = new Date();
+    $('metaTime').textContent = now.toLocaleDateString(state.lang === 'hi' ? 'hi-IN' : 'en-IN', { day: '2-digit', month: 'short' }) +
+      ' · ' + now.toLocaleTimeString(state.lang === 'hi' ? 'hi-IN' : 'en-IN', { hour: '2-digit', minute: '2-digit' });
+    var stars = '';
+    for (var n = 1; n <= 5; n++) {
+      stars += '<svg viewBox="0 0 24 24"><path d="' + STAR_PATH + '" fill="' + (n <= state.rating ? '#F2A900' : '#FFFDF8') +
+        '" stroke="' + (n <= state.rating ? '#8A5E00' : '#8C7B5C') + '" stroke-width="1.75" stroke-linejoin="round"></path></svg>';
+    }
+    $('rStars').innerHTML = stars;
+    $('rStarsText').textContent = L.starsText(state.rating);
+    $('receiptLabel').textContent = state.ownWords ? L.receiptOwn : L.receiptLabel;
+    $('step1').textContent = L.step1(state.rating);
+
+    if (state.place && state.place.rating && state.place.userRatingCount) {
+      $('postingCard').hidden = false;
+      $('postingName').textContent = shopName() + (state.area ? ' · ' + state.area : '');
+      $('postingStats').textContent = L.placeStats(state.place.rating.toFixed(1), state.place.userRatingCount.toLocaleString('en-IN'));
     } else {
-      cachedVoiceReview = ta.value;
+      $('postingCard').hidden = true;
     }
 
-    currentMode = mode;
-
-    // Toggle tab active state
-    document.getElementById('tabType').classList.toggle('active', mode === 'type');
-    document.getElementById('tabSpeak').classList.toggle('active', mode === 'speak');
-
-    // Toggle panel visibility
-    document.getElementById('panelType').classList.toggle('active', mode === 'type');
-    document.getElementById('panelSpeak').classList.toggle('active', mode === 'speak');
-
-    // Restore cached review for the target mode
-    var reviewSection = document.getElementById('reviewSection');
-    if (mode === 'type') {
-      ta.value = cachedTypeReview;
-      reviewSection.style.display = '';
-      // If switching away from speak while recording, stop it
-      if (isRecording) stopRecording();
-    } else {
-      // In speak mode, only show textarea if there's a polished voice review
-      if (cachedVoiceReview) {
-        ta.value = cachedVoiceReview;
-        reviewSection.style.display = '';
-      } else {
-        ta.value = '';
-        reviewSection.style.display = 'none';
-      }
+    $('inappBanner').hidden = !IS_IN_APP;
+    if (IS_IN_APP) {
+      $('inappLink').href = IS_ANDROID
+        ? 'intent://' + location.host + location.pathname + location.search + '#Intent;scheme=https;package=com.android.chrome;end'
+        : location.href;
     }
-    updateCta();
-  };
 
-  // ── Voice recording (WebSocket streaming) ────
-  var voiceWs        = null;
-  var mediaRecorder  = null;
-  var isRecording    = false;
-  var finalParts     = [];    // accumulated final transcript segments
-  var lastInterim    = '';     // current interim text
-  var detectedLang   = '';
-  var recTimerInterval = null;
-  var recStartTime   = 0;
-
-  function getWsBase() {
-    var proto = API_BASE.indexOf('https') === 0 ? 'wss' : 'ws';
-    return proto + API_BASE.replace(/^https?/, '');
+    // Restart the print animation
+    var r = $('receipt');
+    r.style.animation = 'none';
+    void r.offsetWidth;
+    r.style.animation = '';
   }
 
-  function formatTimer(seconds) {
-    var m = Math.floor(seconds / 60);
-    var s = seconds % 60;
-    return m + ':' + (s < 10 ? '0' : '') + s;
+  $('editBtn').addEventListener('click', function () {
+    $('draftText').value = state.text;
+    renderCopyButton();
+    showScreen('details');
+  });
+
+  function googleReviewUrl() {
+    return 'https://search.google.com/local/writereview?placeid=' + encodeURIComponent(PLACE_ID);
   }
 
-  function startTimer() {
-    recStartTime = Date.now();
-    var timerEl = document.getElementById('micTimer');
-    timerEl.textContent = '0:00';
-    timerEl.classList.add('visible');
-    recTimerInterval = setInterval(function () {
-      var elapsed = Math.floor((Date.now() - recStartTime) / 1000);
-      timerEl.textContent = formatTimer(elapsed);
-    }, 1000);
-  }
+  $('openGoogleBtn').addEventListener('click', function () {
+    buzz(8);
+    postAnalytics('review_copied');
+    state.leftForGoogle = true;
+    // Remember where we were, in case the browser reloads this page on return
+    try { sessionStorage.setItem('rr_left', JSON.stringify({ text: state.text, rating: state.rating, lang: state.lang })); } catch (e) { /* ignore */ }
+    $('notOpened').hidden = true;
+    // If we are still visible after 1.5 s, Google probably didn't open
+    setTimeout(function () {
+      if (document.visibilityState === 'visible' && state.screen === 'copied') $('notOpened').hidden = false;
+    }, 1500);
+    location.href = googleReviewUrl();
+  });
 
-  function stopTimer() {
-    clearInterval(recTimerInterval);
-    recTimerInterval = null;
-    document.getElementById('micTimer').classList.remove('visible');
-  }
-
-  window.toggleRecording = function () {
-    if (isRecording) {
-      stopRecording();
-    } else {
-      startRecording();
+  // Show "Thank you" only after the customer actually comes back from Google
+  var wasHidden = false;
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden' && state.leftForGoogle) wasHidden = true;
+    if (document.visibilityState === 'visible' && wasHidden) {
+      wasHidden = false;
+      state.leftForGoogle = false;
+      showThanks();
     }
-  };
+  });
+  window.addEventListener('pageshow', function (e) {
+    if (e.persisted && state.leftForGoogle) { state.leftForGoogle = false; showThanks(); }
+  });
+
+  // ─────────────────────────────────────────────
+  //  Thanks screen
+  // ─────────────────────────────────────────────
+  function showThanks() {
+    var burst = $('burst');
+    burst.querySelectorAll('.petal').forEach(function (p) { p.remove(); });
+    var colors = ['#F2A900', '#F9D56E', '#1F6E50'];
+    for (var i = 0; i < 14; i++) {
+      var a = (i / 14) * Math.PI * 2, r = 100 + (i % 3) * 28;
+      var p = document.createElement('span');
+      p.className = 'petal';
+      p.style.setProperty('--dx', Math.round(Math.cos(a) * r) + 'px');
+      p.style.setProperty('--dy', Math.round(Math.sin(a) * r) + 'px');
+      p.style.background = colors[i % 3];
+      p.style.animationDelay = (i * 25) + 'ms';
+      burst.insertBefore(p, burst.firstChild);
+    }
+    $('thanksSub').textContent = t().thanksSub(shopName());
+    showScreen('thanks');
+    announce(t().thanks);
+  }
+
+  $('againBtn').addEventListener('click', function () {
+    copyText(state.text, function (ok) { state.copyOk = ok; goCopied(); });
+  });
+
+  // ─────────────────────────────────────────────
+  //  Language
+  // ─────────────────────────────────────────────
+  $('langBtn').addEventListener('click', function () {
+    state.lang = state.lang === 'en' ? 'hi' : 'en';
+    applyText();
+    if (SESSION_TOKEN) loadDrafts(state.lang);
+  });
+
+  // ─────────────────────────────────────────────
+  //  Private feedback sheet
+  // ─────────────────────────────────────────────
+  var lastFocus = null;
+  document.querySelectorAll('[data-private]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      lastFocus = b;
+      $('sheetBg').classList.add('open');
+      setTimeout(function () { $('fbComment').focus(); }, 50);
+    });
+  });
+  function closeSheet() {
+    $('sheetBg').classList.remove('open');
+    if (lastFocus) lastFocus.focus();
+  }
+  $('sheetClose').addEventListener('click', closeSheet);
+  $('sheetBg').addEventListener('click', function (e) { if (e.target === $('sheetBg')) closeSheet(); });
+
+  $('fbSend').addEventListener('click', function () {
+    var comment = $('fbComment').value.trim();
+    if (!comment) { $('fbComment').focus(); announce(t().fbEmpty); return; }
+    var body = { rating: state.rating || 0, comment: comment.slice(0, 2000) };
+    var phone = $('fbPhone').value.trim();
+    var email = $('fbEmail').value.trim();
+    if (phone) body.phone = phone.slice(0, 20);
+    if (email) body.email = email.slice(0, 254);
+    var btn = $('fbSend');
+    btn.disabled = true;
+    btn.textContent = t().fbSending;
+    fetch(API_BASE + '/api/v1/merchants/' + encodeURIComponent(UID) + '/branches/' + encodeURIComponent(PLACE_ID) + '/feedback', {
+      method: 'POST', headers: apiHeaders(), body: JSON.stringify(body)
+    }).catch(function () { /* show the same confirmation */ }).then(function () {
+      $('sheetForm').hidden = true;
+      $('fbDone').hidden = false;
+      announce(t().fbDone);
+    });
+  });
+
+  // ─────────────────────────────────────────────
+  //  Voice (WebSocket → Deepgram, then server clean-up)
+  // ─────────────────────────────────────────────
+  var recording = false;
+  var voiceWs = null;
+  var mediaRecorder = null;
+  var finalParts = [];
+  var interim = '';
+  var detectedLang = '';
+
+  function wsBase() {
+    return (API_BASE.indexOf('https') === 0 ? 'wss' : 'ws') + API_BASE.replace(/^https?/, '');
+  }
+
+  function renderLive() {
+    var text = finalParts.join(' ') + (interim ? ' ' + interim : '');
+    $('liveText').textContent = text.trim() || t().listening;
+  }
 
   function startRecording() {
-    var micBtn   = document.getElementById('micBtn');
-    var label    = document.getElementById('micLabel');
-    var live     = document.getElementById('liveTranscript');
-    var liveText = document.getElementById('liveText');
-    var polish   = document.getElementById('polishOverlay');
-
-    // Reset state
-    finalParts   = [];
-    lastInterim  = '';
-    detectedLang = '';
-    cachedVoiceReview = '';
-    liveText.innerHTML = '<span class="interim">Listening…</span>';
-    polish.classList.remove('visible');
-    document.getElementById('reviewText').value = '';
-
-    // Open WebSocket to backend
-    voiceWs = new WebSocket(getWsBase() + '/api/v1/voice-stream?lang=' + encodeURIComponent(voiceLangCode)
-      + '&session=' + encodeURIComponent(SESSION_TOKEN));
-
+    if (!SESSION_TOKEN) return;
+    finalParts = []; interim = ''; detectedLang = '';
+    recording = true;
+    $('micBtn').classList.add('recording');
+    $('micLabel').textContent = t().stopRec;
+    $('liveText').textContent = t().listening;
+    var spoken = state.lang === 'hi' ? 'hi' : 'multi';
+    voiceWs = new WebSocket(wsBase() + '/api/v1/voice-stream?lang=' + spoken + '&session=' + encodeURIComponent(SESSION_TOKEN));
     voiceWs.onmessage = function (e) {
       try {
         var msg = JSON.parse(e.data);
-        if (msg.type === 'ready') {
-          startMic();
-        } else if (msg.type === 'transcript') {
+        if (msg.type === 'ready') startMic();
+        else if (msg.type === 'transcript') {
           if (msg.detected_language) detectedLang = msg.detected_language;
-          if (msg.is_final) {
-            if (msg.transcript) finalParts.push(msg.transcript);
-            lastInterim = '';
-          } else {
-            lastInterim = msg.transcript || '';
-          }
-          renderLiveTranscript();
+          if (msg.is_final) { if (msg.transcript) finalParts.push(msg.transcript); interim = ''; }
+          else interim = msg.transcript || '';
+          renderLive();
         } else if (msg.type === 'error') {
-          console.error('[voice] Server error:', msg.message);
           stopRecording();
         }
       } catch (err) { /* ignore */ }
     };
-
-    voiceWs.onerror = function () {
-      console.error('[voice] WebSocket error');
-      stopRecording();
-    };
-
-    voiceWs.onclose = function () {
-      if (isRecording) stopRecording();
-    };
-
-    // Update UI
-    isRecording = true;
-    micBtn.classList.add('recording');
-    micBtn.textContent = '⏹️';
-    label.innerHTML = 'Tap to <strong>stop recording</strong>';
-    live.classList.add('visible', 'active');
-    document.getElementById('voiceLangInput').disabled = true;
-    startTimer();
+    voiceWs.onerror = function () { if (recording) stopRecording(); };
+    voiceWs.onclose = function () { if (recording) stopRecording(); };
   }
 
   function startMic() {
-    navigator.mediaDevices.getUserMedia({ audio: true })
-      .then(function (stream) {
-        var mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-          ? 'audio/webm;codecs=opus'
-          : MediaRecorder.isTypeSupported('audio/webm')
-            ? 'audio/webm'
-            : '';
-
-        var options = mimeType ? { mimeType: mimeType } : {};
-        mediaRecorder = new MediaRecorder(stream, options);
-
-        mediaRecorder.ondataavailable = function (e) {
-          if (e.data.size > 0 && voiceWs && voiceWs.readyState === WebSocket.OPEN) {
-            voiceWs.send(e.data);
-          }
-        };
-
-        mediaRecorder.start(250);
-      })
-      .catch(function (err) {
-        console.error('[voice] Mic access denied:', err);
-        alert('Please allow microphone access to use voice review.');
-        stopRecording();
-      });
-  }
-
-  function stopRecording() {
-    var micBtn = document.getElementById('micBtn');
-    var label  = document.getElementById('micLabel');
-    var live   = document.getElementById('liveTranscript');
-
-    isRecording = false;
-    micBtn.classList.remove('recording');
-    micBtn.textContent = '🎙️';
-    label.innerHTML = 'Tap to <strong>start recording</strong>';
-    live.classList.remove('active');
-    stopTimer();
-    document.getElementById('voiceLangInput').disabled = false;
-
-    // Stop MediaRecorder + release mic
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-      mediaRecorder.stop();
-      mediaRecorder.stream.getTracks().forEach(function (t) { t.stop(); });
-    }
-    mediaRecorder = null;
-
-    // Tell Deepgram we're done, then close
-    if (voiceWs && voiceWs.readyState === WebSocket.OPEN) {
-      voiceWs.send(JSON.stringify({ type: 'finalize' }));
-      setTimeout(function () {
-        if (voiceWs) { voiceWs.close(); voiceWs = null; }
-        polishTranscript();
-      }, 1200);
-    } else {
-      voiceWs = null;
-      polishTranscript();
-    }
-  }
-
-  function renderLiveTranscript() {
-    var liveText = document.getElementById('liveText');
-    var finalText = finalParts.join(' ');
-    var html = escHtml(finalText);
-    if (lastInterim) {
-      html += (finalText ? ' ' : '') + '<span class="interim">' + escHtml(lastInterim) + '</span>';
-    }
-    liveText.innerHTML = html || '<span class="interim">Listening…</span>';
-  }
-
-  function polishTranscript() {
-    var fullTranscript = finalParts.join(' ').trim();
-    if (!fullTranscript) return;
-
-    var polish = document.getElementById('polishOverlay');
-    polish.classList.add('visible');
-
-    // Clean up in the language they spoke; the server builds the prompt
-    var spokenLang = detectedLang || (voiceLangCode !== 'multi' ? voiceLangCode : currentLang) || 'en';
-
-    fetch(API_BASE + '/api/v1/review/generate', {
-      method: 'POST',
-      headers: apiHeaders(),
-      body: JSON.stringify({ mode: 'voice', transcript: fullTranscript.slice(0, 1000), lang: spokenLang }),
-    })
-    .then(function (res) { return res.json(); })
-    .then(function (json) {
-      polish.classList.remove('visible');
-      if (json.success && json.data && json.data.text) {
-        cachedVoiceReview = json.data.text;
-        document.getElementById('reviewText').value = json.data.text;
-        document.getElementById('reviewSection').style.display = '';
-        updateCta();
-      } else {
-        throw new Error(json.error || 'Empty response');
-      }
-    })
-    .catch(function (err) {
-      polish.classList.remove('visible');
-      console.error('[voice] Polish failed:', err);
-      cachedVoiceReview = fullTranscript;
-      document.getElementById('reviewText').value = fullTranscript;
-      document.getElementById('reviewSection').style.display = '';
-      updateCta();
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+      var mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+      mediaRecorder = new MediaRecorder(stream, mime ? { mimeType: mime } : {});
+      mediaRecorder.ondataavailable = function (e) {
+        if (e.data.size > 0 && voiceWs && voiceWs.readyState === WebSocket.OPEN) voiceWs.send(e.data);
+      };
+      mediaRecorder.start(250);
+    }).catch(function () {
+      stopRecording();
+      $('liveText').textContent = '';
     });
   }
 
-  // ── Init ─────────────────────────────────────
-  // Start a session, then record the visit and load shop details
-  loadBranch();
+  function stopRecording() {
+    recording = false;
+    $('micBtn').classList.remove('recording');
+    $('micLabel').textContent = t().speak;
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+      mediaRecorder.stream.getTracks().forEach(function (tr) { tr.stop(); });
+    }
+    mediaRecorder = null;
+    if (voiceWs && voiceWs.readyState === WebSocket.OPEN) {
+      voiceWs.send(JSON.stringify({ type: 'finalize' }));
+      setTimeout(function () { if (voiceWs) { voiceWs.close(); voiceWs = null; } tidyTranscript(); }, 1200);
+    } else {
+      voiceWs = null;
+      tidyTranscript();
+    }
+  }
 
+  function tidyTranscript() {
+    var transcript = finalParts.join(' ').trim();
+    if (!transcript) { $('liveText').textContent = ''; return; }
+    $('liveText').textContent = t().tidying;
+    var body = { mode: 'voice', transcript: transcript.slice(0, 1000), lang: detectedLang || state.lang };
+    if (state.rating) body.stars = state.rating;
+    fetch(API_BASE + '/api/v1/review/generate', { method: 'POST', headers: apiHeaders(), body: JSON.stringify(body) })
+      .then(function (res) { return res.json(); })
+      .then(function (json) { setOwnWords(json.success && json.data && json.data.text ? json.data.text : transcript); })
+      .catch(function () { setOwnWords(transcript); });
+  }
+
+  function setOwnWords(text) {
+    $('liveText').textContent = '';
+    $('draftText').value = text;
+    state.ownWords = true;
+    renderCopyButton();
+  }
+
+  $('micBtn').addEventListener('click', function () {
+    if (recording) stopRecording(); else startRecording();
+  });
+
+  // ─────────────────────────────────────────────
+  //  Init
+  // ─────────────────────────────────────────────
+  buildStars('starsBig');
+  buildStars('starsSmall');
+
+  // Back from Google after a full reload: go straight to "Thank you"
+  var returning = null;
+  try {
+    returning = JSON.parse(sessionStorage.getItem('rr_left') || 'null');
+    sessionStorage.removeItem('rr_left');
+  } catch (e) { returning = null; }
+  if (returning && returning.text && returning.rating >= 1 && returning.rating <= 5) {
+    state.text = String(returning.text).slice(0, 2000);
+    state.rating = returning.rating;
+    if (returning.lang === 'hi' || returning.lang === 'en') state.lang = returning.lang;
+  }
+
+  renderShop();
+  applyText();
+  if (returning && state.rating) showThanks();
+
+  (async function init() {
+    if (!UID || !PLACE_ID) {
+      $('loadError').textContent = t().badLink;
+      $('loadError').classList.add('show');
+      return;
+    }
+    var session;
+    try {
+      session = await startSession();
+    } catch (e) {
+      $('loadError').textContent = t().loadError;
+      $('loadError').classList.add('show');
+      return;
+    }
+    if (session.businessName) state.shopName = cleanText(session.businessName, 100);
+    renderShop();
+    applyText();
+
+    if (IS_QR_SCAN) postAnalytics('qr_scan');
+    if (IS_LINK_VISIT) postAnalytics('link_visit');
+
+    var results = await Promise.all([fetchPlace(), loadDrafts(state.lang)]);
+    var place = results[0];
+    if (place) {
+      state.place = place;
+      if (place.displayName && place.displayName.text) state.shopName = cleanText(place.displayName.text, 100);
+      var addr = place.shortFormattedAddress || place.formattedAddress || '';
+      var parts = addr.split(',').map(function (p) { return p.trim(); })
+        .filter(function (p) { return p && !/^[0-9]+$/.test(p) && !/^india$/i.test(p); });
+      state.area = cleanText(parts.slice(-2).join(', '), 80);
+      renderShop();
+      applyText();
+    }
+  })();
 }());
 </script>
 </body>
