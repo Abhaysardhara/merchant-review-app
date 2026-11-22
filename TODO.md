@@ -67,21 +67,22 @@ Design reference: "ReviewReach One-Tap Review Flow" canvas (v2). Plan: "ReviewRe
 ## Phase 2 — Make reviews compliant (1 day)
 
 ### 2.1 Remove what breaks Google's rules
-- [ ] Delete `screens/FeedbackGateScreen.tsx` (rating gate at line 46)
-- [ ] Delete the unused customer screens: `CustomerScannerScreen.tsx`, `ReviewEditorScreen.tsx`, `PrivateFeedbackScreen.tsx`
-- [ ] Remove `CustomerScanner`, `FeedbackGate`, `ReviewEditor` routes from `types/index.ts` (lines 92–94)
-- [ ] Delete `services/aiService.ts` (template praise sentences) and its imports
-- [ ] Remove the old-flow helpers in `services/analytics.ts` ("Log a 5-star review copy", `logPrivateFeedback` tied to 1–3★)
-- [ ] Remove the "always 5-star" wording in `server/src/services/gemini.ts` (lines 3, 65, 70, 104) and `server/src/routes/voiceReview.ts` (line 19)
-- [ ] Remove the banned-phrase lists (`gemini.ts:94`, `web/index.html:1561, 2101`)
-- **Done when:** `grep -ri "5-star\|five stars\|BANNED" server/src web services` returns nothing
+- [x] Delete `screens/FeedbackGateScreen.tsx` (rating gate)
+- [x] Delete the unused customer screens: `CustomerScannerScreen.tsx`, `ReviewEditorScreen.tsx`, `PrivateFeedbackScreen.tsx` (and `components/LanguageSelector.tsx`, only used by them)
+- [x] Remove `CustomerStackParamList` and the unused `ReviewDraft`, `PrivateFeedback`, `LanguageOption` types from `types/index.ts`
+- [x] Delete `services/aiService.ts` (template praise sentences)
+- [x] Remove the old-flow helpers in `services/analytics.ts` and the client-side Firestore writes in `services/firebase.ts` (`incrementTotalScans`, `incrementReviewsCopied`, `savePrivateFeedback` — now blocked by `firestore.rules`)
+- [x] Remove the "always 5-star" wording and the banned-phrase lists (done in Phase 1)
+- [x] Rewrite the Play Store listing (`store.config.json`, en/hi/gu): no "5-star" promises, no "feedback routing", no unsourced statistics, accurate privacy section
+- [x] Sign-in tagline and the review page's private-feedback link no longer steer away from Google
+- **Done when:** `grep -ri "5-star\|five stars\|BANNED" server/src web services` returns nothing ✅
 
 ### 2.2 New honest prompts
-- [ ] Star-only draft: one short sentence stating only the customer's rating, in their language; 5–10 varied phrasings per rating
-- [ ] Draft from buttons: use only the chosen buttons; negative buttons stay negative; no added claims
-- [ ] Voice: remove filler words and fix grammar only; keep meaning, sentiment and the chosen star rating
-- [ ] Write 20 test cases (each rating × with/without buttons × English/Hindi) and check the outputs by hand
-- **Done when:** a 2★ voice note saying "food was cold" never turns into praise
+- [x] Star-only draft: one short sentence stating only the customer's rating, in their language and script; wording varies per request
+- [ ] Draft from buttons: use only the chosen buttons; negative buttons stay negative; no added claims (with the buttons in Phase 3/4)
+- [x] Voice: remove filler words and fix grammar only; keep meaning, sentiment and the chosen star rating
+- [ ] Write the full 20-case check (each rating × with/without buttons × English/Hindi) once buttons exist — 8 cases checked so far
+- **Done when:** a 2★ voice note saying "food was cold" never turns into praise ✅ (tested 2026-11-22)
 
 ---
 

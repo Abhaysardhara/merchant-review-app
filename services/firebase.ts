@@ -18,10 +18,8 @@ import {
   getDocs,
   collection,
   setDoc,
-  addDoc,
   deleteDoc,
   serverTimestamp,
-  increment,
   query,
   orderBy,
 } from 'firebase/firestore';
@@ -193,45 +191,6 @@ export interface FirestoreAnalytics {
   lastScanAt?: string;
 }
 
-// ─────────────────────────────────────────────
-//  Mobile analytics — atomic increments via SDK
-//  Used by the in-app customer flow (JSON QR path).
-//  The web page flow uses Firestore REST transforms instead.
-// ─────────────────────────────────────────────
-
-/** Increment totalScans + set lastScanAt when a customer scans in the mobile app */
-export async function incrementTotalScans(uid: string, placeId: string): Promise<void> {
-  try {
-    await setDoc(
-      doc(db, 'users', uid, 'branches', placeId),
-      { totalScans: increment(1), lastScanAt: serverTimestamp() },
-      { merge: true },
-    );
-  } catch { /* best-effort */ }
-}
-
-/** Increment reviewsCopied when a customer copies a review in the mobile app */
-export async function incrementReviewsCopied(uid: string, placeId: string): Promise<void> {
-  try {
-    await setDoc(
-      doc(db, 'users', uid, 'branches', placeId),
-      { reviewsCopied: increment(1) },
-      { merge: true },
-    );
-  } catch { /* best-effort */ }
-}
-
-/** Save private (1-3 star) feedback under users/{uid}/branches/{placeId}/feedback/{id} */
-export async function savePrivateFeedback(
-  uid: string,
-  placeId: string,
-  data: { rating: number; comment: string; phone?: string; email?: string },
-): Promise<void> {
-  await addDoc(
-    collection(db, 'users', uid, 'branches', placeId, 'feedback'),
-    { ...data, createdAt: serverTimestamp() },
-  );
-}
 
 // ─────────────────────────────────────────────
 //  Private feedback — read

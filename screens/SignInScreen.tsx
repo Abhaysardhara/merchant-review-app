@@ -102,7 +102,7 @@ export function SignInScreen() {
           <Ionicons name="storefront" size={38} color="#fff" />
         </View>
         <Text style={styles.appName}>Review Reach</Text>
-        <Text style={styles.tagline}>Turn every customer into{'\n'}a 5-star Google review</Text>
+        <Text style={styles.tagline}>Ask every customer for{'\n'}an honest Google review</Text>
 
         <View style={styles.chips}>
           {[
