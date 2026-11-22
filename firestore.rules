@@ -20,6 +20,12 @@ service cloud.firestore {
         // Only the server creates feedback
         allow create, update: if false;
       }
+
+      match /stats/{day} {
+        // Daily review-page counts, written only by the server
+        allow read, delete: if isOwner(uid);
+        allow create, update: if false;
+      }
     }
 
     // Everything else is closed

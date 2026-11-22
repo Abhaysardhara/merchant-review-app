@@ -4,8 +4,10 @@ import cors from "cors";
 import helmet from "helmet";
 import { WebSocketServer } from "ws";
 import { isAllowedOrigin } from "./config";
+import { eventsRouter } from "./routes/events";
 import {
   aiLimiter,
+  eventsLimiter,
   generalLimiter,
   merchantSearchDailyLimiter,
   merchantSearchLimiter,
@@ -63,6 +65,14 @@ app.use("/api/v1/places", requireSession, placesLimiter, placesRouter);
 
 // AI review drafts (prompts are built on the server)
 app.use("/api/v1/review", requireSession, aiLimiter, reviewRouter);
+
+// Review-page funnel events (sendBeacon sends text/plain)
+app.use(
+  "/api/v1/events",
+  eventsLimiter,
+  express.text({ type: "*/*", limit: "8kb" }),
+  eventsRouter
+);
 
 // Analytics writes and private feedback
 app.use("/api/v1/merchants", requireSession, analyticsRouter);
