@@ -12,10 +12,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { MerchantStackParamList } from '../types';
+import type { MerchantStackParamList, ReviewButton } from '../types';
 import { useMerchant } from '../store/MerchantContext';
 import { loadBranchFeedback, type FeedbackItem } from '../services/firebase';
 import { useI18n } from '../i18n';
+import { useExtraText } from '../i18n/extra';
 
 type Props = NativeStackScreenProps<MerchantStackParamList, 'FeedbackInbox'>;
 
@@ -42,9 +43,17 @@ function formatDate(iso: string): string {
   });
 }
 
-function FeedbackCard({ item }: { item: FeedbackItem }) {
-  const { t } = useI18n();
-  const hasContact = Boolean(item.phone || item.email);
+/** WhatsApp needs the number with country code; 10-digit Indian mobiles get 91. */
+function whatsappNumber(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  return digits.length === 10 && /^[6-9]/.test(digits) ? `91${digits}` : digits;
+}
+
+function FeedbackCard({ item, buttons, lang }: { item: FeedbackItem; buttons: ReviewButton[]; lang: 'en' | 'hi' | 'gu' }) {
+  const { t: tx } = useExtraText();
+  const picked = item.buttonIds
+    .map((id) => buttons.find((b) => b.id === id))
+    .filter((b): b is ReviewButton => !!b);
 
   return (
     <View style={s.card}>
@@ -53,20 +62,47 @@ function FeedbackCard({ item }: { item: FeedbackItem }) {
         <Text style={s.cardDate}>{formatDate(item.createdAt)}</Text>
       </View>
 
+      {picked.length > 0 && (
+        <View style={s.pickedRow}>
+          {picked.map((b) => (
+            <View key={b.id} style={[s.pickedChip, b.kind === 'improve' && s.pickedChipBad]}>
+              <Text style={[s.pickedText, b.kind === 'improve' && s.pickedTextBad]}>
+                {b.emoji} {b.labels[lang] || b.labels.en}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+
       <Text style={s.cardComment}>{item.comment}</Text>
 
-      {hasContact && (
+      {item.phone ? (
+        <View style={s.replyRow}>
+          <TouchableOpacity
+            style={[s.replyBtn, { backgroundColor: '#ECFDF5', borderColor: '#6EE7B7' }]}
+            onPress={() => Linking.openURL(`tel:${item.phone}`)}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={`Call ${item.phone}`}
+          >
+            <Ionicons name="call" size={20} color="#047857" />
+            <Text style={[s.replyText, { color: '#047857' }]}>{tx('fb_call')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.replyBtn, { backgroundColor: '#F0FDF4', borderColor: '#86EFAC' }]}
+            onPress={() => Linking.openURL(`https://wa.me/${whatsappNumber(item.phone!)}`)}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={`WhatsApp ${item.phone}`}
+          >
+            <Ionicons name="logo-whatsapp" size={20} color="#15803D" />
+            <Text style={[s.replyText, { color: '#15803D' }]}>WhatsApp</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
+      {item.email ? (
         <View style={s.contactRow}>
-          {item.phone ? (
-            <TouchableOpacity
-              style={s.contactChip}
-              onPress={() => Linking.openURL(`tel:${item.phone}`)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="call-outline" size={13} color="#059669" />
-              <Text style={s.contactText}>{item.phone}</Text>
-            </TouchableOpacity>
-          ) : null}
           {item.email ? (
             <TouchableOpacity
               style={s.contactChip}
@@ -78,16 +114,18 @@ function FeedbackCard({ item }: { item: FeedbackItem }) {
             </TouchableOpacity>
           ) : null}
         </View>
-      )}
+      ) : null}
     </View>
   );
 }
 
 export function FeedbackInboxScreen({ route, navigation }: Props) {
   const { branchId, branchName } = route.params;
-  const { currentUser } = useMerchant();
+  const { currentUser, getBranch } = useMerchant();
   const insets = useSafeAreaInsets();
   const { t } = useI18n();
+  const { buttonLang } = useExtraText();
+  const branchButtons = getBranch(branchId)?.buttons ?? [];
 
   const [feedback, setFeedback] = useState<FeedbackItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -141,7 +179,7 @@ export function FeedbackInboxScreen({ route, navigation }: Props) {
         <FlatList
           data={feedback}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <FeedbackCard item={item} />}
+          renderItem={({ item }) => <FeedbackCard item={item} buttons={branchButtons} lang={buttonLang} />}
           contentContainerStyle={[s.list, { paddingBottom: insets.bottom + 24 }]}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#4F46E5" />
@@ -192,8 +230,21 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
   starRow: { flexDirection: 'row', gap: 2 },
-  cardDate: { fontSize: 11, color: '#94A3B8' },
-  cardComment: { fontSize: 14, color: '#1E293B', lineHeight: 21 },
+  cardDate: { fontSize: 13, color: '#64748B' },
+  cardComment: { fontSize: 16, color: '#1E293B', lineHeight: 24 },
+
+  pickedRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  pickedChip: { borderRadius: 16, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#BBF7D0' },
+  pickedChipBad: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
+  pickedText: { fontSize: 14, color: '#166534', fontWeight: '600' },
+  pickedTextBad: { color: '#991B1B' },
+
+  replyRow: { flexDirection: 'row', gap: 10 },
+  replyBtn: {
+    flex: 1, minHeight: 52, borderRadius: 14, borderWidth: 1.5,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
+  replyText: { fontSize: 16, fontWeight: '700' },
 
   contactRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   contactChip: {

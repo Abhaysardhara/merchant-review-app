@@ -252,6 +252,8 @@ export interface FeedbackItem {
   comment: string;
   phone?: string;
   email?: string;
+  /** Buttons the customer had picked on the review page */
+  buttonIds: string[];
   createdAt: string; // ISO date string
 }
 
@@ -271,6 +273,7 @@ export async function loadBranchFeedback(uid: string, placeId: string): Promise<
         comment:   data.comment ?? '',
         phone:     data.phone   ?? undefined,
         email:     data.email   ?? undefined,
+        buttonIds: Array.isArray(data.buttonIds) ? data.buttonIds.filter((x: unknown) => typeof x === 'string') : [],
         createdAt: data.createdAt?.toDate?.()?.toISOString?.() ?? new Date().toISOString(),
       };
     });

@@ -145,7 +145,7 @@ export function BranchDetailScreen({ route, navigation }: Props) {
               style={styles.quickBtn}
               activeOpacity={0.8}
               onPress={() => {
-                const msg = `Hi! Thank you for visiting ${branch.businessName}. We'd love your feedback — it only takes 30 seconds:\n\n${qrUrl.replace('QrOrigin=true', 'LinkOrigin=true')}`;
+                const msg = `${tx('wa_message', { shop: branch.businessName || branch.name })}\n\n${qrUrl.replace('QrOrigin=true', 'LinkOrigin=true')}`;
                 const encoded = encodeURIComponent(msg);
                 Linking.openURL(`https://wa.me/?text=${encoded}`);
               }}

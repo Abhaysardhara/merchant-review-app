@@ -142,6 +142,8 @@ export interface PrivateFeedbackInput {
   comment: string;
   phone?: string;
   email?: string;
+  /** Buttons the customer had picked on the review page */
+  buttonIds?: string[];
 }
 
 export async function addPrivateFeedback(
@@ -156,5 +158,6 @@ export async function addPrivateFeedback(
   };
   if (input.phone) doc.phone = input.phone;
   if (input.email) doc.email = input.email;
+  if (input.buttonIds?.length) doc.buttonIds = input.buttonIds;
   await firestore().collection(`users/${uid}/branches/${placeId}/feedback`).add(doc);
 }

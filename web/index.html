@@ -1224,6 +1224,7 @@
     var email = $('fbEmail').value.trim();
     if (phone) body.phone = phone.slice(0, 20);
     if (email) body.email = email.slice(0, 254);
+    if (state.picked.length) body.buttonIds = state.picked.slice(0, 20);
     var btn = $('fbSend');
     btn.disabled = true;
     btn.textContent = t().fbSending;
