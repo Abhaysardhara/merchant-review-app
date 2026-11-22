@@ -3,28 +3,15 @@
  *
  * The server is the only writer of customer analytics and private feedback,
  * so Firestore security rules can deny those writes from browsers.
- *
- * Credentials: set FIREBASE_SERVICE_ACCOUNT to the service-account JSON,
- * or GOOGLE_APPLICATION_CREDENTIALS to its file path.
  */
 
-import { applicationDefault, cert, getApps, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore, type Firestore } from "firebase-admin/firestore";
-
-const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "review-reach-58103";
+import { adminApp } from "./firebaseAdmin";
 
 let db: Firestore | null = null;
 
 function firestore(): Firestore {
-  if (db) return db;
-  if (!getApps().length) {
-    const json = process.env.FIREBASE_SERVICE_ACCOUNT;
-    initializeApp({
-      credential: json ? cert(JSON.parse(json)) : applicationDefault(),
-      projectId: FIREBASE_PROJECT_ID,
-    });
-  }
-  db = getFirestore();
+  if (!db) db = getFirestore(adminApp());
   return db;
 }
 

@@ -4,10 +4,19 @@ import cors from "cors";
 import helmet from "helmet";
 import { WebSocketServer } from "ws";
 import { isAllowedOrigin } from "./config";
-import { aiLimiter, generalLimiter, placesLimiter, sessionLimiter } from "./middleware/limits";
+import {
+  aiLimiter,
+  generalLimiter,
+  merchantSearchDailyLimiter,
+  merchantSearchLimiter,
+  placesLimiter,
+  sessionLimiter,
+} from "./middleware/limits";
+import { requireMerchant } from "./middleware/merchantAuth";
 import { requireSession, verifySessionToken } from "./middleware/session";
 import { sessionRouter } from "./routes/session";
 import { placesRouter } from "./routes/places";
+import { placesSearchRouter } from "./routes/placesSearch";
 import { reviewRouter } from "./routes/review";
 import { analyticsRouter } from "./routes/analytics";
 import { feedbackRouter } from "./routes/feedback";
@@ -25,7 +34,7 @@ app.use(
     // Requests without an Origin (curl, health checks) get no CORS headers.
     origin: (origin, callback) => callback(null, !origin || isAllowedOrigin(origin)),
     methods: ["GET", "POST"],
-    allowedHeaders: ["Content-Type", "X-Session-Token"],
+    allowedHeaders: ["Content-Type", "X-Session-Token", "Authorization"],
     maxAge: 600,
   })
 );
@@ -39,6 +48,15 @@ app.get("/api/v1/health", (_req, res) => {
 
 // Customer session for one branch (needed by every route below)
 app.use("/api/v1/session", sessionLimiter, sessionRouter);
+
+// Shop search for the merchant app (signed-in merchants only)
+app.use(
+  "/api/v1/places/search",
+  requireMerchant,
+  merchantSearchLimiter,
+  merchantSearchDailyLimiter,
+  placesSearchRouter
+);
 
 // Google Places proxy (keeps API key server-side)
 app.use("/api/v1/places", requireSession, placesLimiter, placesRouter);

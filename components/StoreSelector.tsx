@@ -5,7 +5,7 @@
  *   A) Type → debounced Places Text Search → tap a suggestion → immediate confirm
  *   B) Scroll/pan the map → tap any POI → bottom card appears → tap "Use This Business"
  *
- * Uses Places API (New):  places.googleapis.com/v1/places:searchText
+ * Search uses Places API (New) Text Search through the ReviewReach backend.
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -23,7 +23,7 @@ import {
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import type { PoiClickEvent, Region } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
-import { GOOGLE_MAPS_API_KEY } from '../config';
+import { searchPlacesViaBackend } from '../services/placesApi';
 
 // ─────────────────────────────────────────────
 //  Types
@@ -56,42 +56,14 @@ async function searchPlaces(
   query: string,
   signal: AbortSignal,
 ): Promise<PlaceResult[]> {
-  const url = 'https://places.googleapis.com/v1/places:searchText';
-  const body = { textQuery: query, maxResultCount: 6, languageCode: 'en' };
+  const places = await searchPlacesViaBackend(query, { maxResults: 6, signal });
 
-  const res = await fetch(url, {
-    method: 'POST',
-    signal,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-      'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location',
-    },
-    body: JSON.stringify(body),
-  });
-
-  const raw = await res.json();
-
-  if (!res.ok) {
-    const errMsg = (raw as { error?: { message?: string } })?.error?.message ?? `HTTP ${res.status}`;
-    throw new Error(errMsg);
-  }
-
-  const data = raw as {
-    places?: Array<{
-      id: string;
-      displayName?: { text: string };
-      formattedAddress?: string;
-      location?: { latitude: number; longitude: number };
-    }>;
-  };
-
-  return (data.places ?? [])
+  return places
     .filter((p) => p.location)
     .map((p) => ({
-      placeId: p.id,
-      name: p.displayName?.text ?? query,
-      address: p.formattedAddress ?? '',
+      placeId: p.placeId,
+      name: p.name || query,
+      address: p.address,
       coordinate: {
         latitude: p.location!.latitude,
         longitude: p.location!.longitude,

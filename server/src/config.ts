@@ -11,7 +11,7 @@ export const ALLOWED_ORIGINS = (
   process.env.ALLOWED_ORIGINS || "https://abhaysardhara.github.io"
 )
   .split(",")
-  .map((o) => o.trim())
+  .map((o: string) => o.trim())
   .filter(Boolean);
 
 /** Secret used to sign customer session tokens. Must be set in production. */

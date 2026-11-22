@@ -1,7 +1,13 @@
 /**
  * config.ts
+ *
+ * The Google Maps key is only used for the native map (injected by
+ * app.config.js). Places search goes through our backend.
  */
-export const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
+
+/** ReviewReach backend (keeps the Places key server-side). */
+export const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://merchant-review-app.onrender.com';
 
 // ── Google OAuth — get from Google Cloud Console → APIs & Services → Credentials
 // Android: OAuth 2.0 Client ID (type: Android)

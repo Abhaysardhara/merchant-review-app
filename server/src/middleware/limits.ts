@@ -30,6 +30,24 @@ export const aiLimiter = limiter(60 * 1000, 20);
 /** Google Places lookups. */
 export const placesLimiter = limiter(60 * 1000, 30);
 
+/** Merchant shop search, per signed-in merchant (run after requireMerchant). */
+export const merchantSearchLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 30,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: tooMany,
+  keyGenerator: (_req, res) => String(res.locals.merchantUid),
+});
+export const merchantSearchDailyLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000,
+  limit: 300,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: tooMany,
+  keyGenerator: (_req, res) => String(res.locals.merchantUid),
+});
+
 // ── Daily budgets per branch ─────────────────────────────────────────
 
 type BudgetKind = "ai" | "voice";

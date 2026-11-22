@@ -36,7 +36,12 @@ Design reference: "ReviewReach One-Tap Review Flow" canvas (v2). Plan: "ReviewRe
 - [x] Delete `web/test.html` everywhere (checked: not on disk and never committed)
 - [x] Rotate `GEMINI_API_KEY`, `GOOGLE_MAPS_API_KEY`, `DEEPGRAM_API_KEY`; update the Render environment variables
 - [x] Restrict the Maps key to the Android package + SHA-1 and the review page domain
-- [ ] Replace the placeholder `GOOGLE_MAPS_API_KEY` in `app.json` with the restricted key
+- [x] Remove the hardcoded Maps key from `app.json` (`app.config.js` injects `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY`)
+- [x] Move the app's shop search to the server: `POST /api/v1/places/search` (Firebase ID token required, 30/min and 300/day per merchant); legacy Places fallback removed
+- [ ] Use two keys: **app key** restricted to *Maps SDK for Android + iOS* only (+ Android app restriction); **server key** on Render restricted to *Places API (New)* only
+- [ ] Put the new app key in EAS: `eas env:create --name EXPO_PUBLIC_GOOGLE_MAPS_API_KEY --value <key> --environment production --environment preview --visibility sensitive`, and in the local `.env` (it still has the old key)
+- [ ] Google Cloud: daily quota cap on Places API (New) and a billing budget alert
+- [ ] Test in the app: sign in, add a shop by search and by Google Maps link
 - **Done when:** old keys return errors; the app and web page work with the new ones
 
 ### 1.4 Protect merchant routes and stats
