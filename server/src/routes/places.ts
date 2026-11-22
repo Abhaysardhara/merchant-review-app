@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import type { SessionPayload } from "../middleware/session";
 
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
@@ -51,6 +52,7 @@ export const placesRouter = Router();
 /**
  * GET /api/v1/places/:placeId
  * Proxies Google Places API (New) — keeps MAPS_API_KEY server-side.
+ * Requires a session token; only the session's own place can be looked up.
  */
 placesRouter.get(
   "/:placeId",
@@ -60,6 +62,11 @@ placesRouter.get(
 
       if (!placeId || !/^[a-zA-Z0-9_\-:]{10,200}$/.test(placeId)) {
         res.status(400).json({ success: false, error: "Invalid place ID" });
+        return;
+      }
+
+      if (placeId !== (res.locals.session as SessionPayload).pid) {
+        res.status(403).json({ success: false, error: "Not allowed for this place" });
         return;
       }
 

@@ -1,48 +1,90 @@
 /**
- * Firestore REST client for reading merchant branch data.
- * Uses the Firestore REST API to avoid pulling in the full Firebase SDK.
+ * Firestore access through the Firebase Admin SDK.
+ *
+ * The server is the only writer of customer analytics and private feedback,
+ * so Firestore security rules can deny those writes from browsers.
  */
 
-const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "review-reach-58103";
-const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
+import { FieldValue, getFirestore, type Firestore } from "firebase-admin/firestore";
+import { adminApp } from "./firebaseAdmin";
+
+let db: Firestore | null = null;
+
+function firestore(): Firestore {
+  if (!db) db = getFirestore(adminApp());
+  return db;
+}
+
+/** Firestore document ids we accept from the outside (no slashes). */
+export function isValidDocId(id: unknown): id is string {
+  return typeof id === "string" && /^[A-Za-z0-9_\-:]{1,200}$/.test(id);
+}
 
 export interface MerchantBranch {
   name: string;
   businessName: string;
   placeId: string;
-  keywords: string;
-  tone: string;
 }
 
-/**
- * Reads a single branch document from users/{merchantId}/branches/{branchId}.
- * Returns null if the document doesn't exist.
- */
+/** Reads users/{uid}/branches/{placeId}. Returns null if it doesn't exist. */
 export async function getMerchantBranch(
-  merchantId: string,
-  branchId: string
+  uid: string,
+  placeId: string
 ): Promise<MerchantBranch | null> {
-  const url = `${FIRESTORE_BASE}/users/${merchantId}/branches/${branchId}`;
-
-  const response = await fetch(url);
-  if (!response.ok) {
-    if (response.status === 404) return null;
-    const errBody = await response.text().catch(() => "");
-    console.error(
-      `[firestore] Failed to fetch branch (HTTP ${response.status}):`,
-      errBody
-    );
-    return null;
-  }
-
-  const doc = await response.json();
-  const fields = doc.fields || {};
-
+  if (!isValidDocId(uid) || !isValidDocId(placeId)) return null;
+  const snap = await firestore().doc(`users/${uid}/branches/${placeId}`).get();
+  if (!snap.exists) return null;
+  const data = snap.data() || {};
   return {
-    name: fields.name?.stringValue || "",
-    businessName: fields.businessName?.stringValue || "",
-    placeId: fields.placeId?.stringValue || "",
-    keywords: fields.keywords?.stringValue || "",
-    tone: fields.tone?.stringValue || "",
+    name: typeof data.name === "string" ? data.name : "",
+    businessName: typeof data.businessName === "string" ? data.businessName : "",
+    placeId: typeof data.placeId === "string" ? data.placeId : placeId,
   };
+}
+
+export type AnalyticsEvent = "qr_scan" | "link_visit" | "review_copied";
+
+const EVENT_UPDATES: Record<AnalyticsEvent, () => Record<string, unknown>> = {
+  qr_scan: () => ({
+    totalScans: FieldValue.increment(1),
+    lastScanAt: FieldValue.serverTimestamp(),
+  }),
+  link_visit: () => ({ linkVisits: FieldValue.increment(1) }),
+  review_copied: () => ({ reviewsCopied: FieldValue.increment(1) }),
+};
+
+export function isAnalyticsEvent(event: unknown): event is AnalyticsEvent {
+  return typeof event === "string" && Object.hasOwn(EVENT_UPDATES, event);
+}
+
+export async function recordAnalyticsEvent(
+  uid: string,
+  placeId: string,
+  event: AnalyticsEvent
+): Promise<void> {
+  await firestore()
+    .doc(`users/${uid}/branches/${placeId}`)
+    .update(EVENT_UPDATES[event]());
+}
+
+export interface PrivateFeedbackInput {
+  rating: number;
+  comment: string;
+  phone?: string;
+  email?: string;
+}
+
+export async function addPrivateFeedback(
+  uid: string,
+  placeId: string,
+  input: PrivateFeedbackInput
+): Promise<void> {
+  const doc: Record<string, unknown> = {
+    rating: input.rating,
+    comment: input.comment,
+    createdAt: new Date(),
+  };
+  if (input.phone) doc.phone = input.phone;
+  if (input.email) doc.email = input.email;
+  await firestore().collection(`users/${uid}/branches/${placeId}/feedback`).add(doc);
 }

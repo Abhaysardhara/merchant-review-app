@@ -1,13 +1,12 @@
 /**
  * mapsResolver.ts
  *
- * Resolves Google Place IDs using the real Places API (Find Place from Text).
- * Falls back to a deterministic pseudo-ID when no API key is configured.
- *
- * API used: https://developers.google.com/maps/documentation/places/web-service/search-find-place
+ * Resolves Google Place IDs with Places API (New) Text Search through the
+ * ReviewReach backend. Falls back to a deterministic pseudo-ID when the
+ * lookup fails.
  */
 
-import { GOOGLE_MAPS_API_KEY } from '../config';
+import { searchPlacesViaBackend } from './placesApi';
 
 // ─────────────────────────────────────────────
 //  URL → Place name extractor
@@ -81,84 +80,27 @@ export function generatePlaceId(placeName: string): string {
 }
 
 // ─────────────────────────────────────────────
-//  Google Places API — Find Place from Text
-//  https://developers.google.com/maps/documentation/places/web-service/search-find-place
+//  Places API (New) Text Search — via the ReviewReach backend
 // ─────────────────────────────────────────────
-
-interface PlacesApiResult {
-  candidates: Array<{
-    place_id: string;
-    name: string;
-    formatted_address?: string;
-  }>;
-  status: string;
-  error_message?: string;
-}
 
 async function fetchPlaceIdFromApi(
   placeName: string,
   timeoutMs = 6000,
 ): Promise<{ placeId: string; name: string } | null> {
-  if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY === 'YOUR_API_KEY_HERE') {
-    return null;
-  }
-
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    // ── Try Places API (New) first — uses places.googleapis.com ──────
-    // Billed under "Text Search (New)" — compatible with new API keys
-    const newApiUrl = 'https://places.googleapis.com/v1/places:searchText';
-    const newRes = await fetch(newApiUrl, {
-      method: 'POST',
+    const places = await searchPlacesViaBackend(placeName, {
+      maxResults: 1,
       signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-        // Only request the 3 fields we need — minimises billing
-        'X-Goog-FieldMask': 'places.id,places.displayName,places.location',
-      },
-      body: JSON.stringify({ textQuery: placeName, maxResultCount: 1 }),
     });
-
-    if (newRes.ok) {
-      const newData = await newRes.json() as {
-        places?: Array<{
-          id: string;
-          displayName?: { text: string };
-          location?: { latitude: number; longitude: number };
-        }>;
-      };
-      if (newData.places?.length) {
-        clearTimeout(timer);
-        return {
-          placeId: newData.places[0].id,
-          name: newData.places[0].displayName?.text ?? placeName,
-        };
-      }
-    }
-
-    // ── Fallback: legacy Places API ───────────────────────────────────
-    const params = new URLSearchParams({
-      input: placeName,
-      inputtype: 'textquery',
-      fields: 'place_id,name',
-      key: GOOGLE_MAPS_API_KEY,
-    });
-    const legacyUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?${params.toString()}`;
-    const legacyRes = await fetch(legacyUrl, { signal: controller.signal });
-    clearTimeout(timer);
-
-    if (!legacyRes.ok) return null;
-    const data: PlacesApiResult = await legacyRes.json();
-    if (data.status === 'OK' && data.candidates.length > 0) {
-      return { placeId: data.candidates[0].place_id, name: data.candidates[0].name };
-    }
-    return null;
+    if (!places.length) return null;
+    return { placeId: places[0].placeId, name: places[0].name || placeName };
   } catch {
-    clearTimeout(timer);
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

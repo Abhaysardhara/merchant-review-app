@@ -11,13 +11,20 @@
 
 import { WebSocket, type RawData } from "ws";
 import type { IncomingMessage } from "http";
+import { MAX_VOICE_SECONDS } from "../config";
+import { budgetExceeded, consumeBudget } from "../middleware/limits";
+import type { SessionPayload } from "../middleware/session";
 
 const DEEPGRAM_API_KEY = process.env.DEEPGRAM_API_KEY;
 const DEEPGRAM_WS_URL = "wss://api.deepgram.com/v1/listen";
 
+/**
+ * Called after the upgrade handler has checked the Origin and session token.
+ */
 export function handleVoiceStreamUpgrade(
   ws: WebSocket,
-  req: IncomingMessage
+  req: IncomingMessage,
+  session: SessionPayload
 ): void {
   if (!DEEPGRAM_API_KEY || DEEPGRAM_API_KEY === "your_deepgram_api_key") {
     ws.send(JSON.stringify({ type: "error", message: "Deepgram not configured" }));
@@ -25,9 +32,23 @@ export function handleVoiceStreamUpgrade(
     return;
   }
 
+  if (!consumeBudget("voice", session.pid)) {
+    ws.send(JSON.stringify({ type: "error", message: budgetExceeded.error }));
+    ws.close();
+    return;
+  }
+
   // Read spoken language from query param (default: multi)
   const reqUrl = new URL(req.url || "", `http://${req.headers.host}`);
-  const lang = reqUrl.searchParams.get("lang") || "multi";
+  const rawLang = reqUrl.searchParams.get("lang") || "multi";
+  const lang = /^[a-z]{2,3}(-[A-Za-z]{2,4})?$|^multi$/.test(rawLang) ? rawLang : "multi";
+
+  // Hard cap on recording length (Deepgram is billed per minute)
+  const maxTimer = setTimeout(() => {
+    ws.send(JSON.stringify({ type: "error", message: "Recording limit reached" }));
+    ws.close();
+  }, MAX_VOICE_SECONDS * 1000);
+  ws.on("close", () => clearTimeout(maxTimer));
 
   // Build Deepgram WS URL with query params
   const params = new URLSearchParams({

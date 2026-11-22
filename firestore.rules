@@ -1,0 +1,30 @@
+rules_version = '2';
+
+// ReviewReach Firestore rules.
+// The merchant app (signed-in merchant) manages only its own data.
+// Customer analytics and private feedback are written only by the server
+// through the Admin SDK, which bypasses these rules.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    match /users/{uid}/branches/{branchId} {
+      allow read, write: if isOwner(uid);
+
+      match /feedback/{feedbackId} {
+        // Merchant reads the inbox and can delete (e.g. when deleting the account)
+        allow read, delete: if isOwner(uid);
+        // Only the server creates feedback
+        allow create, update: if false;
+      }
+    }
+
+    // Everything else is closed
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

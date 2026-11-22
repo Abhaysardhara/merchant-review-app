@@ -48,11 +48,6 @@
         "INTERNET",
         "VIBRATE"
       ],
-      "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyDhvYzvwNkEvilUq_ixLQ2dxz8tBGKGu7M"
-        }
-      },
       "intentFilters": [
         {
           "action": "VIEW",
@@ -75,9 +70,6 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.reviewreach.app",
       "buildNumber": "1",
-      "config": {
-        "googleMapsApiKey": "AIzaSyDhvYzvwNkEvilUq_ixLQ2dxz8tBGKGu7M"
-      },
       "associatedDomains": [
         "applinks:abhaysardhara.github.io"
       ]
