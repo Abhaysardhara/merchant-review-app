@@ -55,10 +55,11 @@ Design reference: "ReviewReach One-Tap Review Flow" canvas (v2). Plan: "ReviewRe
 - **Done when:** replaying an analytics request does not increase counts
 
 ### 1.5 Deploy (do in this order)
-- [ ] Render: add the service-account Secret File + `GOOGLE_APPLICATION_CREDENTIALS=/etc/secrets/firebase-service-account.json`
-- [ ] Render: `NODE_ENV=production`, `SESSION_SECRET` (32+ random characters); remove the unused `FIREBASE_API_KEY`
-- [ ] Deploy the server, then the web page (GitHub Pages) — they must go live together
-- [ ] Publish `firestore.rules`
+- [x] Render: service account as the `FIREBASE_SERVICE_ACCOUNT` variable (the Secret File path didn't resolve on Render)
+- [x] Render: `NODE_ENV=production`, `SESSION_SECRET` (32+ random characters); remove the unused `FIREBASE_API_KEY`
+- [x] Deploy the server and the web page together (2026-11-22; live check passed: session, draft, places)
+- [x] Publish `firestore.rules`
+- [ ] Turn off Render auto-deploy, or always deploy server and web page together — they depend on each other
 - [ ] Smoke test on a phone: scan a QR, type a review, copy & open Google, send private feedback, record a voice review
 
 ---
