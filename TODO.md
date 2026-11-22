@@ -93,14 +93,14 @@ Build the v2 design into `web/index.html`.
 ### 3.1 Layout and look
 - [x] Full-screen layout: `height: 100dvh`, scrolling content area, fixed bottom action bar (main button always visible)
 - [x] Compact mode under 700 px height (face 72 px, headline 30 px)
-- [ ] Fonts: Bricolage Grotesque + Inter + Noto Sans Devanagari/Gujarati, self-hosted subsets, `font-display: swap` — page uses the phone's system fonts for now (CSP blocks Google Fonts)
+- [x] Fonts: Bricolage Grotesque 800 self-hosted for headings (`web/fonts`, Latin subset, 38 KB, `font-display: swap`); body text and Indian scripts use the phone's fonts (Roboto/Noto on Android), which keeps the page fast on slow networks
 - [x] Colours: paper `#FBF7F0`, ink `#1B1A17`, marigold `#F2A900`, green `#1F6E50`, clay `#B8431F`, star outline `#8C7B5C`, chip border `#A89878`
 - [x] Minimum text 13 px, touch targets ≥ 48 px
 
 ### 3.2 Rate screen
 - [x] Shop monogram, name and area (session + Places API)
 - [x] Language button "English · हिंदी" (auto-detect from the browser on first load)
-- [x] Reacting face — [ ] calm mark for clinic/pharmacy from the Google place type
+- [x] Reacting face; calm mark for clinics, hospitals, dentists, pharmacies, labs and vets (from the Google place type)
 - [x] Stars as `role="radiogroup"`; tapped star pops in 320 ms
 - [x] On star tap: copy the draft **inside the tap handler**, check the result, `vibrate(8)` on Android
 - [x] 1.2 s progress line with "Stay here"; tapping another star changes the rating; "Continue" if they stay
@@ -121,7 +121,7 @@ Build the v2 design into `web/index.html`.
 - [x] "Posting to" card: place name, area, Google rating and review count from the Places API
 - [x] Numbered Google steps using the customer's own star count ("Tap 4 stars again")
 - [x] "Open Google" is a real tap: `location.href` to `https://search.google.com/local/writereview?placeid=…`
-- [ ] Android: try the Google Maps app intent first
+- [x] ~~Android: try the Google Maps app intent first~~ — dropped: Google documents no deep link into the Maps app's review form, and an intent risks opening Maps without the form. The `writereview` link works in Chrome when the phone is signed in to Google; revisit if phone tests show drop-off here
 - [x] If the page is still visible 1.5 s after the tap: show "Didn't open? Tap again"
 - [x] Copy failed: "Copy it yourself" state with the text ready to select
 
@@ -134,13 +134,15 @@ Build the v2 design into `web/index.html`.
 - [x] Browser test (Playwright, 390×844): load, 4★ copy, clipboard contents, receipt, Hindi, feedback sheet — no console errors
 
 ### 3.7 Analytics events
-- [ ] `scan_landed {source, browser, is_webview, lang}`
-- [ ] `star_tapped {n, ms_to_tap}`, `star_changed`
-- [ ] `details_opened`, `chip_toggled {id, kind, rating}`, `voice_started`, `voice_completed`
-- [ ] `clipboard_write {ok}`, `copy_fallback_shown`
-- [ ] `manual_google_tap`, `redirect_blocked`, `webview_escape_shown`, `webview_escape_tapped`
-- [ ] `returned {seconds_away}`, `copy_again_tapped`
-- [ ] `private_feedback_opened {stage, rating}`, `private_feedback_submitted`
+Daily counters per branch in `users/{uid}/branches/{placeId}/stats/{YYYY-MM-DD}` (India date), written by the server (`POST /api/v1/events`, sent with `sendBeacon`, whitelisted names, max 200 per session). Readable by the owner — **republish `firestore.rules`**.
+- [x] `scan_landed_qr|link|direct`, `in_app_browser`, `lang_en|hi`, `lang_switched`
+- [x] `star_tapped_1…5` (rating mix for the compliance audit), `star_changed`, `stay_tapped`
+- [x] `details_opened`, `voice_started`, `voice_completed`, `voice_failed` — [ ] `chip_toggled` with the buttons in Phase 4
+- [x] `clipboard_ok`, `clipboard_fail`
+- [x] `google_tap`, `google_not_opened`, `webview_escape_shown`, `webview_escape_tapped`
+- [x] `returned_lt30s|lt2m|gt2m`, `copy_again_tapped`
+- [x] `private_feedback_opened`, `private_feedback_submitted`
+- [x] Tested end to end: browser test → counters appear in Firestore
 
 ### 3.8 Test on real phones
 - [ ] Android Chrome on a budget phone (Redmi/Realme/Samsung) and iPhone Safari

@@ -29,6 +29,8 @@ export const sessionLimiter = limiter(10 * 60 * 1000, 60);
 export const aiLimiter = limiter(60 * 1000, 20);
 /** Google Places lookups. */
 export const placesLimiter = limiter(60 * 1000, 30);
+/** Review-page funnel events (batched). */
+export const eventsLimiter = limiter(60 * 1000, 60);
 
 /** Merchant shop search, per signed-in merchant (run after requireMerchant). */
 export const merchantSearchLimiter = rateLimit({

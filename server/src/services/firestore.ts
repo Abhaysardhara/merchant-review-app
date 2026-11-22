@@ -67,6 +67,23 @@ export async function recordAnalyticsEvent(
     .update(EVENT_UPDATES[event]());
 }
 
+/**
+ * Adds event counts to users/{uid}/branches/{placeId}/stats/{YYYY-MM-DD}
+ * (India date), e.g. { counts: { star_tapped_4: +1, clipboard_ok: +1 } }.
+ */
+export async function addDailyCounts(
+  uid: string,
+  placeId: string,
+  counts: Record<string, number>
+): Promise<void> {
+  const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+  const increments: Record<string, unknown> = {};
+  for (const [key, n] of Object.entries(counts)) increments[key] = FieldValue.increment(n);
+  await firestore()
+    .doc(`users/${uid}/branches/${placeId}/stats/${day}`)
+    .set({ day, counts: increments, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+}
+
 export interface PrivateFeedbackInput {
   rating: number;
   comment: string;

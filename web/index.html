@@ -20,9 +20,20 @@
     style-src 'unsafe-inline';
     connect-src https://merchant-review-app.onrender.com wss://merchant-review-app.onrender.com http://localhost:3000 ws://localhost:3000;
     img-src 'self' data:;
+    font-src 'self';
   " />
 
   <style>
+    /* Heading font, self-hosted (Latin only; Indian scripts use the phone's font). SIL OFL — fonts/OFL.txt */
+    @font-face {
+      font-family: 'Bricolage Grotesque';
+      font-style: normal;
+      font-weight: 800;
+      font-display: swap;
+      src: url('fonts/bricolage-grotesque-800-latin.woff2') format('woff2');
+      unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    }
+
     /* ── Tokens ── */
     :root {
       --paper: #FBF7F0;
@@ -40,7 +51,9 @@
       --star-empty: #8C7B5C;
       --card: #FFFFFF;
       --font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Devanagari", "Noto Sans Gujarati", sans-serif;
+      --font-head: "Bricolage Grotesque", var(--font);
     }
+    h1, h2.title, .mono { font-family: var(--font-head); }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     [hidden] { display: none !important; }
@@ -113,6 +126,7 @@
       animation: float 4s ease-in-out 2;
     }
     .face .mouth { transform-origin: 60px 78px; transition: transform .45s cubic-bezier(.34,1.56,.64,1); }
+    .calm { width: 112px; height: 112px; border-radius: 50%; background: #EAF2EE; border: 2px solid #B9D3C6; display: flex; align-items: center; justify-content: center; }
     .mood { margin-top: 12px; text-align: center; font-size: 20px; font-weight: 700; min-height: 30px; }
     .stars { margin-top: 8px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
     .star { height: 64px; border: none; background: transparent; display: flex; align-items: center; justify-content: center; transition: transform .12s ease; }
@@ -234,8 +248,9 @@
     /* ── Short phones ── */
     @media (max-height: 700px) {
       h1.big { font-size: 30px; }
-      .face { width: 72px; height: 72px; }
+      .face, .calm { width: 72px; height: 72px; }
       .face svg { width: 72px; height: 72px; }
+      .calm svg { width: 34px; height: 34px; }
     }
 
     /* ── Motion ── */
@@ -285,6 +300,10 @@
             <circle cx="78" cy="50" r="1.8" fill="#FFF"></circle>
             <path class="mouth" id="mouth" d="M38 74 Q60 92 82 74" fill="none" stroke="#1B1A17" stroke-width="5" stroke-linecap="round" style="transform: scaleY(0.15)"></path>
           </svg>
+        </div>
+        <!-- Clinics, pharmacies and other health places get a calm mark instead of a face -->
+        <div class="calm" id="calmMark" hidden>
+          <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#1F6E50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10z"></path><path d="M12 9v5"></path><path d="M9.5 11.5h5"></path></svg>
         </div>
       </div>
       <div class="mood" id="mood"></div>
@@ -646,6 +665,32 @@
     }).catch(function () { /* best-effort */ });
   }
 
+  // Funnel events: batched, sent with sendBeacon so they never slow the customer down
+  var EVENTS_URL = API_BASE + '/api/v1/events';
+  var eventQueue = [];
+  var flushTimer = null;
+  var trackedOnce = {};
+
+  function track(name, once) {
+    if (once) { if (trackedOnce[name]) return; trackedOnce[name] = true; }
+    eventQueue.push(name);
+    clearTimeout(flushTimer);
+    if (eventQueue.length >= 10) flushEvents(); else flushTimer = setTimeout(flushEvents, 4000);
+  }
+
+  function flushEvents() {
+    if (!eventQueue.length || !SESSION_TOKEN) return;
+    var body = JSON.stringify({ t: SESSION_TOKEN, e: eventQueue.splice(0, 30) });
+    var sent = false;
+    try { sent = !!(navigator.sendBeacon && navigator.sendBeacon(EVENTS_URL, new Blob([body], { type: 'text/plain' }))); } catch (e) { sent = false; }
+    if (!sent) {
+      fetch(EVENTS_URL, { method: 'POST', body: body, headers: { 'Content-Type': 'text/plain' }, keepalive: true }).catch(function () { /* best-effort */ });
+    }
+  }
+
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') flushEvents(); });
+  window.addEventListener('pagehide', flushEvents);
+
   async function fetchPlace() {
     try {
       var res = await fetch(API_BASE + '/api/v1/places/' + encodeURIComponent(PLACE_ID), { headers: { 'X-Session-Token': SESSION_TOKEN } });
@@ -694,10 +739,11 @@
 
   /** Starts the copy immediately (within the user gesture) and reports success. */
   function copyText(text, done) {
+    function finish(ok) { track(ok ? 'clipboard_ok' : 'clipboard_fail'); done(ok); }
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(legacyCopy(text)); });
+      navigator.clipboard.writeText(text).then(function () { finish(true); }, function () { finish(legacyCopy(text)); });
     } else {
-      done(legacyCopy(text));
+      finish(legacyCopy(text));
     }
   }
 
@@ -801,6 +847,8 @@
   function onStarTap(e) {
     var n = Number(e.currentTarget.dataset.n);
     buzz(8);
+    if (state.rating) track('star_changed');
+    track('star_tapped_' + n);
     state.prevRating = state.rating;
     state.rating = n;
     renderStars(n);
@@ -830,6 +878,7 @@
   }
 
   $('stayBtn').addEventListener('click', function () {
+    track('stay_tapped');
     clearTimeout(advanceTimer);
     $('pending').hidden = true;
     $('continueBtn').hidden = false;
@@ -852,6 +901,7 @@
   //  Details screen (own words / voice)
   // ─────────────────────────────────────────────
   $('detailsBtn').addEventListener('click', function () {
+    track('details_opened');
     clearTimeout(advanceTimer);
     $('pending').hidden = true;
     $('continueBtn').hidden = !state.rating;
@@ -922,6 +972,7 @@
 
     $('inappBanner').hidden = !IS_IN_APP;
     if (IS_IN_APP) {
+      track('webview_escape_shown', true);
       $('inappLink').href = IS_ANDROID
         ? 'intent://' + location.host + location.pathname + location.search + '#Intent;scheme=https;package=com.android.chrome;end'
         : location.href;
@@ -933,6 +984,8 @@
     void r.offsetWidth;
     r.style.animation = '';
   }
+
+  $('inappLink').addEventListener('click', function () { track('webview_escape_tapped'); flushEvents(); });
 
   $('editBtn').addEventListener('click', function () {
     $('draftText').value = state.text;
@@ -947,13 +1000,19 @@
   $('openGoogleBtn').addEventListener('click', function () {
     buzz(8);
     postAnalytics('review_copied');
+    track('google_tap');
+    flushEvents();
     state.leftForGoogle = true;
+    state.leftAt = Date.now();
     // Remember where we were, in case the browser reloads this page on return
     try { sessionStorage.setItem('rr_left', JSON.stringify({ text: state.text, rating: state.rating, lang: state.lang })); } catch (e) { /* ignore */ }
     $('notOpened').hidden = true;
     // If we are still visible after 1.5 s, Google probably didn't open
     setTimeout(function () {
-      if (document.visibilityState === 'visible' && state.screen === 'copied') $('notOpened').hidden = false;
+      if (document.visibilityState === 'visible' && state.screen === 'copied') {
+        $('notOpened').hidden = false;
+        track('google_not_opened');
+      }
     }, 1500);
     location.href = googleReviewUrl();
   });
@@ -965,12 +1024,18 @@
     if (document.visibilityState === 'visible' && wasHidden) {
       wasHidden = false;
       state.leftForGoogle = false;
+      trackReturn(state.leftAt);
       showThanks();
     }
   });
   window.addEventListener('pageshow', function (e) {
-    if (e.persisted && state.leftForGoogle) { state.leftForGoogle = false; showThanks(); }
+    if (e.persisted && state.leftForGoogle) { state.leftForGoogle = false; trackReturn(state.leftAt); showThanks(); }
   });
+
+  function trackReturn(leftAt) {
+    var s = leftAt ? (Date.now() - leftAt) / 1000 : 0;
+    track(s < 30 ? 'returned_lt30s' : s < 120 ? 'returned_lt2m' : 'returned_gt2m');
+  }
 
   // ─────────────────────────────────────────────
   //  Thanks screen
@@ -995,6 +1060,7 @@
   }
 
   $('againBtn').addEventListener('click', function () {
+    track('copy_again_tapped');
     copyText(state.text, function (ok) { state.copyOk = ok; goCopied(); });
   });
 
@@ -1003,6 +1069,7 @@
   // ─────────────────────────────────────────────
   $('langBtn').addEventListener('click', function () {
     state.lang = state.lang === 'en' ? 'hi' : 'en';
+    track('lang_switched');
     applyText();
     if (SESSION_TOKEN) loadDrafts(state.lang);
   });
@@ -1013,6 +1080,7 @@
   var lastFocus = null;
   document.querySelectorAll('[data-private]').forEach(function (b) {
     b.addEventListener('click', function () {
+      track('private_feedback_opened');
       lastFocus = b;
       $('sheetBg').classList.add('open');
       setTimeout(function () { $('fbComment').focus(); }, 50);
@@ -1039,6 +1107,7 @@
     fetch(API_BASE + '/api/v1/merchants/' + encodeURIComponent(UID) + '/branches/' + encodeURIComponent(PLACE_ID) + '/feedback', {
       method: 'POST', headers: apiHeaders(), body: JSON.stringify(body)
     }).catch(function () { /* show the same confirmation */ }).then(function () {
+      track('private_feedback_submitted');
       $('sheetForm').hidden = true;
       $('fbDone').hidden = false;
       announce(t().fbDone);
@@ -1066,6 +1135,7 @@
 
   function startRecording() {
     if (!SESSION_TOKEN) return;
+    track('voice_started');
     finalParts = []; interim = ''; detectedLang = '';
     recording = true;
     $('micBtn').classList.add('recording');
@@ -1132,8 +1202,12 @@
     if (state.rating) body.stars = state.rating;
     fetch(API_BASE + '/api/v1/review/generate', { method: 'POST', headers: apiHeaders(), body: JSON.stringify(body) })
       .then(function (res) { return res.json(); })
-      .then(function (json) { setOwnWords(json.success && json.data && json.data.text ? json.data.text : transcript); })
-      .catch(function () { setOwnWords(transcript); });
+      .then(function (json) {
+        var ok = json.success && json.data && json.data.text;
+        track(ok ? 'voice_completed' : 'voice_failed');
+        setOwnWords(ok ? json.data.text : transcript);
+      })
+      .catch(function () { track('voice_failed'); setOwnWords(transcript); });
   }
 
   function setOwnWords(text) {
@@ -1189,11 +1263,20 @@
 
     if (IS_QR_SCAN) postAnalytics('qr_scan');
     if (IS_LINK_VISIT) postAnalytics('link_visit');
+    track(IS_QR_SCAN ? 'scan_landed_qr' : IS_LINK_VISIT ? 'scan_landed_link' : 'scan_landed_direct');
+    track('lang_' + state.lang);
+    if (IS_IN_APP) track('in_app_browser');
 
     var results = await Promise.all([fetchPlace(), loadDrafts(state.lang)]);
     var place = results[0];
     if (place) {
       state.place = place;
+      // Health places get a calm mark instead of the face
+      var HEALTH = /^(doctor|hospital|dentist|dental_clinic|medical_clinic|medical_lab|pharmacy|drugstore|physiotherapist|chiropractor|health|veterinary_care|skin_care_clinic|general_hospital)$/;
+      var types = (place.types || []).concat(place.primaryType ? [place.primaryType] : []);
+      var isHealth = types.some(function (ty) { return HEALTH.test(ty); });
+      document.querySelector('.face').hidden = isHealth;
+      $('calmMark').hidden = !isHealth;
       if (place.displayName && place.displayName.text) state.shopName = cleanText(place.displayName.text, 100);
       var addr = place.shortFormattedAddress || place.formattedAddress || '';
       var parts = addr.split(',').map(function (p) { return p.trim(); })
