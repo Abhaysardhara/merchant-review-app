@@ -91,6 +91,59 @@ export function generateStarDraft(input: {
 }
 
 /**
+ * One short draft per star rating (1–5) in a single call, so the review page
+ * can copy instantly when the customer taps a star.
+ */
+export async function generateStarDraftSet(input: {
+  lang: string;
+  businessName: string;
+}): Promise<string[]> {
+  if (!GEMINI_API_KEY || GEMINI_API_KEY === "your_gemini_api_key") {
+    throw new Error("Gemini API not configured");
+  }
+
+  const system = [
+    "You write five one-sentence Google review drafts, one for each star rating from 1 to 5.",
+    "Each draft states ONLY how the visit felt overall at that rating. The customer has told you nothing else.",
+    "",
+    "Rules:",
+    "- One short sentence each (6 to 16 words).",
+    "- Each must match its rating exactly: 1 very bad, 2 bad, 3 okay or mixed, 4 good, 5 very good.",
+    "- Do not mention any food, product, service, staff, price, wait time, cleanliness or any other detail.",
+    "- Mention the business name once in each.",
+    "- Use different wording for each; no stock marketing phrases.",
+    ...COMMON_RULES,
+    `- Write in the language with code "${input.lang}".`,
+    'Return JSON: {"drafts": ["<1 star>", "<2 stars>", "<3 stars>", "<4 stars>", "<5 stars>"]}',
+  ].join("\n");
+
+  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+  const response = await ai.models.generateContent({
+    model: GEMINI_MODEL,
+    contents: [{ role: "user", parts: [{ text: `Business name: ${input.businessName || "this place"}` }] }],
+    config: {
+      systemInstruction: system,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: { drafts: { type: Type.ARRAY, items: { type: Type.STRING } } },
+        required: ["drafts"],
+      },
+      temperature: 1.0,
+      maxOutputTokens: 600,
+    },
+  });
+
+  const text = response.text;
+  if (!text) throw new Error("Gemini returned an empty response");
+  const drafts = (JSON.parse(text).drafts as unknown[]).map((d) => String(d || "").trim());
+  if (drafts.length !== 5 || drafts.some((d) => !d)) {
+    throw new Error("Gemini returned an incomplete draft set");
+  }
+  return drafts;
+}
+
+/**
  * Cleans up the customer's own spoken words. Keeps meaning and sentiment.
  */
 export function cleanVoiceTranscript(input: {
