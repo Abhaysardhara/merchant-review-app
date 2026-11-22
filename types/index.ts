@@ -55,45 +55,9 @@ export interface QRPayload {
 }
 
 // ─────────────────────────────────────────────
-//  Review & feedback types
-// ─────────────────────────────────────────────
-
-export interface ReviewDraft {
-  text: string;
-  language: Language;
-  rating: number;
-}
-
-export interface PrivateFeedback {
-  branchId: string;
-  rating: number;
-  comment: string;
-  phone?: string;
-  email?: string;
-  submittedAt: string; // ISO date string
-}
-
-// ─────────────────────────────────────────────
-//  UI helper types
-// ─────────────────────────────────────────────
-
-export interface LanguageOption {
-  code: Language;
-  label: string;
-  nativeLabel: string;
-  flag: string;
-}
-
-// ─────────────────────────────────────────────
 //  Navigation param lists
+//  (The customer review flow lives on the web page, not in the app.)
 // ─────────────────────────────────────────────
-
-export type CustomerStackParamList = {
-  CustomerScanner: undefined;
-  FeedbackGate: { payload: QRPayload };
-  ReviewEditor: { payload: QRPayload; rating: number; language: Language };
-  PrivateFeedback: { payload: QRPayload; rating: number };
-};
 
 export type MerchantStackParamList = {
   Welcome: undefined;
