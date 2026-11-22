@@ -25,6 +25,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Speech from 'expo-speech';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MerchantStackParamList, ReviewButton } from '../types';
 import { useMerchant } from '../store/MerchantContext';
@@ -53,7 +54,24 @@ export function CustomerButtonsScreen({ route, navigation }: Props) {
   const [undo, setUndo] = useState<{ removed: ReviewButton; before: ReviewButton[] } | null>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => () => { if (undoTimer.current) clearTimeout(undoTimer.current); }, []);
+  useEffect(() => () => {
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    Speech.stop();
+  }, []);
+
+  // 🔊 Spoken explanation of this screen, in the app's language
+  const [speaking, setSpeaking] = useState(false);
+  const listen = useCallback(() => {
+    if (speaking) { Speech.stop(); setSpeaking(false); return; }
+    setSpeaking(true);
+    Speech.speak(t('cs_explain'), {
+      language: buttonLang === 'hi' ? 'hi-IN' : buttonLang === 'gu' ? 'gu-IN' : 'en-IN',
+      rate: 0.9,
+      onDone: () => setSpeaking(false),
+      onStopped: () => setSpeaking(false),
+      onError: () => setSpeaking(false),
+    });
+  }, [buttonLang, speaking, t]);
 
   const label = useCallback((b: ReviewButton) => b.labels[buttonLang] || b.labels.en, [buttonLang]);
 
@@ -144,6 +162,15 @@ export function CustomerButtonsScreen({ route, navigation }: Props) {
           <Ionicons name="chevron-back" size={24} color="#1E293B" />
         </TouchableOpacity>
         <Text style={s.title} numberOfLines={1}>{t('cs_title')}</Text>
+        <TouchableOpacity
+          onPress={listen}
+          style={[s.listenBtn, speaking && s.listenBtnOn]}
+          accessibilityRole="button"
+          accessibilityLabel={t('cs_listen')}
+        >
+          <Ionicons name={speaking ? 'stop' : 'volume-high'} size={20} color={speaking ? '#FFF' : '#B45309'} />
+          <Text style={[s.listenText, speaking && { color: '#FFF' }]}>{t('cs_listen')}</Text>
+        </TouchableOpacity>
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -293,6 +320,12 @@ const s = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8 },
   backBtn: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1, fontSize: 22, fontWeight: '800', color: '#0F172A' },
+  listenBtn: {
+    minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14,
+    borderRadius: 24, backgroundColor: '#FEF3C7', borderWidth: 1.5, borderColor: '#FCD34D',
+  },
+  listenBtnOn: { backgroundColor: '#B45309', borderColor: '#B45309' },
+  listenText: { fontSize: 15, fontWeight: '700', color: '#B45309' },
   body: { padding: 16, gap: 16 },
 
   phone: {

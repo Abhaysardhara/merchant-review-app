@@ -174,26 +174,26 @@ Daily counters per branch in `users/{uid}/branches/{placeId}/stats/{YYYY-MM-DD}`
 
 ### 4.3 Setup flow
 - [x] After picking the shop: one optional "What do you sell?" field with a "tap 🎤 on your keyboard" hint (uses the phone keyboard's voice typing)
-- [ ] Auto-detect the app language from the phone; skip the language screen
-- [ ] Remove the dev-skip sign-in button from production builds
+- [x] ~~Auto-detect the app language from the phone~~ — decided not to do (2026-11-22)
+- [x] Dev-skip sign-in button only exists in `__DEV__` builds (already the case)
 
 ### 4.4 "What customers see" screen (`screens/CustomerButtonsScreen.tsx`)
 - [x] Phone-style preview of the customer page
 - [x] Add more: merchant speaks (keyboard mic), AI turns it into buttons
 - [x] Tap a button → big 🗑️ Remove, with a 5-second Undo bar
 - [x] Tap a button → ✏️ Rename (the merchant's words are shown in every language)
-- [ ] 🔊 20-second voice explanation in the merchant's language
+- [x] 🔊 "Listen" button: spoken explanation in English, Hindi or Gujarati (`expo-speech`; uses the phone's voices)
 - [x] "Could be better" buttons managed by the system, not shown for editing
 
 ### 4.5 Dashboard in plain words
 - [x] Shop cards: "👀 42 scanned · 18 reviews" instead of a conversion rate
 - [x] Shop screen "Last 7 days": people who opened the page, people who went to Google, "😋 Customers liked …" and "😟 Customers unhappy …" from button counts, and a star-rating bar chart (`components/WeekSummary.tsx`) — needs the updated `firestore.rules` published
-- [ ] Feedback inbox: buttons as emoji chips, one-tap Call / WhatsApp reply
+- [x] Feedback inbox: the customer's picked buttons as emoji chips (sent with the private message), big Call and WhatsApp buttons
 
 ### 4.6 Sharing and printing
-- [ ] Printable counter poster and table stickers (PDF) in the merchant's language (`components/QRCodeCard.tsx`)
-- [ ] WhatsApp follow-up: the same ready-made message for every customer, in the merchant's language
-- [ ] NFC sticker support (same URL as the QR code)
+- [x] Printable A4 counter poster (PDF via `expo-print`, shared to WhatsApp/print shop) in the merchant's language; outline stars so it doesn't suggest a rating — [ ] table stickers
+- [x] WhatsApp follow-up and "Share Link": the same honest message for every customer, in the merchant's language
+- [ ] NFC sticker support (same URL as the QR code — works today with any NFC tag writer app; in-app writing later)
 
 ---
 

@@ -4,6 +4,39 @@ import QRCode from 'react-native-qrcode-svg';
 import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import * as Print from 'expo-print';
+import { useExtraText } from '../i18n/extra';
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/** A4 counter poster: shop name, big QR, one line of instructions. */
+function posterHtml(opts: { qrBase64: string; shop: string; scan: string; scanEn: string; time: string }): string {
+  const showEnglish = opts.scan !== opts.scanEn;
+  return `<!doctype html><html><head><meta charset="utf-8" />
+<style>
+  @page { size: A4; margin: 0; }
+  body { margin: 0; font-family: -apple-system, Roboto, "Noto Sans", "Noto Sans Devanagari", "Noto Sans Gujarati", sans-serif; color: #1B1A17; background: #FBF7F0; }
+  .page { box-sizing: border-box; width: 210mm; height: 297mm; padding: 22mm 18mm; display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .shop { font-size: 34pt; font-weight: 800; line-height: 1.15; margin: 0; }
+  .stars { font-size: 30pt; color: #C98A00; letter-spacing: 6pt; margin: 8mm 0 4mm; }
+  .scan { font-size: 26pt; font-weight: 700; line-height: 1.3; margin: 0; }
+  .scan-en { font-size: 16pt; color: #5E584E; margin: 2mm 0 0; }
+  .qr { margin: 10mm 0 6mm; padding: 6mm; background: #FFF; border: 3mm solid #1B1A17; border-radius: 8mm; }
+  .qr img { width: 115mm; height: 115mm; image-rendering: pixelated; display: block; }
+  .time { font-size: 20pt; font-weight: 700; color: #1F6E50; margin: 0; }
+  .foot { margin-top: auto; font-size: 11pt; color: #6E675B; }
+</style></head><body><div class="page">
+  <h1 class="shop">${escapeHtml(opts.shop)}</h1>
+  <div class="stars">☆☆☆☆☆</div>
+  <p class="scan">${escapeHtml(opts.scan)}</p>
+  ${showEnglish ? `<p class="scan-en">${escapeHtml(opts.scanEn)}</p>` : ''}
+  <div class="qr"><img src="data:image/png;base64,${opts.qrBase64}" alt="QR code" /></div>
+  <p class="time">${escapeHtml(opts.time)}</p>
+  <div class="foot">ReviewReach</div>
+</div></body></html>`;
+}
 
 interface QRCodeCardProps {
   /** The URL encoded in the QR code */
@@ -17,6 +50,33 @@ interface QRCodeCardProps {
 
 export function QRCodeCard({ qrUrl, label, address, size = 220 }: QRCodeCardProps) {
   const qrRef = useRef<{ toDataURL: (cb: (data: string) => void) => void } | null>(null);
+  const { t: tx } = useExtraText();
+
+  const handlePoster = () => {
+    if (!qrRef.current) {
+      Alert.alert('Not ready', 'QR code is still rendering, please try again.');
+      return;
+    }
+    qrRef.current.toDataURL(async (base64: string) => {
+      try {
+        const html = posterHtml({
+          qrBase64: base64,
+          shop: label || '',
+          scan: tx('poster_scan'),
+          scanEn: 'Scan to review us on Google',
+          time: tx('poster_time'),
+        });
+        const { uri } = await Print.printToFileAsync({ html });
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: tx('poster_btn'),
+          UTI: 'com.adobe.pdf',
+        });
+      } catch {
+        Alert.alert('', tx('cs_error'));
+      }
+    });
+  };
 
   const handleShare = async () => {
     if (!qrRef.current) {
@@ -51,7 +111,7 @@ export function QRCodeCard({ qrUrl, label, address, size = 220 }: QRCodeCardProp
   const handleShareLink = async () => {
     const shareUrl = qrUrl.replace('QrOrigin=true', 'LinkOrigin=true');
     const name = label || 'Business';
-    const message = `Leave a Google review for ${name}!\n\nOpen this link on your phone and it generates a review for you — just copy and post:\n${shareUrl}`;
+    const message = `${tx('wa_message').replace('{{shop}}', name)}\n${shareUrl}`;
     try {
       await Share.share({ message, title: `Review ${name}` });
     } catch {
@@ -98,7 +158,7 @@ export function QRCodeCard({ qrUrl, label, address, size = 220 }: QRCodeCardProp
       <View style={styles.instructionBox}>
         <Ionicons name="phone-portrait-outline" size={16} color="#4F46E5" />
         <Text style={styles.instructionText}>
-          Customer scans → review page opens → one tap copies & opens Google Maps
+          Customer scans → taps a star → posts their own review on Google
         </Text>
       </View>
 
@@ -114,6 +174,12 @@ export function QRCodeCard({ qrUrl, label, address, size = 220 }: QRCodeCardProp
           <Text style={styles.btnOutlineText}>Share Link</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Printable A4 poster for the counter */}
+      <TouchableOpacity style={styles.btnPoster} onPress={handlePoster} activeOpacity={0.8} accessibilityRole="button">
+        <Ionicons name="print-outline" size={20} color="#1B1A17" />
+        <Text style={styles.btnPosterText}>{tx('poster_btn')}</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -273,5 +339,22 @@ const styles = StyleSheet.create({
     color: '#4F46E5',
     fontSize: 14,
     fontWeight: '700',
+  },
+  btnPoster: {
+    alignSelf: 'stretch',
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 12,
+    backgroundColor: '#FDE68A',
+    borderWidth: 1.5,
+    borderColor: '#F2A900',
+  },
+  btnPosterText: {
+    color: '#1B1A17',
+    fontSize: 16,
+    fontWeight: '800',
   },
 });

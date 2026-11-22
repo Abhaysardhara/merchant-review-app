@@ -40,6 +40,17 @@ const en = {
   ws_none: 'No visits yet this week. Put your QR poster where every customer can see it.',
   ws_noPicks: 'Nothing picked yet.',
   card_line: '{{a}} scanned · {{b}} reviews',
+  fb_call: 'Call',
+  cs_listen: 'Listen',
+  cs_explain:
+    'These are the buttons your customers see when they write a review. ' +
+    'Customers tap what they bought and what they liked, and the review is written from their taps. ' +
+    'To remove a button, tap it and choose Remove. If you change your mind, tap Undo. ' +
+    'To add more, tap the microphone on your keyboard and say what you sell, then tap Add.',
+  poster_btn: 'Print poster',
+  poster_scan: 'Scan to review us on Google',
+  poster_time: 'Takes 30 seconds',
+  wa_message: 'Hi! Thank you for visiting {{shop}}. Please share your honest review, it takes 30 seconds:',
 };
 
 export type ExtraKey = keyof typeof en;
@@ -78,6 +89,17 @@ const hi: Record<ExtraKey, string> = {
   ws_none: 'इस हफ़्ते अभी कोई नहीं आया। अपना QR पोस्टर ऐसी जगह लगाएँ जहाँ हर ग्राहक देखे।',
   ws_noPicks: 'अभी कुछ नहीं चुना गया।',
   card_line: '{{a}} स्कैन · {{b}} रिव्यू',
+  fb_call: 'कॉल करें',
+  cs_listen: 'सुनें',
+  cs_explain:
+    'ये वो बटन हैं जो ग्राहक रिव्यू लिखते समय देखते हैं। ' +
+    'ग्राहक दबाते हैं कि उन्होंने क्या लिया और क्या अच्छा लगा, और रिव्यू उन्हीं से लिखा जाता है। ' +
+    'कोई बटन हटाने के लिए उसे दबाइए और हटाएँ चुनिए। मन बदल जाए तो वापस लाएँ दबाइए। ' +
+    'और जोड़ने के लिए कीबोर्ड का माइक दबाइए, बोलिए कि आप क्या बेचते हैं, फिर जोड़ें दबाइए।',
+  poster_btn: 'पोस्टर प्रिंट करें',
+  poster_scan: 'Google पर रिव्यू देने के लिए स्कैन करें',
+  poster_time: 'सिर्फ़ 30 सेकंड',
+  wa_message: 'नमस्ते! {{shop}} आने के लिए धन्यवाद। कृपया अपना सच्चा रिव्यू दें, सिर्फ़ 30 सेकंड लगेंगे:',
 };
 
 const gu: Record<ExtraKey, string> = {
@@ -114,6 +136,17 @@ const gu: Record<ExtraKey, string> = {
   ws_none: 'આ અઠવાડિયે હજુ કોઈ આવ્યું નથી. તમારું QR પોસ્ટર એવી જગ્યાએ મૂકો જ્યાં દરેક ગ્રાહક જુએ.',
   ws_noPicks: 'હજુ કંઈ પસંદ થયું નથી.',
   card_line: '{{a}} સ્કેન · {{b}} રિવ્યુ',
+  fb_call: 'કૉલ કરો',
+  cs_listen: 'સાંભળો',
+  cs_explain:
+    'આ એ બટન છે જે ગ્રાહકો રિવ્યુ લખતી વખતે જુએ છે. ' +
+    'ગ્રાહકો દબાવે છે કે તેમણે શું લીધું અને શું ગમ્યું, અને રિવ્યુ એમાંથી જ લખાય છે. ' +
+    'કોઈ બટન દૂર કરવા તેને દબાવો અને દૂર કરો પસંદ કરો. વિચાર બદલાય તો પાછું લાવો દબાવો. ' +
+    'વધુ ઉમેરવા કીબોર્ડનું માઇક દબાવો, તમે શું વેચો છો તે બોલો, પછી ઉમેરો દબાવો.',
+  poster_btn: 'પોસ્ટર પ્રિન્ટ કરો',
+  poster_scan: 'Google પર રિવ્યુ આપવા સ્કેન કરો',
+  poster_time: 'માત્ર 30 સેકન્ડ',
+  wa_message: 'નમસ્તે! {{shop}} આવવા બદલ આભાર. કૃપા કરીને તમારો સાચો રિવ્યુ આપો, માત્ર 30 સેકન્ડ લાગશે:',
 };
 
 const ALL: Record<string, Record<ExtraKey, string>> = { en, hi, gu };
