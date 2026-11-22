@@ -23,7 +23,7 @@ import {
   query,
   orderBy,
 } from 'firebase/firestore';
-import type { Branch, BranchAnalytics } from '../types';
+import type { Branch, BranchAnalytics, ReviewButton } from '../types';
 
 const firebaseConfig = {
   apiKey:            'AIzaSyA_Lt5R04pq7VHqstCg8sNm2lpo-1dRmO8',
@@ -106,9 +106,10 @@ type BranchData = Omit<Branch, 'analytics'>;
  *  - Clears soft-delete flag so re-adding a branch restores its analytics.
  *  - Does NOT overwrite createdAt if the doc already has one (preserves original date). */
 export async function saveUserBranch(uid: string, branch: BranchData): Promise<void> {
-  // Strip id, createdAt (handled separately) and analytics
-  // (Omit<Branch,'analytics'> is compile-time only — runtime still carries the field)
-  const { id, createdAt, analytics: _drop, ...rest } = branch as Branch;
+  // Strip id, createdAt (handled separately), analytics, and buttons
+  // (buttons are saved only via saveBranchButtons or the server, so a stale
+  // local copy can never overwrite newer buttons)
+  const { id, createdAt, analytics: _drop, buttons: _buttons, ...rest } = branch as Branch;
   const ref = doc(db, 'users', uid, 'branches', id);
 
   // Check if doc already exists to preserve its createdAt
@@ -123,6 +124,30 @@ export async function saveUserBranch(uid: string, branch: BranchData): Promise<v
   }
 
   await setDoc(ref, payload, { merge: true });
+}
+
+/** Save the branch's review buttons (remove, rename, undo in the app). */
+export async function saveBranchButtons(uid: string, branchId: string, buttons: ReviewButton[]): Promise<void> {
+  await setDoc(
+    doc(db, 'users', uid, 'branches', branchId),
+    { buttons, updatedAt: serverTimestamp() },
+    { merge: true },
+  );
+}
+
+function parseButtons(raw: unknown): ReviewButton[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((b) => b && typeof b === 'object' && typeof b.id === 'string' && ['bought', 'good', 'improve'].includes(b.kind))
+    .map((b) => ({
+      id: b.id,
+      kind: b.kind,
+      emoji: typeof b.emoji === 'string' ? b.emoji : '',
+      labels: { en: String(b.labels?.en ?? ''), hi: String(b.labels?.hi ?? ''), gu: String(b.labels?.gu ?? '') },
+      enabled: b.enabled !== false,
+      order: typeof b.order === 'number' ? b.order : 0,
+      source: b.source === 'merchant' ? 'merchant' : 'ai',
+    }));
 }
 
 /** Soft-delete a branch — marks deleted:true so analytics survive.
@@ -169,8 +194,8 @@ export async function loadUserBranches(uid: string): Promise<Branch[]> {
           address:      data.address      ?? '',
           placeId:      data.placeId      ?? '',
           googleMapsUrl:data.googleMapsUrl?? '',
-          keywords:     data.keywords     ?? '',
-          tone:         data.tone         ?? 'Friendly',
+          buttons:      parseButtons(data.buttons),
+          servicesSpoken: typeof data.servicesSpoken === 'string' ? data.servicesSpoken : undefined,
           createdAt:    data.createdAt    ?? new Date().toISOString(),
           analytics,
         };

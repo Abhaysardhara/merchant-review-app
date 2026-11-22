@@ -22,13 +22,9 @@ import type { MerchantStackParamList, Branch } from '../types';
 import { useMerchant, type AddBranchParams } from '../store/MerchantContext';
 import { conversionRate, formatLastScan } from '../services/analytics';
 import { useI18n } from '../i18n';
+import { useExtraText } from '../i18n/extra';
 
 type Props = NativeStackScreenProps<MerchantStackParamList, 'MerchantDashboard'>;
-
-const TONES = [
-  'Friendly', 'Professional', 'Luxury', 'Casual',
-  'Enthusiastic', 'Concise', 'Heartfelt', 'Formal', 'Detailed', 'Grateful',
-];
 
 // ─────────────────────────────────────────────
 //  Add Branch Modal
@@ -45,26 +41,22 @@ interface BranchDetailsModalProps {
 
 function BranchDetailsModal({ visible, store, onClose, onAdd }: BranchDetailsModalProps) {
   const { t } = useI18n();
+  const { t: tx } = useExtraText();
   const [branchName, setBranchName] = useState(store.name);
-  const [keywords, setKeywords]     = useState('');
-  const [tones, setTones]           = useState<string[]>(['Friendly']);
+  const [sells, setSells]           = useState('');
   const [isSaving, setIsSaving]     = useState(false);
 
   React.useEffect(() => {
-    if (visible) { setBranchName(store.name); setKeywords(''); setTones(['Friendly']); }
+    if (visible) { setBranchName(store.name); setSells(''); }
   }, [visible, store.name]);
-
-  const toggleTone = (t: string) =>
-    setTones((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]);
 
   const handleSave = async () => {
     if (!branchName.trim()) { Alert.alert('Missing field', 'Please enter a branch name.'); return; }
-    if (tones.length === 0) { Alert.alert('Select tone', 'Please select at least one AI tone.'); return; }
     setIsSaving(true);
     try {
       await onAdd({
         name: branchName.trim(), businessName: store.name, address: store.address,
-        googleMapsUrl: '', keywords: keywords.trim(), tone: tones.join(', '),
+        googleMapsUrl: '', servicesSpoken: sells.trim() || undefined,
         placeIdOverride: store.placeId || undefined,
       });
       onClose();
@@ -116,32 +108,17 @@ function BranchDetailsModal({ visible, store, onClose, onAdd }: BranchDetailsMod
             </View>
 
             <View style={ms.section}>
-              <Text style={ms.label}>{t('addBranch_toneLabel')} <Text style={ms.labelHint}>(pick one or more)</Text></Text>
-              <View style={ms.chipWrap}>
-                {TONES.map((t) => {
-                  const active = tones.includes(t);
-                  return (
-                    <TouchableOpacity
-                      key={t} onPress={() => toggleTone(t)}
-                      style={[ms.chip, active && ms.chipActive]}
-                    >
-                      {active && <Ionicons name="checkmark" size={11} color="#fff" />}
-                      <Text style={[ms.chipText, active && ms.chipTextActive]}>{t}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
+              <Text style={ms.label}>{tx('sell_label')} <Text style={ms.labelHint}>({tx('sell_placeholder')})</Text></Text>
+              <View style={ms.micHint}>
+                <Ionicons name="mic" size={18} color="#4F46E5" />
+                <Text style={ms.micHintText}>{tx('sell_hint')}</Text>
               </View>
-            </View>
-
-            <View style={ms.section}>
-              <Text style={ms.label}>{t('addBranch_keywordsLabel')} <Text style={ms.labelHint}>(optional)</Text></Text>
               <TextInput
-                style={[ms.input, { minHeight: 72, textAlignVertical: 'top', paddingTop: 12 }]}
-                value={keywords} onChangeText={setKeywords} multiline
-                placeholder={t('addBranch_keywordsPlaceholder')}
+                style={[ms.input, { minHeight: 72, textAlignVertical: 'top', paddingTop: 12, fontSize: 16 }]}
+                value={sells} onChangeText={setSells} multiline maxLength={500}
                 placeholderTextColor="#9CA3AF"
+                accessibilityLabel={tx('sell_label')}
               />
-              <Text style={ms.hint}>Comma-separated — woven into the AI-generated review.</Text>
             </View>
           </ScrollView>
         </SafeAreaView>
@@ -486,13 +463,9 @@ const ms = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: '#0F172A', minHeight: 48,
   },
   hint:     { fontSize: 12, color: '#94A3B8', lineHeight: 17 },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
-    borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#F8FAFC',
+  micHint: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#EEF2FF', borderRadius: 12, padding: 12,
   },
-  chipActive:     { backgroundColor: '#4F46E5', borderColor: '#4F46E5' },
-  chipText:       { fontSize: 13, fontWeight: '600', color: '#475569' },
-  chipTextActive: { color: '#fff' },
+  micHintText: { flex: 1, fontSize: 14, color: '#3730A3', lineHeight: 20 },
 });

@@ -4,16 +4,6 @@
 
 export type Language = 'en' | 'es' | 'hi' | 'gu';
 
-export type BranchCategory =
-  | 'Restaurant' | 'Cafe' | 'Bar' | 'Bakery' | 'Fast Food' | 'Sweet Shop'
-  | 'Hospital' | 'Clinic' | 'Pharmacy' | 'Dentist' | 'Veterinary'
-  | 'Salon' | 'Spa' | 'Gym' | 'Yoga' | 'Fitness'
-  | 'Hotel' | 'Resort' | 'Hostel'
-  | 'Retail' | 'Clothing' | 'Jewelry' | 'Electronics' | 'Furniture'
-  | 'Grocery' | 'Supermarket' | 'Hardware' | 'Books' | 'Sports' | 'Pet Shop'
-  | 'Automotive' | 'Real Estate' | 'Bank' | 'School' | 'Travel'
-  | 'Photography' | 'Events' | 'Laundry' | 'Other';
-
 export interface BranchAnalytics {
   totalScans: number;    // QR code scans
   linkVisits: number;    // Shared link visits
@@ -21,18 +11,29 @@ export interface BranchAnalytics {
   lastScanAt?: string;   // ISO date string
 }
 
+/** A button customers tap on the review page ("Biryani", "Quick service", "Long wait"). */
+export interface ReviewButton {
+  id: string;
+  kind: 'bought' | 'good' | 'improve';
+  emoji: string;
+  labels: { en: string; hi: string; gu: string };
+  enabled: boolean;
+  order: number;
+  /** 'ai' = made from the Google listing; 'merchant' = added by the merchant */
+  source: 'ai' | 'merchant';
+}
+
 export interface Branch {
   id: string;
   name: string;
-  category?: BranchCategory; // legacy — no longer collected during onboarding
   businessName: string;
   address: string;
   placeId: string;
   googleMapsUrl: string;
-  /** Custom keywords the merchant wants highlighted (e.g. "clean rooms, fast service") */
-  keywords: string;
-  /** Adjective tone the AI uses (e.g. "professional", "friendly", "luxury") */
-  tone: string;
+  /** Review buttons — saved only through saveBranchButtons / the server */
+  buttons: ReviewButton[];
+  /** What the merchant said they sell, if they did */
+  servicesSpoken?: string;
   analytics: BranchAnalytics;
   createdAt: string; // ISO date string
 }
@@ -48,8 +49,6 @@ export interface QRPayload {
   uid: string;
   branchName: string;
   businessName: string;
-  tone: string;
-  keywords: string;
   /** Schema version for forward-compatibility */
   v: number;
 }
@@ -72,6 +71,7 @@ export type MerchantStackParamList = {
     };
   } | undefined;
   BranchDetail: { branchId: string };
+  CustomerButtons: { branchId: string };
   FeedbackInbox: { branchId: string; branchName: string };
   StoreSelector: undefined;
   Settings: undefined;

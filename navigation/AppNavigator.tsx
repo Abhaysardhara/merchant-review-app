@@ -10,6 +10,7 @@ import { WelcomeScreen }            from '../screens/WelcomeScreen';
 import { SignInScreen }            from '../screens/SignInScreen';
 import { MerchantDashboardScreen } from '../screens/MerchantDashboardScreen';
 import { BranchDetailScreen }      from '../screens/BranchDetailScreen';
+import { CustomerButtonsScreen }   from '../screens/CustomerButtonsScreen';
 import { StoreSelectorScreen }     from '../screens/StoreSelectorScreen';
 import { FeedbackInboxScreen }     from '../screens/FeedbackInboxScreen';
 import { SettingsScreen }          from '../screens/SettingsScreen';
@@ -41,6 +42,7 @@ export function AppNavigator() {
           <>
             <MerchantStack.Screen name="MerchantDashboard" component={MerchantDashboardScreen} />
             <MerchantStack.Screen name="BranchDetail"      component={BranchDetailScreen} />
+            <MerchantStack.Screen name="CustomerButtons"   component={CustomerButtonsScreen} />
             <MerchantStack.Screen name="StoreSelector"     component={StoreSelectorScreen} />
             <MerchantStack.Screen name="FeedbackInbox"     component={FeedbackInboxScreen} />
             <MerchantStack.Screen name="Settings"          component={SettingsScreen} />
